@@ -46,6 +46,7 @@ export default function ForecastCharts({ series, order }) {
 
   const netWorthData = series.map((p) => ({ m: p.month, nw: p.netWorth }));
   const cashData = series.map((p) => ({ m: p.month, cb: p.cashBalance }));
+  const cashFlowData = series.map((p) => ({ m: p.month, income: p.income || 0, expenses: p.expenses || 0, net: p.monthlyNet || 0 }));
   const ids = (order || []).map((d) => ({ id: d.id || d.name, name: d.name }));
   const liabData = series.map((p) => {
     const row = { m: p.month };
@@ -75,14 +76,16 @@ export default function ForecastCharts({ series, order }) {
         </LineChart>
       </Card>
 
-      <Card title="Cash Balance" subtitle="Projected liquid reserves">
-        <LineChart data={cashData} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+      <Card title="Monthly Cash Flow" subtitle="Recurring income vs expenses you've logged">
+        <AreaChart data={cashFlowData} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
           <XAxis dataKey="m" tickFormatter={fmtDate} {...axisProps} />
           <YAxis tickFormatter={money0} width={56} {...axisProps} axisLine={false} />
           <Tooltip formatter={(v) => money0(v)} {...tooltipProps} />
-          <ReferenceLine x={index} stroke="#6366f1" strokeDasharray="3 3" />
-          <Line type="monotone" dataKey="cb" stroke="#6366f1" strokeWidth={2} dot={false} />
-        </LineChart>
+          <Legend wrapperStyle={{ fontSize: 10 }} iconType="plainline" />
+          <Area type="monotone" dataKey="income" name="Income" stroke="#10b981" fill="rgba(16,185,129,0.08)" strokeWidth={2} />
+          <Area type="monotone" dataKey="expenses" name="Expenses" stroke="#f43f5e" fill="rgba(244,63,94,0.08)" strokeWidth={2} />
+          <Area type="monotone" dataKey="net" name="Net Cash" stroke="#6366f1" fill="rgba(99,102,241,0.05)" strokeWidth={1.5} strokeDasharray="4 4" />
+        </AreaChart>
       </Card>
 
       <div className="lg:col-span-2">

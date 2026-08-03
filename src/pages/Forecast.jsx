@@ -13,6 +13,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { TrendingUp, Flame, Snowflake } from "lucide-react";
+import ForecastTip from "@/components/finance/ForecastTip";
 
 const fmt = (v) =>
   (v || 0).toLocaleString(undefined, {
@@ -101,9 +102,12 @@ export default function Forecast() {
           {/* Strategy & Payment Controls */}
           <Reveal>
             <div className="rounded-lg border border-white/10 bg-black p-4 sm:p-5">
-              <div className="flex items-center gap-2 mb-4">
-                <TrendingUp className="h-4 w-4 text-indigo-400" />
-                <h2 className="text-sm font-semibold text-zinc-100">Tune Your Plan</h2>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-indigo-400" />
+                  <h2 className="text-sm font-semibold text-zinc-100">Tune Your Plan</h2>
+                </div>
+                <ForecastTip series={series} extra={extra} method={method} />
               </div>
 
               <div className="space-y-5">
