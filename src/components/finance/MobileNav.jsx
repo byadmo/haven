@@ -18,8 +18,10 @@ export default function MobileNav() {
       aria-label="Primary"
     >
       <div className="pointer-events-auto flex items-center gap-1 rounded-full border border-white/10 bg-zinc-900/95 backdrop-blur-md px-2.5 py-1.5 shadow-lg">
-        {items.map(({ to, label, icon: Icon, end }) => (
-          <NavLink key={to} to={to} end={end} className="flex-col items-center justify-center rounded-full transition-all duration-150 px-2.5 py-1.5">
+        {items.map(({ to, label, icon: Icon, end }, i) => (
+          <NavLink key={to} to={to} end={end} className={`flex-col items-center justify-center rounded-full transition-all duration-150 py-1.5 ${
+            i === 0 ? "pl-4 pr-2.5" : i === items.length - 1 ? "pr-4 pl-2.5" : "px-2.5"
+          }`}>
             {({ isActive }) => (
               <div className={`flex flex-col items-center justify-center gap-0.5 rounded-full px-1.5 py-1 transition-all duration-150 ${
                 isActive ? "bg-white/10" : ""
