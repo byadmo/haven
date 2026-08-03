@@ -19,7 +19,7 @@ import DebtForm from "@/components/finance/DebtForm";
 import DebtModal from "@/components/finance/DebtModal";
 import DebtProgressTracker from "@/components/finance/DebtProgressTracker";
 import StatementImportModal from "@/components/finance/StatementImportModal";
-import AccountsManager from "@/components/finance/AccountsManager";
+import AccountsSummary from "@/components/finance/AccountsSummary";
 import Reveal from "@/components/finance/Reveal";
 
 export default function Home() {
@@ -109,7 +109,7 @@ export default function Home() {
           />
         </Reveal>
 
-        <Reveal><AccountsManager onChanged={refresh} /></Reveal>
+        <Reveal><AccountsSummary /></Reveal>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">

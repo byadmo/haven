@@ -14,6 +14,7 @@ import Insights from '@/pages/Insights';
 import Settings from '@/pages/Settings';
 import Forecast from '@/pages/Forecast';
 import Assistant from '@/pages/Assistant';
+import Accounts from '@/pages/Accounts';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { FinanceLayout } from '@/lib/FinanceDataContext';
 import { Navigate } from 'react-router-dom';
@@ -62,6 +63,7 @@ const AuthenticatedApp = () => {
         <Route path="/settings" element={<Settings />} />
         <Route path="/forecast" element={<Forecast />} />
         <Route path="/assistant" element={<Assistant />} />
+        <Route path="/accounts" element={<Accounts />} />
         </Route>
       </Route>
       <Route path="*" element={<PageNotFound />} />
