@@ -135,6 +135,7 @@ export default function Home() {
       <DebtModal
         open={showDebtForm}
         onOpenChange={setShowDebtForm}
+        accounts={accounts}
         onSaved={refresh}
       />
 

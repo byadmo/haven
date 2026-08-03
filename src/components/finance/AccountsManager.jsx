@@ -9,9 +9,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Trash2, Pencil, Check, X, Landmark, Eye, EyeOff, ScanLine, Briefcase } from "lucide-react";
+import { Plus, Trash2, Pencil, Check, X, Landmark, Eye, EyeOff, ScanLine, Briefcase, ArrowLeftRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import AccountBalanceImportModal from "@/components/finance/AccountBalanceImportModal";
+import TransferModal from "@/components/finance/TransferModal";
 import LiabilityLedger from "@/components/finance/LiabilityLedger";
 import { useForecast } from "@/lib/forecast-context";
 
@@ -42,6 +43,7 @@ export default function AccountsManager({ onChanged }) {
   const [editName, setEditName] = React.useState("");
   const [editBal, setEditBal] = React.useState("");
   const [scanOpen, setScanOpen] = React.useState(false);
+  const [transferOpen, setTransferOpen] = React.useState(false);
 
   const load = React.useCallback(async () => {
     const [a, s, d] = await Promise.all([
@@ -239,6 +241,14 @@ export default function AccountsManager({ onChanged }) {
           <div className="flex items-center gap-2 shrink-0 flex-wrap">
             <button
               type="button"
+              onClick={() => setTransferOpen(true)}
+              title="Transfer between accounts"
+              className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest border px-2.5 py-1.5 rounded-md transition-colors border-indigo-500/40 text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20"
+            >
+              <ArrowLeftRight className="h-3.5 w-3.5" /> Transfer
+            </button>
+            <button
+              type="button"
               onClick={() => setScanOpen(true)}
               title="Scan balance from a photo"
               className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest border px-2.5 py-1.5 rounded-md transition-colors border-emerald-500/40 text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20"
@@ -339,6 +349,14 @@ export default function AccountsManager({ onChanged }) {
       <AccountBalanceImportModal
         open={scanOpen}
         onOpenChange={setScanOpen}
+        accounts={accounts}
+        debts={debts}
+        onSaved={load}
+      />
+
+      <TransferModal
+        open={transferOpen}
+        onOpenChange={setTransferOpen}
         accounts={accounts}
         debts={debts}
         onSaved={load}

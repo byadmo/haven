@@ -61,6 +61,10 @@
     "account_id": {
       "type": "string",
       "description": "The Account this transaction pays into (income) or out of (expense)"
+    },
+    "transfer_account_id": {
+      "type": "string",
+      "description": "The paired account in a transfer: the opposite side of account_id (FROM for income, TO for expense)"
     }
   },
   "required": [

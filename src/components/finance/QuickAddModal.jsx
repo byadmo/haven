@@ -19,11 +19,38 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { adjustLinkedBalance, txEffect, balanceApplies } from "@/lib/accounts";
+import { adjustTransferInOut, balanceApplies } from "@/lib/accounts";
 import { format } from "date-fns";
 import { TrendingDown, TrendingUp } from "lucide-react";
 import RecurringFields from "@/components/finance/RecurringFields";
 import { useCategories, categoryOptions } from "@/lib/categories";
+
+function TransferAccountSelect({ value, onValueChange, accounts, debts, placeholder }) {
+  return (
+    <Select value={value || "__none"} onValueChange={(v) => onValueChange(v === "__none" ? "" : v)}>
+      <SelectTrigger className="mt-1 bg-zinc-950 border-zinc-800 text-zinc-100 h-10">
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent className="bg-zinc-900 border-zinc-800">
+        <SelectItem value="__none">No account</SelectItem>
+        <SelectGroup>
+          <SelectLabel className="text-[10px] uppercase tracking-wider text-zinc-500 px-2 py-1">Bank Accounts</SelectLabel>
+          {accounts.map((a) => (
+            <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+          ))}
+        </SelectGroup>
+        {debts.length > 0 && (
+          <SelectGroup>
+            <SelectLabel className="text-[10px] uppercase tracking-wider text-zinc-500 px-2 py-1">Liabilities</SelectLabel>
+            {debts.map((d) => (
+              <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+            ))}
+          </SelectGroup>
+        )}
+      </SelectContent>
+    </Select>
+  );
+}
 
 export default function QuickAddModal({ open, onOpenChange, accounts = [], debts = [], onSaved }) {
   const { categories } = useCategories();
@@ -33,7 +60,8 @@ export default function QuickAddModal({ open, onOpenChange, accounts = [], debts
   const [type, setType] = React.useState("expense");
   const [category, setCategory] = React.useState("Other");
   const [date, setDate] = React.useState(format(new Date(), "yyyy-MM-dd"));
-  const [accountId, setAccountId] = React.useState("");
+  const [fromId, setFromId] = React.useState("");
+  const [toId, setToId] = React.useState("");
   const [recurring, setRecurring] = React.useState(false);
   const [frequency, setFrequency] = React.useState("monthly");
   const [nextDate, setNextDate] = React.useState(format(new Date(), "yyyy-MM-dd"));
@@ -49,7 +77,8 @@ export default function QuickAddModal({ open, onOpenChange, accounts = [], debts
       setType("expense");
       setCategory("Other");
       setDate(format(new Date(), "yyyy-MM-dd"));
-      setAccountId("");
+      setFromId("");
+      setToId("");
       setRecurring(false);
       setFrequency("monthly");
       setNextDate(format(new Date(), "yyyy-MM-dd"));
@@ -65,20 +94,30 @@ export default function QuickAddModal({ open, onOpenChange, accounts = [], debts
     if (!description || !amount) return;
     setSaving(true);
     try {
+      const amt = parseFloat(amount);
+      // For expense: account_id = FROM, transfer_account_id = TO
+      // For income:  account_id = TO,   transfer_account_id = FROM
+      const accountId = type === "expense" ? fromId : toId;
+      const transferAccountId = type === "expense" ? toId : fromId;
+
       await base44.entities.Transaction.create({
         description,
-        amount: parseFloat(amount),
+        amount: amt,
         type,
         category,
         date,
         account_id: accountId || undefined,
+        transfer_account_id: transferAccountId || undefined,
         is_scheduled: recurring,
         frequency: recurring ? frequency : "one_time",
         next_date: recurring ? (nextDate || date) : undefined,
         custom_interval: recurring && frequency === "custom" ? (parseInt(customInterval) || 1) : undefined,
         custom_unit: recurring && frequency === "custom" ? customUnit : undefined,
       });
-      if (accountId && balanceApplies(date)) await adjustLinkedBalance(accountId, txEffect({ type, amount: parseFloat(amount) }));
+
+      if (fromId && balanceApplies(date)) await adjustTransferInOut(fromId, amt, "out");
+      if (toId && balanceApplies(date)) await adjustTransferInOut(toId, amt, "in");
+
       onOpenChange?.(false);
       onSaved?.();
     } finally {
@@ -94,7 +133,7 @@ export default function QuickAddModal({ open, onOpenChange, accounts = [], debts
           <DialogDescription className="text-zinc-500">Log a transaction in seconds — Tab to move, Enter to save.</DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="px-5 pb-5 space-y-4" onKeyDown={(e) => { if (e.key === "Enter" && e.target.tagName !== "TEXTAREA") {/* allow submit */} }}>
+        <form onSubmit={handleSubmit} className="px-5 pb-5 space-y-4">
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
@@ -147,6 +186,19 @@ export default function QuickAddModal({ open, onOpenChange, accounts = [], debts
             />
           </div>
 
+          {/* FROM and TO account selectors */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-[11px] text-zinc-500 uppercase tracking-wider">FROM Account</Label>
+              <TransferAccountSelect value={fromId} onValueChange={setFromId} accounts={accounts} debts={debts} placeholder="No account" />
+            </div>
+            <div>
+              <Label className="text-[11px] text-zinc-500 uppercase tracking-wider">TO Account</Label>
+              <TransferAccountSelect value={toId} onValueChange={setToId} accounts={accounts} debts={debts} placeholder="No account" />
+            </div>
+          </div>
+
+          {/* Category and Date */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label className="text-[11px] text-zinc-500 uppercase tracking-wider">Category</Label>
@@ -158,33 +210,14 @@ export default function QuickAddModal({ open, onOpenChange, accounts = [], debts
               </Select>
             </div>
             <div>
-              <Label className="text-[11px] text-zinc-500 uppercase tracking-wider">{type === "income" ? "Into account" : "From account"}</Label>
-              <Select value={accountId} onValueChange={setAccountId}>
-                <SelectTrigger className="mt-1 bg-zinc-950 border-zinc-800 text-zinc-100 h-10"><SelectValue placeholder="No account" /></SelectTrigger>
-                <SelectContent className="bg-zinc-900 border-zinc-800">
-                  <SelectItem value={null}>No account</SelectItem>
-                  {accounts.map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
-                  {debts.length > 0 && (
-                    <SelectGroup>
-                      <SelectLabel className="text-[10px] uppercase tracking-wider text-zinc-500 px-2 py-1">Liabilities</SelectLabel>
-                      {debts.map((d) => (
-                        <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
-                      ))}
-                    </SelectGroup>
-                  )}
-                </SelectContent>
-              </Select>
+              <Label className="text-[11px] text-zinc-500 uppercase tracking-wider">Date</Label>
+              <Input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className="mt-1 bg-zinc-950 border-zinc-800 text-zinc-100 h-10"
+              />
             </div>
-          </div>
-
-          <div>
-            <Label className="text-[11px] text-zinc-500 uppercase tracking-wider">Date</Label>
-            <Input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="mt-1 bg-zinc-950 border-zinc-800 text-zinc-100 h-10"
-            />
           </div>
 
           <RecurringFields

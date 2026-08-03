@@ -4,11 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, SelectLabel } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { adjustTransferInOut } from "@/lib/accounts";
 import { format } from "date-fns";
+import { ArrowRight } from "lucide-react";
 
-export default function DebtModal({ open, onOpenChange, onSaved }) {
+export default function DebtModal({ open, onOpenChange, accounts = [], onSaved }) {
   const [name, setName] = React.useState("");
   const [currentBalance, setCurrentBalance] = React.useState("");
   const [originalBalance, setOriginalBalance] = React.useState("");
@@ -17,6 +19,8 @@ export default function DebtModal({ open, onOpenChange, onSaved }) {
   const [minimumPayment, setMinimumPayment] = React.useState("");
   const [dueDate, setDueDate] = React.useState(format(new Date(), "yyyy-MM-dd"));
   const [showInAccounts, setShowInAccounts] = React.useState(false);
+  const [fromAccountId, setFromAccountId] = React.useState("");
+  const [toAccountId, setToAccountId] = React.useState("");
   const [saving, setSaving] = React.useState(false);
 
   React.useEffect(() => {
@@ -29,6 +33,8 @@ export default function DebtModal({ open, onOpenChange, onSaved }) {
       setMinimumPayment("");
       setDueDate(format(new Date(), "yyyy-MM-dd"));
       setShowInAccounts(false);
+      setFromAccountId("");
+      setToAccountId("");
     }
   }, [open]);
 
@@ -37,10 +43,11 @@ export default function DebtModal({ open, onOpenChange, onSaved }) {
     if (!name || !currentBalance) return;
     setSaving(true);
     try {
+      const balance = parseFloat(currentBalance);
       await base44.entities.Debt.create({
         name,
-        current_balance: parseFloat(currentBalance),
-        original_balance: parseFloat(originalBalance) || parseFloat(currentBalance),
+        current_balance: balance,
+        original_balance: parseFloat(originalBalance) || balance,
         interest_rate: parseFloat(interestRate) || 0,
         interest_type: interestType,
         minimum_payment: parseFloat(minimumPayment) || 0,
@@ -48,6 +55,16 @@ export default function DebtModal({ open, onOpenChange, onSaved }) {
         status: "active",
         show_in_accounts: showInAccounts,
       });
+
+      // If TO is set, the cash from this debt lands in that bank account (cash advance / loan disbursement)
+      if (toAccountId) {
+        await adjustTransferInOut(toAccountId, balance, "in");
+      }
+      // If FROM is set, funds were drawn from that bank account to cover this debt
+      if (fromAccountId) {
+        await adjustTransferInOut(fromAccountId, balance, "out");
+      }
+
       onOpenChange?.(false);
       onSaved?.();
     } finally {
@@ -63,7 +80,7 @@ export default function DebtModal({ open, onOpenChange, onSaved }) {
           <DialogDescription className="text-zinc-500">Add a debt to your ledger — Tab to move, Enter to save.</DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="px-5 pb-5 space-y-4" onKeyDown={(e) => { if (e.key === "Enter" && e.target.tagName !== "TEXTAREA") {/* allow submit */} }}>
+        <form onSubmit={handleSubmit} className="px-5 pb-5 space-y-4">
           <div>
             <Label className="text-[11px] text-zinc-500 uppercase tracking-wider">Current Balance</Label>
             <div className="mt-1 relative">
@@ -125,6 +142,40 @@ export default function DebtModal({ open, onOpenChange, onSaved }) {
           <div>
             <Label className="text-[11px] text-zinc-500 uppercase tracking-wider">Due Date</Label>
             <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="mt-1 bg-zinc-950 border-zinc-800 text-zinc-100 h-10" />
+          </div>
+
+          {/* FROM / TO fund flow */}
+          <div className="rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-3 space-y-3">
+            <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-zinc-500 font-medium">
+              <ArrowRight className="h-3 w-3" /> Initial Fund Flow (optional)
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-[11px] text-zinc-500 uppercase tracking-wider">FROM Account</Label>
+                <Select value={fromAccountId || "__none"} onValueChange={(v) => setFromAccountId(v === "__none" ? "" : v)}>
+                  <SelectTrigger className="mt-1 bg-zinc-950 border-zinc-800 text-zinc-100 h-10"><SelectValue placeholder="No account" /></SelectTrigger>
+                  <SelectContent className="bg-black border-zinc-800">
+                    <SelectItem value="__none">No account</SelectItem>
+                    {accounts.map((a) => (
+                      <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-[11px] text-zinc-500 uppercase tracking-wider">TO Account</Label>
+                <Select value={toAccountId || "__none"} onValueChange={(v) => setToAccountId(v === "__none" ? "" : v)}>
+                  <SelectTrigger className="mt-1 bg-zinc-950 border-zinc-800 text-zinc-100 h-10"><SelectValue placeholder="No account" /></SelectTrigger>
+                  <SelectContent className="bg-black border-zinc-800">
+                    <SelectItem value="__none">No account</SelectItem>
+                    {accounts.map((a) => (
+                      <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <p className="text-[10px] text-zinc-600 mt-0.5">FROM deducts the opening balance from a bank account. TO receives the cash from a cash advance or loan disbursement.</p>
           </div>
 
           <div className="flex items-center justify-between rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2.5">
