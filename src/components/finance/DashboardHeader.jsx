@@ -29,6 +29,7 @@ export default function DashboardHeader({ actions }) {
             <NavLink to="/" className={linkClass} end>Overview</NavLink>
             <NavLink to="/strategy" className={linkClass}>Strategy</NavLink>
             <NavLink to="/portfolio" className={linkClass}>Portfolio</NavLink>
+            <NavLink to="/insights" className={linkClass}>Insights</NavLink>
           </nav>
         </div>
         <div className="flex items-center gap-2">

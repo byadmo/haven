@@ -10,6 +10,7 @@ import ScrollToTop from './components/ScrollToTop';
 import Home from '@/pages/Home';
 import Strategy from '@/pages/Strategy';
 import Portfolio from '@/pages/Portfolio';
+import Insights from '@/pages/Insights';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { Navigate } from 'react-router-dom';
 import Login from '@/pages/Login';
@@ -52,6 +53,7 @@ const AuthenticatedApp = () => {
         <Route path="/" element={<Home />} />
         <Route path="/strategy" element={<Strategy />} />
         <Route path="/portfolio" element={<Portfolio />} />
+        <Route path="/insights" element={<Insights />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
