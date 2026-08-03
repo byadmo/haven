@@ -16,6 +16,8 @@ import FundFlows from "@/components/finance/FundFlows";
 import TransactionForm from "@/components/finance/TransactionForm";
 import DebtForm from "@/components/finance/DebtForm";
 import StockTracker from "@/components/finance/StockTracker";
+import Reveal from "@/components/finance/Reveal";
+import { motion } from "framer-motion";
 
 export default function Home() {
   const [txns, setTxns] = React.useState([]);
@@ -94,7 +96,7 @@ export default function Home() {
 
       <main className="relative max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-6">
         {/* Summary stat row */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <Reveal className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <StatCard icon={<Wallet className="h-4 w-4" />} label="Total Debt" value={fmt(totalDebt)} accent="rose" />
           <StatCard icon={<TrendingUp className="h-4 w-4" />} label="Income (Month)" value={fmt(mIncome)} accent="emerald" />
           <StatCard icon={<TrendingDown className="h-4 w-4" />} label="Expenses (Month)" value={fmt(mExpense)} accent="orange" />
@@ -104,7 +106,7 @@ export default function Home() {
             value={`${mNet >= 0 ? "+" : "-"}${fmt(Math.abs(mNet))}`}
             accent={mNet >= 0 ? "emerald" : "rose"}
           />
-        </div>
+        </Reveal>
 
         {/* Loss alert */}
         {mNet < 0 && (
@@ -120,8 +122,8 @@ export default function Home() {
         )}
 
         {/* Strategy engine + Cash flow */}
-        <DebtStrategyEngine debts={debts} monthlySurplus={Math.max(0, mNet)} />
-        <CashFlowAnalytics transactions={txns} />
+        <Reveal><DebtStrategyEngine debts={debts} monthlySurplus={Math.max(0, mNet)} /></Reveal>
+        <Reveal delay={0.05}><CashFlowAnalytics transactions={txns} /></Reveal>
 
         {/* Liability ledger */}
         <section>
@@ -131,11 +133,11 @@ export default function Home() {
               <p className="text-xs text-zinc-500">Manage your active debts</p>
             </div>
           </div>
-          <LiabilityLedger debts={debts} onChanged={() => setRefreshKey((k) => k + 1)} />
+          <Reveal><LiabilityLedger debts={debts} onChanged={() => setRefreshKey((k) => k + 1)} /></Reveal>
         </section>
 
         {/* Stock portfolio */}
-        <StockTracker onChanged={() => setRefreshKey((k) => k + 1)} />
+        <Reveal><StockTracker onChanged={() => setRefreshKey((k) => k + 1)} /></Reveal>
 
         {/* Fund flows */}
         <section>
@@ -143,7 +145,7 @@ export default function Home() {
             <h2 className="font-semibold text-sm text-zinc-100">Income & Expense Flow</h2>
             <p className="text-xs text-zinc-500">Inflows vs outflows, aligned with tabular numbers</p>
           </div>
-          <FundFlows transactions={txns} onChanged={() => setRefreshKey((k) => k + 1)} />
+          <Reveal><FundFlows transactions={txns} onChanged={() => setRefreshKey((k) => k + 1)} /></Reveal>
         </section>
       </main>
 
@@ -184,7 +186,11 @@ function StatCard({ icon, label, value, accent }) {
     orange: "text-orange-400 bg-orange-500/15",
   };
   return (
-    <div className="rounded-2xl bg-zinc-900/60 backdrop-blur-xl border border-zinc-800 p-4 shadow-lg shadow-black/30">
+    <motion.div
+      whileHover={{ y: -2 }}
+      transition={{ type: "spring", stiffness: 300, damping: 22 }}
+      className="rounded-2xl bg-zinc-900/60 backdrop-blur-xl border border-zinc-800 p-4 shadow-lg shadow-black/30"
+    >
       <div className="flex items-center gap-2 mb-2">
         <div className={`h-7 w-7 rounded-lg flex items-center justify-center ${accents[accent] || ""}`}>{icon}</div>
         <span className="text-[11px] uppercase tracking-wider text-zinc-500 font-medium">{label}</span>
@@ -192,6 +198,6 @@ function StatCard({ icon, label, value, accent }) {
       <p className={`text-xl font-bold tabular-nums ${accent === "emerald" ? "text-emerald-400" : accent === "rose" ? "text-rose-400" : accent === "orange" ? "text-orange-400" : "text-zinc-50"}`}>
         {value}
       </p>
-    </div>
+    </motion.div>
   );
 }

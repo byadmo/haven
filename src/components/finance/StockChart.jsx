@@ -1,4 +1,5 @@
 import React from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { base44 } from "@/api/base44Client";
 import {
   ResponsiveContainer,
@@ -21,9 +22,7 @@ const INTERVALS = [
 
 const fmtTime = (ts, interval) => {
   const d = new Date(ts * 1000);
-  if (interval === "1d") {
-    return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-  }
+  if (interval === "1d") return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
   return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
 };
 
@@ -35,7 +34,7 @@ const fmtNum = (v) =>
 function CustomTooltip({ active, payload, label, interval }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-lg border border-zinc-700 bg-zinc-900/95 backdrop-blur px-3 py-2 shadow-xl">
+    <div className="rounded-lg border border-zinc-700/80 bg-zinc-900/95 backdrop-blur px-3 py-2 shadow-xl">
       <p className="text-[11px] text-zinc-400 mb-1">{label}</p>
       {payload.map((p) => (
         <p key={p.dataKey} className="text-sm font-semibold text-zinc-100 tabular-nums">
@@ -49,19 +48,18 @@ function CustomTooltip({ active, payload, label, interval }) {
 export default function StockChart({ stocks }) {
   const [view, setView] = React.useState("portfolio");
   const [interval, setInterval] = React.useState("5m");
-  const [data, setData] = React.useState([]);
-  const [loading, setLoading] = React.useState(false);
+  const [pending, setPending] = React.useState(false);
   const [error, setError] = React.useState(null);
+  const [display, setDisplay] = React.useState({ key: "portfolio|5m", points: [], isPortfolio: true });
 
   React.useEffect(() => {
     if (!stocks?.length) {
-      setData([]);
+      setDisplay({ key: `${view}|${interval}`, points: [], isPortfolio: view === "portfolio" });
       setError(null);
       return;
     }
     let cancelled = false;
-    setLoading(true);
-    setError(null);
+    setPending(true);
     const symbols = stocks.map((s) => s.symbol);
     base44.functions
       .invoke("FetchStockData", { symbols, interval })
@@ -70,150 +68,185 @@ export default function StockChart({ stocks }) {
         const d = res?.data || res;
         const timestamps = d.timestamps || [];
         const series = d.series || {};
+        let points;
         if (view === "portfolio") {
           const sharesMap = {};
           stocks.forEach((s) => (sharesMap[s.symbol] = s.shares || 0));
-          const len = timestamps.length;
-          const points = timestamps.map((ts, i) => {
+          points = timestamps.map((ts, i) => {
             let sum = 0;
             for (const sym of symbols) {
               const c = series[sym]?.[i];
               if (c != null) sum += (sharesMap[sym] || 0) * c;
             }
-            const time = fmtTime(ts, interval);
-            return { time, value: sum };
+            return { time: fmtTime(ts, interval), value: sum };
           });
-          setData(points);
         } else {
           const closes = series[view] || [];
-          const points = timestamps.map((ts, i) => ({
-            time: fmtTime(ts, interval),
-            value: closes[i],
-          }));
-          setData(points);
+          points = timestamps.map((ts, i) => ({ time: fmtTime(ts, interval), value: closes[i] }));
         }
+        setError(null);
+        setDisplay({ key: `${view}|${interval}`, points, isPortfolio: view === "portfolio" });
       })
       .catch((e) => {
         if (!cancelled) setError(e?.message || "Failed to load chart data");
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setPending(false);
       });
     return () => {
       cancelled = true;
     };
   }, [stocks, view, interval]);
 
-  if (!stocks?.length) {
-    return (
-      <p className="text-sm text-zinc-500 text-center py-8">
-        Add a holding to see price charts.
-      </p>
-    );
-  }
-
-  const up = data.length >= 2 ? data[data.length - 1].value - data[0].value : 0;
+  const firstLoad = pending && display.points.length === 0;
+  const valid = display.points.length > 0 && !error;
+  const trendUp =
+    valid && display.points.length >= 2
+      ? (display.points[display.points.length - 1].value || 0) - (display.points[0].value || 0)
+      : 0;
+  const stroke = trendUp >= 0 ? "#34d399" : "#fb7185";
+  const summaryLabel = view === "portfolio" ? "Portfolio value" : `${view}`;
 
   return (
-    <div className="rounded-2xl bg-zinc-900/60 backdrop-blur-xl border border-zinc-800 p-5 shadow-xl shadow-black/30">
+    <div className="relative rounded-2xl bg-zinc-900/60 backdrop-blur-xl border border-zinc-800 p-5 shadow-xl shadow-black/30 overflow-hidden">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
         <div className="flex flex-wrap gap-1.5">
-          <ToggleChip active={view === "portfolio"} onClick={() => setView("portfolio")}>
+          <SegChip group="view" active={view === "portfolio"} onClick={() => setView("portfolio")} gradient>
             Portfolio
-          </ToggleChip>
-          {stocks.map((s) => (
-            <ToggleChip key={s.id} active={view === s.symbol} onClick={() => setView(s.symbol)}>
+          </SegChip>
+          {stocks.map((s, i) => (
+            <SegChip
+              key={s.id}
+              group={`view${Math.floor(i / 4)}`}
+              active={view === s.symbol}
+              onClick={() => setView(s.symbol)}
+              gradient
+            >
               {s.symbol}
-            </ToggleChip>
+            </SegChip>
           ))}
         </div>
         <div className="flex flex-wrap gap-1">
           {INTERVALS.map((iv) => (
-            <button
-              key={iv.value}
-              onClick={() => setInterval(iv.value)}
-              className={`px-2.5 py-1 rounded-md text-[11px] font-medium tabular-nums transition-colors ${
-                interval === iv.value
-                  ? "bg-zinc-100 text-zinc-900"
-                  : "bg-zinc-800/60 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
-              }`}
-            >
+            <SegBtn key={iv.value} active={interval === iv.value} onClick={() => setInterval(iv.value)}>
               {iv.label}
-            </button>
+            </SegBtn>
           ))}
         </div>
       </div>
 
-      <div className="h-64 w-full">
-        {loading ? (
+      <div className="h-64 w-full relative">
+        {firstLoad ? (
           <div className="flex items-center justify-center h-full">
             <div className="w-7 h-7 border-4 border-zinc-800 border-t-zinc-400 rounded-full animate-spin" />
           </div>
-        ) : error ? (
-          <p className="text-sm text-rose-400 text-center py-8">{error}</p>
-        ) : data.length === 0 ? (
-          <p className="text-sm text-zinc-500 text-center py-8">No data for this range.</p>
         ) : (
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={data} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
-              <defs>
-                <linearGradient id="lineGrad" x1="0" y1="0" x2="1" y2="0">
-                  <stop offset="0%" stopColor={up >= 0 ? "#34d399" : "#fb7185"} />
-                  <stop offset="100%" stopColor={up >= 0 ? "#10b981" : "#f43f5e"} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid stroke="#27272a" strokeDasharray="3 3" vertical={false} />
-              <XAxis
-                dataKey="time"
-                tick={{ fill: "#71717a", fontSize: 10 }}
-                axisLine={{ stroke: "#27272a" }}
-                tickLine={false}
-                minTickGap={40}
-              />
-              <YAxis
-                domain={["auto", "auto"]}
-                tick={{ fill: "#71717a", fontSize: 10 }}
-                axisLine={false}
-                tickLine={false}
-                tickFormatter={(v) => "$" + (typeof v === "number" ? v.toFixed(0) : v)}
-                width={50}
-              />
-              <Tooltip content={<CustomTooltip interval={interval} />} />
-              <Line
-                type="monotone"
-                dataKey="value"
-                stroke="url(#lineGrad)"
-                strokeWidth={2}
-                dot={false}
-                isAnimationActive={false}
-              />
-            </LineChart>
-          </ResponsiveContainer>
+          <AnimatePresence>
+            <motion.div
+              key={display.key}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.35, ease: "easeOut" }}
+              className="absolute inset-0"
+            >
+              {valid ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={display.points} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="lineGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={stroke} stopOpacity={0.9} />
+                        <stop offset="100%" stopColor={stroke} stopOpacity={0.4} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid stroke="#27272a" strokeDasharray="3 3" vertical={false} />
+                    <XAxis
+                      dataKey="time"
+                      tick={{ fill: "#71717a", fontSize: 10 }}
+                      axisLine={{ stroke: "#27272a" }}
+                      tickLine={false}
+                      minTickGap={40}
+                    />
+                    <YAxis
+                      domain={["auto", "auto"]}
+                      tick={{ fill: "#71717a", fontSize: 10 }}
+                      axisLine={false}
+                      tickLine={false}
+                      tickFormatter={(v) => "$" + (typeof v === "number" ? v.toFixed(0) : v)}
+                      width={50}
+                    />
+                    <Tooltip content={<CustomTooltip interval={interval} />} />
+                    <Line
+                      type="monotone"
+                      dataKey="value"
+                      stroke={stroke}
+                      strokeWidth={2}
+                      dot={false}
+                      isAnimationActive
+                      animationDuration={500}
+                      animationEasing="ease-out"
+                      connectNulls
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <p className="text-sm text-rose-400 text-center py-8 flex items-center justify-center h-full">{error || "No data for this range."}</p>
+              )}
+            </motion.div>
+          </AnimatePresence>
+        )}
+
+        {pending && !firstLoad && (
+          <div className="absolute top-2 right-2 flex items-center gap-1.5 px-2 py-1 rounded-md bg-zinc-950/70 border border-zinc-800 backdrop-blur">
+            <div className="w-3 h-3 border-2 border-zinc-700 border-t-zinc-300 rounded-full animate-spin" />
+            <span className="text-[10px] text-zinc-400">Updating</span>
+          </div>
         )}
       </div>
 
-      {data.length >= 2 && !loading && !error && (
-        <p className={`text-xs mt-2 tabular-nums ${up >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-          {up >= 0 ? "▲" : "▼"} {up >= 0 ? "+" : "-"}
-          {Math.abs(up).toLocaleString(undefined, { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 })}{" "}
-          over selected range
+      {valid && (
+        <p className={`text-xs mt-2 tabular-nums ${trendUp >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+          {trendUp >= 0 ? "▲" : "▼"} {trendUp >= 0 ? "+" : "-"}
+          {Math.abs(trendUp).toLocaleString(undefined, { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 })}{" "}
+          {summaryLabel} · selected range
         </p>
       )}
     </div>
   );
 }
 
-function ToggleChip({ active, onClick, children }) {
+function SegChip({ active, onClick, children, gradient }) {
   return (
     <button
       onClick={onClick}
-      className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-        active
-          ? "bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white shadow-lg shadow-violet-500/30"
-          : "bg-zinc-800/60 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
-      }`}
+      className="relative h-7 px-3 rounded-full text-xs font-medium bg-zinc-800/60 hover:bg-zinc-800 transition-colors"
     >
-      {children}
+      {active && (
+        <motion.span
+          layoutId="seg-view"
+          className="absolute inset-0 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 shadow-lg shadow-violet-500/30"
+          transition={{ type: "spring", stiffness: 500, damping: 38 }}
+        />
+      )}
+      <span className={`relative ${active ? "text-white" : "text-zinc-400 hover:text-zinc-100"}`}>{children}</span>
+    </button>
+  );
+}
+
+function SegBtn({ active, onClick, children }) {
+  return (
+    <button
+      onClick={onClick}
+      className="relative h-7 px-2.5 rounded-md text-[11px] font-medium tabular-nums transition-colors"
+    >
+      {active && (
+        <motion.span
+          layoutId="seg-interval"
+          className="absolute inset-0 rounded-md bg-zinc-100 shadow"
+          transition={{ type: "spring", stiffness: 500, damping: 38 }}
+        />
+      )}
+      <span className={`relative ${active ? "text-zinc-900" : "text-zinc-400 hover:text-zinc-100"}`}>{children}</span>
     </button>
   );
 }
