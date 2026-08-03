@@ -147,7 +147,7 @@ export default function Home() {
           </div>
           <div className="space-y-6">
             <Reveal><CashBuffer accounts={accounts} transactions={txns} /></Reveal>
-            <Reveal><UpcomingRecurring transactions={txns} accounts={accounts} /></Reveal>
+            <Reveal><UpcomingRecurring transactions={txns} accounts={accounts} onChanged={() => setRefreshKey((k) => k + 1)} /></Reveal>
 
             <div className="space-y-3">
               <Link to="/strategy" className="group block rounded-2xl bg-zinc-900/60 backdrop-blur-xl border border-zinc-800 p-4 hover:border-indigo-500/40 transition-colors">
