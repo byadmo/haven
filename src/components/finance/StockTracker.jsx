@@ -82,8 +82,10 @@ export default function StockTracker({ onChanged }) {
     };
   }, [stocks, priceKey]);
 
-  async function addStock(e) {
-    e.preventDefault();
+  const [addError, setAddError] = React.useState(null);
+
+  async function addStock() {
+    setAddError(null);
     if (!symbol.trim() || !shares || !avg) return;
     setSaving(true);
     try {
@@ -99,6 +101,8 @@ export default function StockTracker({ onChanged }) {
       setAvg("");
       await loadStocks();
       onChanged?.();
+    } catch (e) {
+      setAddError(e?.message || "Failed to add stock. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -244,8 +248,7 @@ export default function StockTracker({ onChanged }) {
         </div>
 
         <div className="space-y-3">
-          <form
-            onSubmit={addStock}
+          <div
             className="rounded-2xl bg-zinc-900/60 backdrop-blur-xl border border-zinc-800 p-4 shadow-xl shadow-black/30 space-y-3"
           >
             <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Add Holding</h3>
@@ -277,10 +280,13 @@ export default function StockTracker({ onChanged }) {
                 </SelectContent>
               </Select>
             </div>
-            <Button type="submit" disabled={saving || !symbol || !shares || !avg} className="w-full bg-zinc-100 text-zinc-900 hover:bg-white">
+            {addError && (
+              <p className="text-xs text-rose-400 px-1">{addError}</p>
+            )}
+            <Button type="button" onClick={addStock} disabled={saving || !symbol || !shares || !avg} className="w-full bg-zinc-100 text-zinc-900 hover:bg-white">
               <Plus className="h-4 w-4 mr-1" /> {saving ? "Adding…" : "Add Stock"}
             </Button>
-          </form>
+          </div>
 
           <div className="rounded-2xl bg-zinc-900/60 backdrop-blur-xl border border-zinc-800 p-4 shadow-xl shadow-black/30 space-y-2.5">
             <div className="flex items-center justify-between text-xs">
