@@ -77,9 +77,23 @@ const OPS_SCHEMA = {
   required: ["message", "operations"],
 };
 
-const SYSTEM_INSTRUCTIONS = `You are an action-capable finance assistant inside the DebtFlow app.
-You can propose operations to add, remove, or change the user's Transaction, Debt, and Account records.
-Only propose operations the user actually requested. For purely informational questions, return operations: [] and answer in "message".
+const SYSTEM_INSTRUCTIONS = `You are "Haven", a world-class AI financial advisor living inside the user's personal finance app.
+You know everything there is to know about money: budgeting, debt payoff (snowball vs avalanche), interest math, investing, asset allocation, retirement accounts, taxes (with regional awareness), insurance, real estate, emergency funds, behavioral finance, and macroeconomics. You give clear, confident, personalized advice and are equally happy to tackle big life decisions ("should I buy a house now?") as everyday questions ("is this subscription worth keeping?").
+
+PERSONALITY:
+- Warm but direct, never condescending. You sound like the most capable, well-read advisor the user has ever met.
+- You tailor every answer to the user's actual numbers in the PROVIDED DATA — reference their real accounts, debts, balances, and spending when relevant.
+- You explain the *why*, not just the *what*. Offer reasoning, trade-offs, and a recommended action.
+- Be concrete and specific — dollar amounts, percentages, timelines. Avoid vague platitudes like "spend less than you earn."
+- When the user is stressed or in a tough spot, you are calm, reassuring, and constructive — never preachy.
+- You can disagree with the user respectfully when their plan is flawed, and you'll explain the better path.
+- Keep answers tight and skimmable: lead with the answer, then a short supporting explanation. Use plain language; reserve jargon for when it genuinely helps.
+- You do NOT give legal or individual tax-filing advice or guarantees about investment returns — frame those as general educational guidance and suggest a licensed professional when it crosses that line.
+
+CAPABILITIES:
+You are action-capable: you can propose operations to add, remove, or change the user's Transaction, Debt, and Account records.
+Only propose operations the user actually requested. For purely informational questions or advice, return operations: [] and answer in "message".
+The user approves every change before it is applied.
 
 Entity fields:
 - Transaction: description(string), amount(number, positive), type("income"|"expense"), category(string), date(yyyy-mm-dd), account_id(string), is_scheduled(bool), frequency("one_time"|"daily"|"weekly"|"biweekly"|"monthly"|"yearly"|"custom"), next_date(yyyy-mm-dd), custom_interval(number), custom_unit("days"|"weeks"|"months"|"years")
@@ -99,21 +113,21 @@ function cleanData(data) {
   return out;
 }
 
-function buildContext({ accounts, debts, transactions }) {
+function buildContext({ accounts, debts, transactions, summary }) {
   const a = (accounts || []).map((x) => `- ${x.id} | "${x.name}" | balance ${x.balance ?? 0} | ${x.type || "chequing"}`).join("\n");
   const d = (debts || []).map((x) => `- ${x.id} | "${x.name}" | balance ${x.current_balance ?? 0} | apr ${x.interest_rate ?? 0} | min ${x.minimum_payment ?? 0} | due ${x.due_date || ""} | ${x.status || "active"}`).join("\n");
   const t = (transactions || [])
     .slice(0, 40)
     .map((x) => `- ${x.id} | ${x.date} | ${x.type} | ${x.category || ""} | ${x.amount} | acct ${x.account_id || "—"} | "${x.description || ""}"${x.is_scheduled ? ` | recurring ${x.frequency}` : ""}`)
     .join("\n");
-  return `PROVIDED DATA (ids are real — use them for update/delete targetId):\nACCOUNTS:\n${a || "(none)"}\nDEBTS:\n${d || "(none)"}\nRECENT TRANSACTIONS:\n${t || "(none)"}`;
+  return `PROVIDED DATA (ids are real — use them for update/delete targetId):\nMONTHLY SUMMARY:\n${summary || "(unavailable)"}\nACCOUNTS:\n${a || "(none)"}\nDEBTS:\n${d || "(none)"}\nRECENT TRANSACTIONS:\n${t || "(none)"}`;
 }
 
-export default function AssistantChat({ accounts, debts, transactions }) {
+export default function AssistantChat({ accounts, debts, transactions, summary }) {
   const [messages, setMessages] = React.useState([
     {
       id: uid(), role: "assistant", kind: "text",
-      text: "I'm your finance assistant. Upload a bank statement screenshot/PDF to import transactions, or tell me to add, remove, or change anything across your transactions, debts, and accounts — I'll ask you to approve every change first.",
+      text: "I'm Haven, your personal AI financial advisor. Ask me anything — budgeting, debt strategy, investing, taxes, or a big money decision you're weighing. I can also make changes to your transactions, debts, and accounts (you'll approve every edit first). Upload a statement photo or PDF to import transactions, or just tell me what's on your mind.",
     },
   ]);
   const [input, setInput] = React.useState("");
@@ -128,7 +142,7 @@ export default function AssistantChat({ accounts, debts, transactions }) {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, busy]);
 
-  const ctxData = { accounts, debts, transactions };
+  const ctxData = { accounts, debts, transactions, summary };
 
   function addMsg(m) { setMessages((s) => [...s, { id: uid(), ...m }]); }
 
@@ -358,7 +372,7 @@ export default function AssistantChat({ accounts, debts, transactions }) {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-              placeholder="Try: delete my latest coffee transaction, or add a $50 Visa payment"
+              placeholder="Ask anything — “how do I tackle my debt?” or “add a $50 Visa payment”"
               className="flex-1 h-10 bg-black border border-white/10 rounded-md px-3 text-sm text-zinc-100 placeholder:text-white/30 focus:outline-none focus:border-white/30"
             />
             <Button
