@@ -15,6 +15,7 @@ import Settings from '@/pages/Settings';
 import Forecast from '@/pages/Forecast';
 import Assistant from '@/pages/Assistant';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import { FinanceLayout } from '@/lib/FinanceDataContext';
 import { Navigate } from 'react-router-dom';
 import Login from '@/pages/Login';
 import Register from '@/pages/Register';
@@ -52,6 +53,7 @@ const AuthenticatedApp = () => {
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
+        <Route element={<FinanceLayout />}>
         {/* Add your page Route elements here */}
         <Route path="/" element={<Home />} />
         <Route path="/strategy" element={<Strategy />} />
@@ -60,6 +62,7 @@ const AuthenticatedApp = () => {
         <Route path="/settings" element={<Settings />} />
         <Route path="/forecast" element={<Forecast />} />
         <Route path="/assistant" element={<Assistant />} />
+        </Route>
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>

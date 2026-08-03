@@ -1,42 +1,11 @@
 import React from "react";
-import { base44 } from "@/api/base44Client";
+import { useFinanceData } from "@/lib/FinanceDataContext";
 import DashboardHeader from "@/components/finance/DashboardHeader";
 import AssistantChat from "@/components/assistant/AssistantChat";
 import { Sparkles } from "lucide-react";
 
 export default function Assistant() {
-  const [data, setData] = React.useState({
-    accounts: [],
-    debts: [],
-    transactions: [],
-    debtPayments: [],
-    stocks: [],
-    categories: [],
-  });
-  const [loading, setLoading] = React.useState(true);
-
-  React.useEffect(() => {
-    Promise.all([
-      base44.entities.Account.list("-created_date"),
-      base44.entities.Debt.list("-created_date"),
-      base44.entities.Transaction.list("-date", 500),
-      base44.entities.DebtPayment.list("-date", 200),
-      base44.entities.Stock.list("-created_date"),
-      base44.entities.Category.list("-created_date"),
-    ])
-      .then(([accounts, debts, transactions, debtPayments, stocks, categories]) =>
-        setData({ accounts, debts, transactions, debtPayments, stocks, categories })
-      )
-      .finally(() => setLoading(false));
-  }, []);
-
-  if (loading) {
-    return (
-      <div className="dark min-h-screen bg-black flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-zinc-800 border-t-zinc-400 rounded-full animate-spin" />
-      </div>
-    );
-  }
+  const { accounts, debts, transactions, debtPayments, stocks, categories } = useFinanceData();
 
   return (
     <div className="dd-page-enter dark min-h-screen bg-black text-zinc-100">
@@ -52,12 +21,12 @@ export default function Assistant() {
           </div>
         </div>
         <AssistantChat
-          accounts={data.accounts}
-          debts={data.debts}
-          transactions={data.transactions}
-          debtPayments={data.debtPayments}
-          stocks={data.stocks}
-          categories={data.categories}
+          accounts={accounts}
+          debts={debts}
+          transactions={transactions}
+          debtPayments={debtPayments}
+          stocks={stocks}
+          categories={categories}
         />
       </main>
     </div>

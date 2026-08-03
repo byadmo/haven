@@ -1,5 +1,5 @@
 import React from "react";
-import { base44 } from "@/api/base44Client";
+import { useFinanceData } from "@/lib/FinanceDataContext";
 import {
   startOfMonth, endOfMonth, isWithinInterval, parseISO, subMonths,
 } from "date-fns";
@@ -25,11 +25,7 @@ import Reveal from "@/components/finance/Reveal";
 import { Link } from "react-router-dom";
 
 export default function Home() {
-  const [txns, setTxns] = React.useState([]);
-  const [debts, setDebts] = React.useState([]);
-  const [accounts, setAccounts] = React.useState([]);
-  const [loading, setLoading] = React.useState(true);
-  const [refreshKey, setRefreshKey] = React.useState(0);
+  const { transactions: txns, debts, accounts, refresh, refreshKey } = useFinanceData();
   const [quickAdd, setQuickAdd] = React.useState(false);
   const [showDebtForm, setShowDebtForm] = React.useState(false);
   const [showImport, setShowImport] = React.useState(false);
@@ -38,22 +34,6 @@ export default function Home() {
     () => computeTrajectory({ debts, accounts, transactions: txns }).series,
     [debts, accounts, txns]
   );
-
-  const loadData = React.useCallback(async () => {
-    const [t, d, a] = await Promise.all([
-      base44.entities.Transaction.list("-date", 500),
-      base44.entities.Debt.list("-created_date"),
-      base44.entities.Account.list("-created_date"),
-    ]);
-    setTxns(t);
-    setDebts(d);
-    setAccounts(a);
-    setLoading(false);
-  }, []);
-
-  React.useEffect(() => {
-    loadData();
-  }, [loadData, refreshKey]);
 
   // ⌘K quick-add trigger (from command palette when already on Home) + ?add=1 deep link
   React.useEffect(() => {
@@ -85,14 +65,6 @@ export default function Home() {
   const totalCash = accounts.reduce((s, a) => s + (a.balance || 0), 0);
   const netWorth = totalCash - totalDebt;
   const spendRatio = mIncome > 0 ? mExpense / mIncome : (mExpense > 0 ? 1 : 0);
-
-  if (loading) {
-    return (
-      <div className="dark min-h-screen bg-black flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-zinc-800 border-t-zinc-400 rounded-full animate-spin" />
-      </div>
-    );
-  }
 
   const headerActions = (
     <>
@@ -139,18 +111,18 @@ export default function Home() {
           />
         </Reveal>
 
-        <Reveal><AccountsManager onChanged={() => setRefreshKey((k) => k + 1)} /></Reveal>
+        <Reveal><AccountsManager onChanged={refresh} /></Reveal>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
             <Reveal><CashFlowAnalytics transactions={txns} /></Reveal>
             <Reveal delay={0.05}>
-              <RecentTransactions transactions={txns} accounts={accounts} debts={debts} refreshKey={refreshKey} onChanged={() => setRefreshKey((k) => k + 1)} />
+              <RecentTransactions transactions={txns} accounts={accounts} debts={debts} refreshKey={refreshKey} onChanged={refresh} />
             </Reveal>
           </div>
           <div className="space-y-6">
             <Reveal><CashBuffer accounts={accounts} transactions={txns} /></Reveal>
-            <Reveal><UpcomingRecurring transactions={txns} accounts={accounts} onChanged={() => setRefreshKey((k) => k + 1)} /></Reveal>
+            <Reveal><UpcomingRecurring transactions={txns} accounts={accounts} onChanged={refresh} /></Reveal>
 
             <div className="space-y-3">
               <Link to="/strategy" className="group block rounded-2xl bg-zinc-900/60 backdrop-blur-xl border border-zinc-800 p-4 hover:border-indigo-500/40 transition-colors">
@@ -183,7 +155,7 @@ export default function Home() {
           <div className="space-y-4">
             <DebtProgressTracker debts={debts} />
             <Reveal><DebtRepaymentGraph debts={debts} /></Reveal>
-            <Reveal><LiabilityLedger debts={debts} onChanged={() => setRefreshKey((k) => k + 1)} /></Reveal>
+            <Reveal><LiabilityLedger debts={debts} onChanged={refresh} /></Reveal>
           </div>
         </section>
       </main>
@@ -194,13 +166,13 @@ export default function Home() {
         onOpenChange={setQuickAdd}
         accounts={accounts}
         debts={debts}
-        onSaved={() => setRefreshKey((k) => k + 1)}
+        onSaved={refresh}
       />
 
       <DebtModal
         open={showDebtForm}
         onOpenChange={setShowDebtForm}
-        onSaved={() => setRefreshKey((k) => k + 1)}
+        onSaved={refresh}
       />
 
       <StatementImportModal
@@ -208,7 +180,7 @@ export default function Home() {
         onOpenChange={setShowImport}
         accounts={accounts}
         debts={debts}
-        onSaved={() => setRefreshKey((k) => k + 1)}
+        onSaved={refresh}
       />
     </div>
   );

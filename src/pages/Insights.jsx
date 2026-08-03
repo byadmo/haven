@@ -1,5 +1,5 @@
 import React from "react";
-import { base44 } from "@/api/base44Client";
+import { useFinanceData } from "@/lib/FinanceDataContext";
 import { startOfMonth, endOfMonth, subMonths, format, isWithinInterval, parseISO } from "date-fns";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import DashboardHeader from "@/components/finance/DashboardHeader";
@@ -9,13 +9,8 @@ import IncomeVsSpendingChart from "@/components/finance/IncomeVsSpendingChart";
 import CategoryBreakdownChart from "@/components/finance/CategoryBreakdownChart";
 
 export default function Insights() {
-  const [txns, setTxns] = React.useState([]);
-  const [loading, setLoading] = React.useState(true);
+  const { transactions: txns } = useFinanceData();
   const [anchor, setAnchor] = React.useState(new Date());
-
-  React.useEffect(() => {
-    base44.entities.Transaction.list("-date", 1000).then(setTxns).finally(() => setLoading(false));
-  }, []);
 
   const months = React.useMemo(() => {
     const arr = [];
@@ -59,14 +54,6 @@ export default function Insights() {
       .sort((a, b) => b.amount - a.amount)
       .slice(0, 8);
   }, [months, txns]);
-
-  if (loading) {
-    return (
-      <div className="dark min-h-screen bg-black flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-zinc-800 border-t-zinc-400 rounded-full animate-spin" />
-      </div>
-    );
-  }
 
   return (
     <div className="dd-page-enter dark min-h-screen bg-black text-zinc-100 selection:bg-emerald-500/30">

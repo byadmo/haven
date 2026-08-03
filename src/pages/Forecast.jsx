@@ -1,5 +1,5 @@
 import React from "react";
-import { base44 } from "@/api/base44Client";
+import { useFinanceData } from "@/lib/FinanceDataContext";
 import { format } from "date-fns";
 import DashboardHeader from "@/components/finance/DashboardHeader";
 import { ForecastProvider } from "@/lib/forecast-context";
@@ -17,24 +17,11 @@ import {
 import { Label } from "@/components/ui/label";
 
 export default function Forecast() {
-  const [txns, setTxns] = React.useState([]);
-  const [debts, setDebts] = React.useState([]);
-  const [accounts, setAccounts] = React.useState([]);
-  const [loading, setLoading] = React.useState(true);
+  const { transactions: txns, debts, accounts } = useFinanceData();
   const [method, setMethod] = React.useState("avalanche");
   const [months, setMonths] = React.useState(60);
   const [extra, setExtra] = React.useState(0);
   const [incomeAdjust, setIncomeAdjust] = React.useState(0);
-
-  React.useEffect(() => {
-    Promise.all([
-      base44.entities.Transaction.list("-date", 500),
-      base44.entities.Debt.list("-created_date"),
-      base44.entities.Account.list("-created_date"),
-    ])
-      .then(([t, d, a]) => { setTxns(t); setDebts(d); setAccounts(a); })
-      .finally(() => setLoading(false));
-  }, []);
 
   const { series, keyframes, order } = React.useMemo(
     () => computeTrajectory({ debts, accounts, transactions: txns, months, method, extraPayment: extra, incomeAdjust }),
@@ -53,14 +40,6 @@ export default function Forecast() {
   }));
 
   const sliderMax = Math.max(5000, Math.ceil((extra || 0) * 1.5));
-
-  if (loading) {
-    return (
-      <div className="dark min-h-screen bg-black flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-zinc-800 border-t-zinc-400 rounded-full animate-spin" />
-      </div>
-    );
-  }
 
   return (
     <div className="dd-page-enter dark min-h-screen bg-black text-zinc-100">
