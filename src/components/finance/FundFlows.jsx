@@ -1,40 +1,173 @@
 import React from "react";
 import { parseISO, format } from "date-fns";
-import { ArrowDownLeft, ArrowUpRight, CalendarClock } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, CalendarClock, Pencil, X } from "lucide-react";
+import { base44 } from "@/api/base44Client";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogTrigger,
+  DialogClose,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
-function FlowRow({ t }) {
+const CATEGORIES = [
+  "Income", "Transit (GO/TTC)", "E39/Civic Maintenance", "Christ Like! Inventory",
+  "Food/Groceries", "Rent", "Utilities", "Dining", "Other",
+];
+
+function FlowRow({ t, onChanged }) {
   const isIncome = t.type === "income";
+  const [edit, setEdit] = React.useState(null);
+  const [saving, setSaving] = React.useState(false);
+
+  async function remove(e) {
+    e.stopPropagation();
+    await base44.entities.Transaction.delete(t.id);
+    onChanged?.();
+  }
+
+  async function saveEdit(e, payload) {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await base44.entities.Transaction.update(t.id, {
+        description: payload.description ?? t.description,
+        amount: parseFloat(payload.amount) || t.amount,
+        type: payload.type ?? t.type,
+        category: payload.category ?? t.category,
+        date: payload.date ?? format(parseISO(t.date), "yyyy-MM-dd"),
+      });
+      setEdit(null);
+      onChanged?.();
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
-    <div className="flex items-center gap-2.5 py-2.5 border-b border-zinc-800/70 last:border-0">
-      <div
-        className={`h-8 w-8 rounded-full flex items-center justify-center shrink-0 ${
-          isIncome ? "bg-emerald-500/15" : "bg-rose-500/15"
-        }`}
-      >
-        {isIncome ? <ArrowDownLeft className="h-4 w-4 text-emerald-400" /> : <ArrowUpRight className="h-4 w-4 text-rose-400" />}
+    <>
+      <div className="group flex items-center gap-2.5 py-2.5 border-b border-zinc-800/70 last:border-0">
+        <div className={`h-8 w-8 rounded-full flex items-center justify-center shrink-0 ${isIncome ? "bg-emerald-500/15" : "bg-rose-500/15"}`}>
+          {isIncome ? <ArrowDownLeft className="h-4 w-4 text-emerald-400" /> : <ArrowUpRight className="h-4 w-4 text-rose-400" />}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium text-zinc-200 truncate">{t.description}</p>
+          <p className="text-[11px] text-zinc-500 flex items-center gap-1.5">
+            {t.category}
+            {t.is_scheduled && (
+              <span className="inline-flex items-center gap-0.5">
+                · <CalendarClock className="h-2.5 w-2.5" /> {t.frequency}
+              </span>
+            )}
+            <span>· {format(parseISO(t.date), "MMM d")}</span>
+          </p>
+        </div>
+        <span className={`text-sm font-semibold tabular-nums ${isIncome ? "text-emerald-400" : "text-rose-400"}`}>
+          {isIncome ? "+" : "-"}${t.amount.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}
+        </span>
+        <Dialog>
+          <DialogTrigger asChild>
+            <button className="h-6 w-6 rounded-md flex items-center justify-center text-zinc-600 hover:text-zinc-200 hover:bg-zinc-800 opacity-0 group-hover:opacity-100 transition-opacity">
+              <Pencil className="h-3.5 w-3.5" />
+            </button>
+          </DialogTrigger>
+          <DialogContent className="bg-zinc-900 border-zinc-800 text-zinc-100">
+            <DialogHeader>
+              <DialogTitle className="text-zinc-100">Edit Transaction</DialogTitle>
+              <DialogDescription className="text-zinc-500">Update the details of this transaction.</DialogDescription>
+            </DialogHeader>
+            <form
+              onSubmit={(e) => {
+                const ev = edit || {};
+                saveEdit(e, {
+                  description: ev.description ?? t.description,
+                  amount: ev.amount ?? t.amount,
+                  type: ev.type ?? t.type,
+                  category: ev.category ?? t.category,
+                  date: ev.date ?? format(parseISO(t.date), "yyyy-MM-dd"),
+                });
+              }}
+              className="space-y-3"
+            >
+              <div className="space-y-1.5">
+                <Label className="text-zinc-400">Description</Label>
+                <Input
+                  defaultValue={t.description}
+                  onChange={(e) => setEdit((p) => ({ ...p, description: e.target.value }))}
+                  className="bg-zinc-950 border-zinc-800 text-zinc-100"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-zinc-400">Amount ($)</Label>
+                  <Input type="number" step="0.01" defaultValue={t.amount} onChange={(e) => setEdit((p) => ({ ...p, amount: e.target.value }))} className="bg-zinc-950 border-zinc-800 text-zinc-100" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-zinc-400">Date</Label>
+                  <Input type="date" defaultValue={format(parseISO(t.date), "yyyy-MM-dd")} onChange={(e) => setEdit((p) => ({ ...p, date: e.target.value }))} className="bg-zinc-950 border-zinc-800 text-zinc-100" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-zinc-400">Type</Label>
+                  <Select defaultValue={t.type} onValueChange={(v) => setEdit((p) => ({ ...p, type: v }))}>
+                    <SelectTrigger className="bg-zinc-950 border-zinc-800 text-zinc-100"><SelectValue /></SelectTrigger>
+                    <SelectContent className="bg-zinc-900 border-zinc-800">
+                      <SelectItem value="income">Income</SelectItem>
+                      <SelectItem value="expense">Expense</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-zinc-400">Category</Label>
+                  <Select defaultValue={t.category} onValueChange={(v) => setEdit((p) => ({ ...p, category: v }))}>
+                    <SelectTrigger className="bg-zinc-950 border-zinc-800 text-zinc-100"><SelectValue /></SelectTrigger>
+                    <SelectContent className="bg-zinc-900 border-zinc-800">
+                      {CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <DialogFooter className="pt-2">
+                <DialogClose asChild>
+                  <Button type="button" variant="outline" className="border-zinc-800 text-zinc-400 hover:bg-zinc-800">Cancel</Button>
+                </DialogClose>
+                <Button type="submit" disabled={saving} className="bg-zinc-100 text-zinc-900 hover:bg-white">
+                  {saving ? "Saving..." : "Save Changes"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        <button
+          onClick={remove}
+          className="h-6 w-6 rounded-md flex items-center justify-center text-zinc-600 hover:text-rose-400 hover:bg-rose-500/10 opacity-0 group-hover:opacity-100 transition-opacity"
+          aria-label="Delete transaction"
+        >
+          <X className="h-4 w-4" />
+        </button>
       </div>
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium text-zinc-200 truncate">{t.description}</p>
-        <p className="text-[11px] text-zinc-500 flex items-center gap-1.5">
-          {t.category}
-          {t.is_scheduled && (
-            <span className="inline-flex items-center gap-0.5 text-zinc-500">
-              · <CalendarClock className="h-2.5 w-2.5" /> {t.frequency}
-            </span>
-          )}
-          <span>· {format(parseISO(t.date), "MMM d")}</span>
-        </p>
-      </div>
-      <span className={`text-sm font-semibold tabular-nums ${isIncome ? "text-emerald-400" : "text-rose-400"}`}>
-        {isIncome ? "+" : "-"}${t.amount.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}
-      </span>
-    </div>
+    </>
   );
 }
 
-export default function FundFlows({ transactions }) {
+export default function FundFlows({ transactions, onChanged }) {
   const inflows = transactions.filter((t) => t.type === "income");
-  const outflows = transactions.filter((t) => t.type === "expense").sort((a, b) => a.is_scheduled === b.is_scheduled ? 0 : a.is_scheduled ? -1 : 1);
+  const outflows = transactions.filter((t) => t.type === "expense").sort((a, b) => (a.is_scheduled === b.is_scheduled ? 0 : a.is_scheduled ? -1 : 1));
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
@@ -46,7 +179,7 @@ export default function FundFlows({ transactions }) {
         {inflows.length === 0 ? (
           <p className="text-sm text-zinc-500 text-center py-8">No inflows logged.</p>
         ) : (
-          <div>{inflows.slice(0, 12).map((t) => <FlowRow key={t.id} t={t} />)}</div>
+          <div>{inflows.slice(0, 12).map((t) => <FlowRow key={t.id} t={t} onChanged={onChanged} />)}</div>
         )}
       </div>
 
@@ -58,7 +191,7 @@ export default function FundFlows({ transactions }) {
         {outflows.length === 0 ? (
           <p className="text-sm text-zinc-500 text-center py-8">No outflows logged.</p>
         ) : (
-          <div>{outflows.slice(0, 12).map((t) => <FlowRow key={t.id} t={t} />)}</div>
+          <div>{outflows.slice(0, 12).map((t) => <FlowRow key={t.id} t={t} onChanged={onChanged} />)}</div>
         )}
       </div>
     </div>

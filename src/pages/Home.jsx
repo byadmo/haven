@@ -139,7 +139,7 @@ export default function Home() {
             <h2 className="font-semibold text-sm text-zinc-100">Income & Expense Flow</h2>
             <p className="text-xs text-zinc-500">Inflows vs outflows, aligned with tabular numbers</p>
           </div>
-          <FundFlows transactions={txns} />
+          <FundFlows transactions={txns} onChanged={() => setRefreshKey((k) => k + 1)} />
         </section>
       </main>
 
