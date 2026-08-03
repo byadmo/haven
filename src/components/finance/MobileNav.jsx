@@ -14,10 +14,10 @@ const items = [
 export default function MobileNav() {
   return (
     <nav className="sm:hidden fixed inset-x-0 z-30 flex justify-center pointer-events-none"
-      style={{ bottom: "calc(env(safe-area-inset-bottom) + 12px)" }}
+      style={{ bottom: "calc(env(safe-area-inset-bottom) + 12px + 5vh)" }}
       aria-label="Primary"
     >
-      <div className="pointer-events-auto flex items-center gap-0.5 rounded-full border border-white/10 bg-zinc-900/95 backdrop-blur-md px-2 py-1 shadow-lg">
+      <div className="pointer-events-auto flex items-center gap-0.5 rounded-full border border-white/10 bg-zinc-900/95 backdrop-blur-md px-2 py-1 shadow-lg scale-105">
         {items.map(({ to, label, icon: Icon, end }, i) => (
           <NavLink key={to} to={to} end={end} className={`flex-col items-center justify-center rounded-full transition-all duration-150 py-1 ${
             i === 0 ? "pl-3 pr-1.5" : i === items.length - 1 ? "pr-3 pl-1.5" : "px-1.5"
