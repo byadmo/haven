@@ -300,7 +300,7 @@ export default function AccountsManager({ onChanged }) {
         )}
 
         {/* Liabilities — full editable ledger */}
-        <LiabilityLedger debts={debts} onChanged={onChanged} />
+        <LiabilityLedger debts={debts} onChanged={onChanged} showPayoffTarget={false} />
       </div>
 
       {/* Add Account — separate box */}

@@ -9,15 +9,24 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
-import { UploadCloud, Loader2, Check, Camera, ScanLine, Building2, Plus } from "lucide-react";
+import { UploadCloud, Loader2, Check, Camera, ScanLine, Building2, Plus, X } from "lucide-react";
 
 const EXTRACT_SCHEMA = {
   type: "object",
   properties: {
-    account_name: { type: "string", description: "The name of the bank account shown (e.g. 'RBC Chequing', 'TD Savings', 'Scotia Momentum')" },
-    balance: { type: "number", description: "The current balance amount shown in the image" },
+    accounts: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          account_name: { type: "string", description: "The name of the bank account shown (e.g. 'RBC Chequing', 'TD Savings', 'Scotia Momentum')" },
+          balance: { type: "number", description: "The current balance amount shown in the image" },
+        },
+        required: ["account_name", "balance"],
+      },
+    },
   },
-  required: ["account_name", "balance"],
+  required: ["accounts"],
 };
 
 const fmt = (v) => (v || 0).toLocaleString(undefined, {
@@ -36,6 +45,7 @@ export default function AccountBalanceImportModal({ open, onOpenChange, accounts
   const [newAccountName, setNewAccountName] = React.useState("");
   const [newAccountType, setNewAccountType] = React.useState("chequing");
   const [balance, setBalance] = React.useState("");
+  const [multiParsed, setMultiParsed] = React.useState(null);
   const fileRef = React.useRef(null);
 
   React.useEffect(() => {
@@ -56,6 +66,7 @@ export default function AccountBalanceImportModal({ open, onOpenChange, accounts
     setNewAccountName("");
     setNewAccountType("chequing");
     setBalance("");
+    setMultiParsed(null);
   }
 
   function handleFile(f) {
@@ -79,9 +90,15 @@ export default function AccountBalanceImportModal({ open, onOpenChange, accounts
         json_schema: EXTRACT_SCHEMA,
       });
       const out = res?.output;
-      if (out && (out.account_name || out.balance != null)) {
-        const accountName = out.account_name || "";
-        const bal = Number(out.balance) || 0;
+      const items = Array.isArray(out?.accounts)
+        ? out.accounts
+        : out?.account_name != null
+          ? [{ account_name: out.account_name, balance: out.balance }]
+          : [];
+
+      if (items.length === 1) {
+        const accountName = items[0].account_name || "";
+        const bal = Number(items[0].balance) || 0;
         setParsed({ account_name: accountName, balance: bal });
         setBalance(String(bal));
         setNewAccountName(accountName);
@@ -98,6 +115,22 @@ export default function AccountBalanceImportModal({ open, onOpenChange, accounts
         } else {
           setMode("new");
         }
+      } else if (items.length > 1) {
+        setParsed({ account_name: "", balance: 0 });
+        setMultiParsed(items.map((item) => {
+          const name = item.account_name || "";
+          const match = accounts.find(
+            (a) => a.name.toLowerCase().includes(name.toLowerCase()) ||
+                   name.toLowerCase().includes(a.name.toLowerCase())
+          );
+          return {
+            account_name: name,
+            balance: Number(item.balance) || 0,
+            editedBalance: String(Number(item.balance) || 0),
+            matchedAccountId: match?.id || (accounts.length > 0 ? accounts[0].id : ""),
+            dismissed: false,
+          };
+        }));
       } else {
         setError("Could not read account name or balance from this image. Try a clearer screenshot.");
       }
@@ -130,6 +163,45 @@ export default function AccountBalanceImportModal({ open, onOpenChange, accounts
       onOpenChange?.(false);
     } catch (e) {
       setError("Could not save — please try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function dismissMultiItem(idx) {
+    setMultiParsed((prev) => prev.map((it, i) => i === idx ? { ...it, dismissed: !it.dismissed } : it));
+  }
+
+  function updateMultiBalance(idx, val) {
+    setMultiParsed((prev) => prev.map((it, i) => i === idx ? { ...it, editedBalance: val } : it));
+  }
+
+  function updateMultiAccount(idx, accId) {
+    setMultiParsed((prev) => prev.map((it, i) => i === idx ? { ...it, matchedAccountId: accId } : it));
+  }
+
+  async function handleMultiSave() {
+    if (saving) return;
+    const active = (multiParsed || []).filter((it) => !it.dismissed);
+    if (active.length === 0) { setError("No accounts selected to update."); return; }
+    for (const it of active) {
+      if (isNaN(parseFloat(it.editedBalance))) { setError(`Invalid balance for "${it.account_name}".`); return; }
+    }
+    setSaving(true);
+    setError("");
+    try {
+      for (const it of active) {
+        const bal = parseFloat(it.editedBalance);
+        if (it.matchedAccountId) {
+          await base44.entities.Account.update(it.matchedAccountId, { balance: bal });
+        } else {
+          await base44.entities.Account.create({ name: it.account_name.trim() || "Scanned Account", type: "chequing", balance: bal });
+        }
+      }
+      onSaved?.();
+      onOpenChange?.(false);
+    } catch (e) {
+      setError("Could not save all accounts — please try again.");
     } finally {
       setSaving(false);
     }
@@ -193,7 +265,7 @@ export default function AccountBalanceImportModal({ open, onOpenChange, accounts
             </>
           )}
 
-          {parsed && (
+          {parsed && !multiParsed && (
             <>
               <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3.5 flex items-center gap-3">
                 <div className="h-10 w-10 rounded-lg bg-emerald-500/15 flex items-center justify-center shrink-0">
@@ -322,6 +394,93 @@ export default function AccountBalanceImportModal({ open, onOpenChange, accounts
                 </Button>
               </div>
             </>
+          )}
+
+          {multiParsed && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 mb-1">
+                <Check className="h-4 w-4 text-emerald-400" />
+                <p className="text-[10px] uppercase tracking-widest text-white/50">
+                  {multiParsed.filter((i) => !i.dismissed).length} of {multiParsed.length} accounts selected
+                </p>
+              </div>
+              {multiParsed.map((item, idx) => (
+                <div
+                  key={idx}
+                  className={`rounded-lg border p-3 transition-opacity ${
+                    item.dismissed ? "opacity-30 border-white/5" : "border-white/10 bg-white/[0.02]"
+                  }`}
+                >
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="h-8 w-8 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
+                        <Building2 className="h-4 w-4 text-emerald-400" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-zinc-100 truncate">{item.account_name || "Unknown account"}</p>
+                        <p className="text-[10px] font-mono tabular-nums text-white/40">Detected: {fmt(item.balance)}</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => dismissMultiItem(idx)}
+                      className="h-7 w-7 rounded-md flex items-center justify-center text-white/40 hover:text-rose-400 hover:bg-rose-500/10 shrink-0"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                  {!item.dismissed && (
+                    <>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={item.editedBalance}
+                        onChange={(e) => updateMultiBalance(idx, e.target.value)}
+                        className="bg-black border-white/10 text-zinc-100 text-base font-mono tabular-nums mb-2"
+                      />
+                      {accounts.length > 0 && (
+                        <Select
+                          value={item.matchedAccountId}
+                          onValueChange={(v) => updateMultiAccount(idx, v)}
+                        >
+                          <SelectTrigger className="bg-black border-white/10 text-zinc-100 h-8">
+                            <SelectValue placeholder="Match to account…" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-black border-white/10">
+                            {accounts.map((a) => (
+                              <SelectItem key={a.id} value={a.id}>
+                                {a.name} <span className="text-white/40 ml-1">({fmt(a.balance || 0)})</span>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </>
+                  )}
+                </div>
+              ))}
+              {error && <p className="text-xs text-rose-400">{error}</p>}
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={reset}
+                  disabled={saving}
+                  className="flex-1 border-white/10 text-white/70 hover:text-white hover:border-white/30"
+                >
+                  Start Over
+                </Button>
+                <Button
+                  onClick={handleMultiSave}
+                  disabled={saving}
+                  className="flex-1 h-11 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold"
+                >
+                  {saving ? (
+                    <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> Saving…</>
+                  ) : (
+                    <><Check className="h-4 w-4 mr-1.5" /> Confirm Updates</>
+                  )}
+                </Button>
+              </div>
+            </div>
           )}
         </div>
       </DialogContent>

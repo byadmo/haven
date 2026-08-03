@@ -21,7 +21,7 @@ const fmt = (v) =>
     style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2,
   });
 
-export default function LiabilityLedger({ debts, onChanged }) {
+export default function LiabilityLedger({ debts, onChanged, showPayoffTarget = true }) {
   const [editing, setEditing] = React.useState(null);
   const [saving, setSaving] = React.useState(false);
   const [payments, setPayments] = React.useState([]);
@@ -226,7 +226,7 @@ export default function LiabilityLedger({ debts, onChanged }) {
                 </div>
               )}
 
-              {!isFuture && <PayoffTarget debt={d} balance={balance} />}
+              {!isFuture && showPayoffTarget && <PayoffTarget debt={d} balance={balance} />}
 
               {!isFuture && (
                 <div className="flex gap-2 mb-3">
