@@ -12,6 +12,7 @@ const fmt = (v) =>
 
 export default function GoalPlanner({ debts, accounts, transactions, method, months, onApply, currentExtra }) {
   const today = new Date();
+  today.setHours(0, 0, 0, 0);
   const [target, setTarget] = React.useState("");
 
   const targetMonths = target ? Math.max(1, differenceInMonths(new Date(target + 'T00:00:00'), today)) : null;
