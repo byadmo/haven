@@ -39,9 +39,8 @@ export default function DashboardHeader({ actions }) {
         </nav>
 
         <div className="flex items-center gap-1.5 ml-auto">
-          <div className="hidden sm:block"><CommandPalette /></div>
           <BackupModal />
-          <div className="h-5 w-px bg-white/10 mx-0.5 hidden sm:block" />
+          <div className="hidden sm:block"><CommandPalette /></div>
           <Link to="/settings" className="h-8 w-8 rounded-md flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/5 transition-colors" aria-label="Settings">
             <SettingsIcon className="h-4 w-4" />
           </Link>
