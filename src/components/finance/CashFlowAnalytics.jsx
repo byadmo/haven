@@ -8,22 +8,39 @@ import {
   CartesianGrid,
   Tooltip,
 } from "recharts";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
+import {
+  startOfDay,
+  endOfDay,
   startOfWeek,
   endOfWeek,
   startOfMonth,
   endOfMonth,
-  startOfYear,
-  endOfYear,
   isWithinInterval,
   parseISO,
   format,
-  subWeeks,
+  subDays,
   subMonths,
-  subYears,
+  addDays,
+  addWeeks,
+  addMonths,
 } from "date-fns";
 import { TrendingDown, TrendingUp } from "lucide-react";
+
+const RANGES = [
+  { id: "7d",  label: "Last 7 days",   unit: "days",   count: 7,  bucket: "day" },
+  { id: "30d", label: "Last 30 days",  unit: "days",   count: 30, bucket: "day" },
+  { id: "3m",  label: "Last 3 months", unit: "months", count: 3,  bucket: "week" },
+  { id: "6m",  label: "Last 6 months", unit: "months", count: 6,  bucket: "month" },
+  { id: "12m", label: "Last 12 months",unit: "months", count: 12, bucket: "month" },
+  { id: "all", label: "All time",      unit: "all",               bucket: "month" },
+];
 
 function ChartTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
@@ -35,7 +52,7 @@ function ChartTooltip({ active, payload, label }) {
           <span className="h-2 w-2 rounded-full" style={{ background: p.color }} />
           <span className="text-zinc-400 capitalize">{p.dataKey}</span>
           <span className="text-zinc-100 font-semibold tabular-nums ml-auto">
-            ${p.value.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}
+            ${p.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>
         </div>
       ))}
@@ -44,84 +61,73 @@ function ChartTooltip({ active, payload, label }) {
 }
 
 export default function CashFlowAnalytics({ transactions }) {
-  const [period, setPeriod] = React.useState("month");
-  const [data, setData] = React.useState([]);
-  const [net, setNet] = React.useState(0);
+  const [rangeId, setRangeId] = React.useState("3m");
+  const range = RANGES.find((r) => r.id === rangeId) || RANGES[2];
 
-  React.useEffect(() => {
+  const { data, net } = React.useMemo(() => {
     const now = new Date();
-    let points = [];
-    let currentNet = 0;
-
-    if (period === "week") {
-      for (let i = 7; i >= 0; i--) {
-        const s = startOfWeek(subWeeks(now, i));
-        const e = endOfWeek(subWeeks(now, i));
-        let inc = 0, exp = 0;
-        transactions.forEach((t) => {
-          if (isWithinInterval(parseISO(t.date), { start: s, end: e })) {
-            if (t.type === "income") inc += t.amount; else exp += t.amount;
-          }
-        });
-        points.push({ label: format(s, "MMM d"), income: inc, expense: exp });
+    let start;
+    if (range.unit === "days") start = startOfDay(subDays(now, range.count - 1));
+    else if (range.unit === "months") start = startOfMonth(subMonths(now, range.count - 1));
+    else {
+      let earliest = null;
+      for (const t of transactions) {
+        try {
+          const d = parseISO(t.date);
+          if (!earliest || d < earliest) earliest = d;
+        } catch { /* skip bad dates */ }
       }
-    } else if (period === "month") {
-      for (let i = 5; i >= 0; i--) {
-        const s = startOfMonth(subMonths(now, i));
-        const e = endOfMonth(subMonths(now, i));
-        let inc = 0, exp = 0;
-        transactions.forEach((t) => {
-          if (isWithinInterval(parseISO(t.date), { start: s, end: e })) {
-            if (t.type === "income") inc += t.amount; else exp += t.amount;
-          }
-        });
-        points.push({ label: format(s, "MMM"), income: inc, expense: exp });
-      }
-    } else {
-      for (let i = 2; i >= 0; i--) {
-        const s = startOfYear(subYears(now, i));
-        const e = endOfYear(subYears(now, i));
-        let inc = 0, exp = 0;
-        transactions.forEach((t) => {
-          if (isWithinInterval(parseISO(t.date), { start: s, end: e })) {
-            if (t.type === "income") inc += t.amount; else exp += t.amount;
-          }
-        });
-        points.push({ label: format(s, "yyyy"), income: inc, expense: exp });
-      }
+      start = earliest ? startOfMonth(earliest) : startOfMonth(subMonths(now, 11));
     }
 
-    // current period net
-    let cs, ce;
-    if (period === "week") { cs = startOfWeek(now); ce = endOfWeek(now); }
-    else if (period === "month") { cs = startOfMonth(now); ce = endOfMonth(now); }
-    else { cs = startOfYear(now); ce = endOfYear(now); }
-    let cn = 0;
-    transactions.forEach((t) => {
-      if (isWithinInterval(parseISO(t.date), { start: cs, end: ce })) {
-        cn += t.type === "income" ? t.amount : -t.amount;
-      }
-    });
-    currentNet = cn;
+    const buckets = [];
+    if (range.bucket === "day") {
+      for (let d = startOfDay(start); d <= now; d = addDays(d, 1))
+        buckets.push({ s: startOfDay(d), e: endOfDay(d), label: format(d, "MMM d") });
+    } else if (range.bucket === "week") {
+      for (let d = startOfWeek(start); d <= now; d = addWeeks(d, 1))
+        buckets.push({ s: startOfWeek(d), e: endOfWeek(d), label: format(d, "MMM d") });
+    } else {
+      for (let d = startOfMonth(start); d <= now; d = addMonths(d, 1))
+        buckets.push({ s: startOfMonth(d), e: endOfMonth(d), label: format(d, "MMM yy") });
+    }
 
-    setData(points);
-    setNet(currentNet);
-  }, [transactions, period]);
+    let totalNet = 0;
+    const points = buckets.map((b) => {
+      let inc = 0, exp = 0;
+      for (const t of transactions) {
+        try {
+          if (isWithinInterval(parseISO(t.date), { start: b.s, end: b.e })) {
+            if (t.type === "income") inc += t.amount; else exp += t.amount;
+          }
+        } catch { /* skip bad dates */ }
+      }
+      totalNet += inc - exp;
+      return { label: b.label, income: inc, expense: exp };
+    });
+
+    return { data: points, net: totalNet };
+  }, [transactions, range]);
 
   const isLoss = net < 0;
 
   return (
     <div className="rounded-2xl bg-zinc-900/60 backdrop-blur-xl border border-zinc-800 p-5 shadow-2xl shadow-black/40">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-4 gap-3">
         <div>
           <h2 className="font-semibold text-sm text-zinc-100">Cash Flow Trends</h2>
           <p className="text-xs text-zinc-500">Income vs expenses over time</p>
         </div>
-        <ToggleGroup type="single" value={period} onValueChange={(v) => v && setPeriod(v)} className="bg-zinc-950/60 border border-zinc-800 rounded-lg p-1">
-          <ToggleGroupItem value="week" className="data-[state=on]:bg-zinc-700 data-[state=on]:text-zinc-50 text-zinc-400 px-2.5 py-1 text-xs rounded-md">Week</ToggleGroupItem>
-          <ToggleGroupItem value="month" className="data-[state=on]:bg-zinc-700 data-[state=on]:text-zinc-50 text-zinc-400 px-2.5 py-1 text-xs rounded-md">Month</ToggleGroupItem>
-          <ToggleGroupItem value="year" className="data-[state=on]:bg-zinc-700 data-[state=on]:text-zinc-50 text-zinc-400 px-2.5 py-1 text-xs rounded-md">Year</ToggleGroupItem>
-        </ToggleGroup>
+        <Select value={rangeId} onValueChange={setRangeId}>
+          <SelectTrigger className="w-[150px] h-8 text-xs bg-zinc-950/60 border-zinc-800 text-zinc-200">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="bg-zinc-900 border-zinc-800">
+            {RANGES.map((r) => (
+              <SelectItem key={r.id} value={r.id}>{r.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="h-[260px] mb-4">
@@ -138,8 +144,14 @@ export default function CashFlowAnalytics({ transactions }) {
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
-            <XAxis dataKey="label" stroke="#52525b" fontSize={11} tickLine={false} axisLine={false} />
-            <YAxis stroke="#52525b" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `$${v >= 1000 ? `${(v/1000).toFixed(1)}k` : v}`} />
+            <XAxis dataKey="label" stroke="#52525b" fontSize={11} tickLine={false} axisLine={false} minTickGap={16} />
+            <YAxis
+              stroke="#52525b"
+              fontSize={11}
+              tickLine={false}
+              axisLine={false}
+              tickFormatter={(v) => `$${Math.abs(v) >= 1000 ? `${(v / 1000).toFixed(1)}k` : v}`}
+            />
             <Tooltip content={<ChartTooltip />} cursor={{ stroke: "#3f3f46", strokeWidth: 1 }} />
             <Area type="monotone" dataKey="income" stroke="#34d399" strokeWidth={2.5} fill="url(#incomeGrad)" />
             <Area type="monotone" dataKey="expense" stroke="#fb7185" strokeWidth={2.5} fill="url(#expenseGrad)" />
@@ -147,12 +159,9 @@ export default function CashFlowAnalytics({ transactions }) {
         </ResponsiveContainer>
       </div>
 
-      {/* Net profit/loss indicator */}
       <div
         className={`rounded-xl border p-4 flex items-center justify-between transition-all ${
-          isLoss
-            ? "border-rose-500/40 bg-rose-500/10"
-            : "border-emerald-500/30 bg-emerald-500/10"
+          isLoss ? "border-rose-500/40 bg-rose-500/10" : "border-emerald-500/30 bg-emerald-500/10"
         }`}
       >
         <div className="flex items-center gap-2.5">
@@ -161,10 +170,10 @@ export default function CashFlowAnalytics({ transactions }) {
           </div>
           <div>
             <p className="text-[11px] uppercase tracking-wider text-zinc-400">
-              {isLoss ? "Net Loss" : "Net Profit"} · {period === "week" ? "this week" : period === "month" ? "this month" : "this year"}
+              {isLoss ? "Net Loss" : "Net Profit"} · {range.label.toLowerCase()}
             </p>
             <p className={`text-xl font-bold tabular-nums ${isLoss ? "text-rose-400" : "text-emerald-400"} ${isLoss ? "animate-pulse" : ""}`}>
-              {isLoss ? "-" : "+"}${Math.abs(net).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}
+              {isLoss ? "-" : "+"}${Math.abs(net).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
           </div>
         </div>
