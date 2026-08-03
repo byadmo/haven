@@ -34,6 +34,7 @@ export default function AccountsManager({ onChanged }) {
   const [saving, setSaving] = React.useState(false);
   const [editId, setEditId] = React.useState(null);
   const [editName, setEditName] = React.useState("");
+  const [editBal, setEditBal] = React.useState("");
   const [showHidden, setShowHidden] = React.useState(false);
   const [showInvestments, setShowInvestments] = React.useState(
     () => localStorage.getItem(SHOW_INVEST_KEY) === "1"
@@ -104,8 +105,13 @@ export default function AccountsManager({ onChanged }) {
 
   async function commitRename(id) {
     if (!editName.trim()) return;
-    await base44.entities.Account.update(id, { name: editName.trim() });
+    const bal = parseFloat(editBal);
+    await base44.entities.Account.update(id, {
+      name: editName.trim(),
+      ...(isNaN(bal) ? {} : { balance: bal }),
+    });
     setEditId(null);
+    setEditBal("");
     await load();
     onChanged?.();
   }
@@ -223,6 +229,7 @@ export default function AccountsManager({ onChanged }) {
                           onClick={() => {
                             setEditId(a.id);
                             setEditName(a.name);
+                            setEditBal(String(a.balance ?? 0));
                           }}
                           className="h-6 w-6 rounded-md flex items-center justify-center text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800"
                         >
@@ -239,13 +246,24 @@ export default function AccountsManager({ onChanged }) {
                   </div>
                 </div>
                 {editId === a.id ? (
-                  <Input
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && commitRename(a.id)}
-                    className="h-8 bg-zinc-900 border-zinc-800 text-zinc-100 text-sm mb-1"
-                    autoFocus
-                  />
+                  <div className="space-y-1.5 mb-1">
+                    <Input
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && commitRename(a.id)}
+                      className="h-8 bg-zinc-900 border-zinc-800 text-zinc-100 text-sm"
+                      autoFocus
+                    />
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={editBal}
+                      onChange={(e) => setEditBal(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && commitRename(a.id)}
+                      placeholder="Balance"
+                      className="h-8 bg-zinc-900 border-zinc-800 text-zinc-100 text-sm font-mono tabular-nums"
+                    />
+                  </div>
                 ) : (
                   <p className="text-sm font-semibold text-zinc-100 mb-1 truncate">{a.name}</p>
                 )}

@@ -21,12 +21,30 @@ function Row({ t, accountsMap, onChanged, categories }) {
   const isIncome = t.type === "income";
   const [edit, setEdit] = React.useState(null);
   const [saving, setSaving] = React.useState(false);
+  const [delOpen, setDelOpen] = React.useState(false);
+  const [removing, setRemoving] = React.useState(false);
 
-  async function remove(e) {
-    e.stopPropagation();
-    if (t.account_id) await adjustAccountBalance(t.account_id, -txEffect(t));
-    await base44.entities.Transaction.delete(t.id);
-    onChanged?.();
+  async function fullDelete() {
+    setRemoving(true);
+    try {
+      if (t.account_id) await adjustAccountBalance(t.account_id, -txEffect(t));
+      await base44.entities.Transaction.delete(t.id);
+      setDelOpen(false);
+      onChanged?.();
+    } finally {
+      setRemoving(false);
+    }
+  }
+
+  async function historyOnly() {
+    setRemoving(true);
+    try {
+      await base44.entities.Transaction.delete(t.id);
+      setDelOpen(false);
+      onChanged?.();
+    } finally {
+      setRemoving(false);
+    }
   }
 
   async function save(e, payload) {
@@ -174,9 +192,42 @@ function Row({ t, accountsMap, onChanged, categories }) {
           </form>
         </DialogContent>
       </Dialog>
-      <button onClick={remove} className="h-6 w-6 rounded-md flex items-center justify-center text-zinc-600 hover:text-rose-400 hover:bg-rose-500/10 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity" aria-label="Delete">
-        <X className="h-3.5 w-3.5" />
-      </button>
+      <Dialog open={delOpen} onOpenChange={setDelOpen}>
+        <DialogTrigger asChild>
+          <button className="h-6 w-6 rounded-md flex items-center justify-center text-zinc-600 hover:text-rose-400 hover:bg-rose-500/10 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity" aria-label="Delete">
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </DialogTrigger>
+        <DialogContent className="bg-zinc-900 border-zinc-800 text-zinc-100">
+          <DialogHeader>
+            <DialogTitle className="text-zinc-100">Remove transaction</DialogTitle>
+            <DialogDescription className="text-zinc-500">Choose how to remove this transaction.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 pt-1">
+            <button
+              type="button"
+              disabled={removing}
+              onClick={fullDelete}
+              className="w-full text-left rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2.5 text-sm text-rose-200 hover:bg-rose-500/20 transition-colors disabled:opacity-50"
+            >
+              <span className="block font-medium text-rose-100">Delete & reverse balance</span>
+              <span className="block text-[11px] text-rose-300/70">Removes the record and undoes its effect on the account.</span>
+            </button>
+            <button
+              type="button"
+              disabled={removing}
+              onClick={historyOnly}
+              className="w-full text-left rounded-lg border border-zinc-800 bg-black px-3 py-2.5 text-sm text-zinc-300 hover:bg-zinc-800 transition-colors disabled:opacity-50"
+            >
+              <span className="block font-medium text-zinc-100">Remove from history only</span>
+              <span className="block text-[11px] text-zinc-500">Deletes the record but keeps the balance as-is.</span>
+            </button>
+          </div>
+          <div className="flex justify-end pt-2">
+            <DialogClose asChild><Button type="button" variant="outline" className="border-zinc-800 text-zinc-400 hover:bg-zinc-800">Cancel</Button></DialogClose>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
