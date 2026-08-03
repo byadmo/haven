@@ -132,7 +132,7 @@ export default function DebtStrategyEngine({ debts, monthlySurplus }) {
         <input
           type="range"
           min={0}
-          max={Math.max(2000, Math.ceil((surplus || 1000) * 1.6))}
+          max={10000}
           step={10}
           value={surplus}
           onChange={(e) => setSurplus(Number(e.target.value))}
