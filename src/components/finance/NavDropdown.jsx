@@ -40,7 +40,7 @@ export default function NavDropdown({ label, items }) {
                     `flex items-center gap-2.5 rounded-sm px-2.5 py-2 text-[11px] font-mono uppercase tracking-wide transition-colors ${
                       isActive
                         ? "text-emerald-400 bg-white/5"
-                        : "text-white/60 hover:text-white hover:bg-white/5"
+                        : "text-white/90 hover:text-white hover:bg-white/5"
                     }`
                   }
                 >
