@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import {
   startOfMonth, endOfMonth, isWithinInterval, parseISO, subMonths,
 } from "date-fns";
-import { Plus, ArrowRight } from "lucide-react";
+import { Plus, ArrowRight, UploadCloud } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import DashboardHeader from "@/components/finance/DashboardHeader";
 import QuickAddModal from "@/components/finance/QuickAddModal";
@@ -19,6 +19,7 @@ import DebtRepaymentGraph from "@/components/finance/DebtRepaymentGraph";
 import DebtForm from "@/components/finance/DebtForm";
 import DebtModal from "@/components/finance/DebtModal";
 import DebtProgressTracker from "@/components/finance/DebtProgressTracker";
+import StatementImportModal from "@/components/finance/StatementImportModal";
 import AccountsManager from "@/components/finance/AccountsManager";
 import Reveal from "@/components/finance/Reveal";
 import { Link } from "react-router-dom";
@@ -31,6 +32,7 @@ export default function Home() {
   const [refreshKey, setRefreshKey] = React.useState(0);
   const [quickAdd, setQuickAdd] = React.useState(false);
   const [showDebtForm, setShowDebtForm] = React.useState(false);
+  const [showImport, setShowImport] = React.useState(false);
 
   const forecastData = React.useMemo(
     () => computeTrajectory({ debts, accounts, transactions: txns }).series,
@@ -107,6 +109,14 @@ export default function Home() {
         className="bg-indigo-600 text-white hover:bg-indigo-500"
       >
         <Plus className="h-4 w-4 mr-1" /> <span className="hidden sm:inline">Liability</span><span className="sm:hidden">Debt</span>
+      </Button>
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={() => setShowImport(true)}
+        className="border-white/10 text-white/70 hover:text-white hover:border-white/30"
+      >
+        <UploadCloud className="h-4 w-4 mr-1" /> <span className="hidden sm:inline">Import</span>
       </Button>
     </>
   );
@@ -190,6 +200,14 @@ export default function Home() {
       <DebtModal
         open={showDebtForm}
         onOpenChange={setShowDebtForm}
+        onSaved={() => setRefreshKey((k) => k + 1)}
+      />
+
+      <StatementImportModal
+        open={showImport}
+        onOpenChange={setShowImport}
+        accounts={accounts}
+        debts={debts}
         onSaved={() => setRefreshKey((k) => k + 1)}
       />
     </div>
