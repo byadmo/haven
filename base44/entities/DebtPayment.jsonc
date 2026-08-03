@@ -1,0 +1,41 @@
+{
+  "name": "DebtPayment",
+  "type": "object",
+  "properties": {
+    "debt_id": {
+      "type": "string",
+      "description": "The id of the Debt this payment applies to"
+    },
+    "amount": {
+      "type": "number",
+      "description": "Payment amount in dollars"
+    },
+    "date": {
+      "type": "string",
+      "format": "date"
+    },
+    "note": {
+      "type": "string",
+      "description": "Optional note for the payment"
+    }
+  },
+  "required": [
+    "debt_id",
+    "amount",
+    "date"
+  ],
+  "rls": {
+    "read": {
+      "created_by_id": "{{user.id}}"
+    },
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}

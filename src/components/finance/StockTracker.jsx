@@ -4,9 +4,10 @@ import { Plus, X, TrendingDown, TrendingUp, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import StockChart from "@/components/finance/StockChart";
 
 const fmt = (v) =>
-  v.toLocaleString(undefined, {
+  (v || 0).toLocaleString(undefined, {
     style: "currency",
     currency: "USD",
     minimumFractionDigits: 2,
@@ -22,6 +23,7 @@ export default function StockTracker({ onChanged }) {
   const [shares, setShares] = React.useState("");
   const [avg, setAvg] = React.useState("");
   const [saving, setSaving] = React.useState(false);
+  const [priceKey, setPriceKey] = React.useState(0);
 
   const loadStocks = React.useCallback(async () => {
     const s = await base44.entities.Stock.list("-created_date");
@@ -34,58 +36,43 @@ export default function StockTracker({ onChanged }) {
   }, [loadStocks]);
 
   React.useEffect(() => {
-    if (stocks.length === 0 && !loading) return;
-    fetchPrices(stocks);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stocks.length]);
-
-  async function fetchPrices(list) {
-    if (list.length === 0) return;
-    setFetching(true);
-    try {
-      const symbols = list.map((s) => s.symbol).join(", ");
-      const res = await base44.integrations.Core.InvokeLLM({
-        prompt: `What is the current real-time market price for each of these stock tickers? Return a JSON map of ticker symbol to current price in USD (number only, 2 decimals). Tickers: ${symbols}`,
-        add_context_from_internet: true,
-        model: "gemini_3_flash",
-        response_json_schema: {
-          type: "object",
-          additionalProperties: { type: "number" },
-        },
-      });
-      setPrices(res || {});
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setFetching(false);
+    if (stocks.length === 0) {
+      setPrices({});
+      return;
     }
-  }
+    let cancelled = false;
+    setFetching(true);
+    const symbols = stocks.map((s) => s.symbol);
+    base44.functions
+      .invoke("FetchStockData", { symbols, interval: "1d", range: "5d" })
+      .then((res) => {
+        if (cancelled) return;
+        const d = res?.data || res;
+        setPrices(d?.prices || {});
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setFetching(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [stocks, priceKey]);
 
   async function addStock(e) {
     e.preventDefault();
     if (!symbol.trim() || !shares || !avg) return;
     setSaving(true);
     try {
-      // resolve a friendly name
-      let name = symbol.trim().toUpperCase();
-      try {
-        const res = await base44.integrations.Core.InvokeLLM({
-          prompt: `What is the full company name for the stock ticker "${symbol.trim().toUpperCase()}"? Reply with just the company name.`,
-          add_context_from_internet: true,
-          model: "gemini_3_flash",
-        });
-        if (typeof res === "string") name = res.trim();
-      } catch (e) {}
       await base44.entities.Stock.create({
         symbol: symbol.trim().toUpperCase(),
-        name,
+        name: symbol.trim().toUpperCase(),
         shares: parseFloat(shares),
         avg_buy_price: parseFloat(avg),
       });
       setSymbol("");
       setShares("");
       setAvg("");
-      setPrices({});
       await loadStocks();
       onChanged?.();
     } finally {
@@ -95,7 +82,6 @@ export default function StockTracker({ onChanged }) {
 
   async function removeStock(id) {
     await base44.entities.Stock.delete(id);
-    setPrices({});
     await loadStocks();
     onChanged?.();
   }
@@ -112,12 +98,12 @@ export default function StockTracker({ onChanged }) {
       <div className="flex items-center justify-between mb-3">
         <div>
           <h2 className="font-semibold text-sm text-zinc-100">Stock Portfolio</h2>
-          <p className="text-xs text-zinc-500">Track holdings &amp; realized/unrealized P&amp;L</p>
+          <p className="text-xs text-zinc-500">Live prices via Yahoo Finance · track holdings &amp; P&amp;L</p>
         </div>
         <Button
           variant="outline"
           size="sm"
-          onClick={() => fetchPrices(stocks)}
+          onClick={() => setPriceKey((k) => k + 1)}
           disabled={fetching || stocks.length === 0}
           className="bg-zinc-900/60 border-zinc-800 text-zinc-300 hover:bg-zinc-800 hover:text-zinc-50"
         >
@@ -126,15 +112,12 @@ export default function StockTracker({ onChanged }) {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-        {/* Holdings */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-4">
         <div className="lg:col-span-2 rounded-2xl bg-zinc-900/60 backdrop-blur-xl border border-zinc-800 p-5 shadow-xl shadow-black/30">
           {loading ? (
             <p className="text-sm text-zinc-500 text-center py-8">Loading holdings…</p>
           ) : stocks.length === 0 ? (
-            <p className="text-sm text-zinc-500 text-center py-8">
-              No holdings yet. Add your first stock on the right.
-            </p>
+            <p className="text-sm text-zinc-500 text-center py-8">No holdings yet. Add your first stock on the right.</p>
           ) : (
             <div className="space-y-2">
               <div className="grid grid-cols-12 text-[10px] uppercase tracking-wider text-zinc-500 font-medium px-1 pb-2 border-b border-zinc-800">
@@ -161,7 +144,9 @@ export default function StockTracker({ onChanged }) {
                         </button>
                         <div className="min-w-0">
                           <p className="text-sm font-semibold text-zinc-100 truncate">{s.symbol}</p>
-                          <p className="text-[11px] text-zinc-500 truncate">{s.name}</p>
+                          {hasPrice && (
+                            <p className="text-[11px] text-zinc-500 tabular-nums">now {fmt(price)}</p>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -188,7 +173,6 @@ export default function StockTracker({ onChanged }) {
           )}
         </div>
 
-        {/* Add form + summary */}
         <div className="space-y-3">
           <form
             onSubmit={addStock}
@@ -245,6 +229,8 @@ export default function StockTracker({ onChanged }) {
           </div>
         </div>
       </div>
+
+      <StockChart stocks={stocks} />
     </section>
   );
 }
