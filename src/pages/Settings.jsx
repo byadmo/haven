@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, Trash2, RotateCcw } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import MonthlyReport from "@/components/finance/MonthlyReport";
 
 export default function Settings() {
   const { categories, loading, add, remove, restoreDefaults } = useCategories();
@@ -92,6 +93,10 @@ export default function Settings() {
               </Button>
             )}
           </div>
+        </Reveal>
+
+        <Reveal delay={0.05}>
+          <MonthlyReport />
         </Reveal>
       </main>
     </div>
