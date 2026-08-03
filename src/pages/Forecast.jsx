@@ -44,7 +44,7 @@ export default function Forecast() {
 
   const totalDebt = debts.reduce((s, d) => s + (d.current_balance || 0), 0);
   const minTotal = debts.reduce((s, d) => s + (d.minimum_payment || 0), 0);
-  const sliderMax = Math.max(5000, Math.ceil((extra || 0) * 1.5));
+  const sliderMax = 10000;
 
   const timeLeft = debtFreeMonth > 0
     ? (Math.floor(debtFreeMonth / 12) > 0 ? `${Math.floor(debtFreeMonth / 12)}y ` : "") + (debtFreeMonth % 12 > 0 ? `${debtFreeMonth % 12}m` : "")
