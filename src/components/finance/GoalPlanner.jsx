@@ -14,7 +14,7 @@ export default function GoalPlanner({ debts, accounts, transactions, method, mon
   const today = new Date();
   const [target, setTarget] = React.useState("");
 
-  const targetMonths = target ? Math.max(1, differenceInMonths(new Date(target), today)) : null;
+  const targetMonths = target ? Math.max(1, differenceInMonths(new Date(target + 'T00:00:00'), today)) : null;
   const horizon = Math.max(months, targetMonths ?? months);
 
   const solved = React.useMemo(() => {
