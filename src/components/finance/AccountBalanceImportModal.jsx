@@ -143,7 +143,7 @@ export default function AccountBalanceImportModal({ open, onOpenChange, accounts
             <ScanLine className="h-4 w-4 text-emerald-400" /> Scan Account Balance
           </DialogTitle>
           <DialogDescription className="text-zinc-500">
-            Upload a screenshot of your bank balance — AI reads the account name and amount.
+            Upload a screenshot or PDF of your bank balance — AI reads the account name and amount.
           </DialogDescription>
         </DialogHeader>
 
@@ -167,9 +167,9 @@ export default function AccountBalanceImportModal({ open, onOpenChange, accounts
                   <>
                     <UploadCloud className="h-8 w-8 text-zinc-500" />
                     <div>
-                      <p className="text-sm text-zinc-300">Snap a photo of your bank balance</p>
+                      <p className="text-sm text-zinc-300">Upload a screenshot or PDF of your balance</p>
                       <p className="text-[11px] text-zinc-600 mt-0.5 flex items-center justify-center gap-1">
-                        <Camera className="h-3 w-3" /> Camera ready on mobile
+                        <UploadCloud className="h-3 w-3" /> PNG, JPG, or PDF
                       </p>
                     </div>
                   </>
@@ -178,8 +178,7 @@ export default function AccountBalanceImportModal({ open, onOpenChange, accounts
               <input
                 ref={fileRef}
                 type="file"
-                accept="image/*"
-                capture="environment"
+                accept="image/*,application/pdf"
                 className="hidden"
                 onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }}
               />

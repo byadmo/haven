@@ -10,7 +10,7 @@ import {
   Tooltip,
   Legend,
 } from "recharts";
-import { TrendingUp } from "lucide-react";
+import { TrendingUp, ChevronDown } from "lucide-react";
 
 const fmt = (v) =>
   (v || 0).toLocaleString(undefined, {
@@ -27,6 +27,7 @@ const PALETTE = [
 
 export default function DebtRepaymentGraph({ debts }) {
   const [payments, setPayments] = React.useState([]);
+  const [chartOpen, setChartOpen] = React.useState(false);
 
   React.useEffect(() => {
     base44.entities.DebtPayment.list("-date", 1000)
@@ -67,18 +68,23 @@ export default function DebtRepaymentGraph({ debts }) {
 
   return (
     <div className="rounded-lg border border-white/10 bg-black p-4">
-      <div className="flex items-center gap-2 mb-3">
+      <button
+        onClick={() => setChartOpen((v) => !v)}
+        className="w-full flex items-center gap-2 mb-3 sm:cursor-default"
+      >
         <div className="h-7 w-7 flex items-center justify-center bg-emerald-500/10">
           <TrendingUp className="h-3.5 w-3.5 text-emerald-400" />
         </div>
-        <div>
+        <div className="flex-1 text-left">
           <h3 className="font-semibold text-sm text-zinc-100">Debt Payoff Trend</h3>
           <p className="text-[10px] uppercase tracking-widest text-white/50">
             Cumulative paid off per liability
           </p>
         </div>
-      </div>
+        <ChevronDown className={`h-4 w-4 text-white/40 transition-transform sm:hidden ${chartOpen ? "rotate-180" : ""}`} />
+      </button>
 
+      <div className={`${chartOpen ? "block" : "hidden"} sm:block`}>
       {series.length === 0 ? (
         <p className="text-xs uppercase tracking-widest text-white/40 text-center py-8">
           No payments logged yet — log a payment to see your trend.
@@ -132,6 +138,7 @@ export default function DebtRepaymentGraph({ debts }) {
           </LineChart>
         </ResponsiveContainer>
       )}
+      </div>
     </div>
   );
 }

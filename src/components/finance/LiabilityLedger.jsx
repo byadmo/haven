@@ -29,6 +29,7 @@ export default function LiabilityLedger({ debts, onChanged }) {
   const [logging, setLogging] = React.useState(false);
   const [expanded, setExpanded] = React.useState({});
   const [showOverride, setShowOverride] = React.useState({});
+  const [cardOpen, setCardOpen] = React.useState({});
 
   const fc = useForecast();
   const point = fc?.point;
@@ -59,7 +60,7 @@ export default function LiabilityLedger({ debts, onChanged }) {
         minimum_payment: parseFloat(editing.minimum_payment) || 0,
         target_payoff_date: editing.target_payoff_date || null,
         status: parseFloat(editing.current_balance) <= 0 ? "paid_off" : "active",
-        });
+      });
       setEditing(null);
       onChanged?.();
     } finally {
@@ -148,15 +149,25 @@ export default function LiabilityLedger({ debts, onChanged }) {
         const history = paymentsByDebt[d.id] || [];
         const totalPaid = history.reduce((s, p) => s + (p.amount || 0), 0);
         const isOpen = expanded[d.id];
+        const isCardOpen = cardOpen[d.id];
 
         const containerCx = `rounded-lg bg-black border ${isCleared ? "border-emerald-500/30 opacity-50" : "border-white/10"} p-4 hover:border-white/30 transition-colors duration-150`;
 
         return (
           <div key={d.id} className={containerCx}>
             <div className="flex items-start justify-between mb-3">
-              <div>
-                <p className="font-semibold text-sm text-zinc-100">{d.name}</p>
-                <p className="text-[10px] uppercase tracking-widest text-white/50 mt-0.5">{isCleared ? "Cleared" : "Active liability"}</p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCardOpen((prev) => ({ ...prev, [d.id]: !prev[d.id] }))}
+                  className="sm:hidden"
+                  aria-label="Toggle details"
+                >
+                  <ChevronDown className={`h-4 w-4 text-white/40 transition-transform ${isCardOpen ? "rotate-180" : ""}`} />
+                </button>
+                <div>
+                  <p className="font-semibold text-sm text-zinc-100">{d.name}</p>
+                  <p className="text-[10px] uppercase tracking-widest text-white/50 mt-0.5">{isCleared ? "Cleared" : "Active liability"}</p>
+                </div>
               </div>
               <div className="flex items-center gap-1.5">
                 {!isCleared && (
@@ -186,173 +197,175 @@ export default function LiabilityLedger({ debts, onChanged }) {
 
             <p className="text-xl sm:text-2xl font-bold font-mono tabular-nums tracking-tight text-zinc-50 mb-2">{fmt(balance)}</p>
 
-            <div className="mb-3">
-              <div className="h-1.5 bg-white/10 overflow-hidden">
-                {isCleared ? (
-                  <div className="w-full h-full bg-emerald-500" />
-                ) : (
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${pct}%` }}
-                    transition={{ duration: 0.6, ease: "easeOut" }}
-                    className="h-full bg-emerald-500"
-                  />
-                )}
-              </div>
-              <p className="text-[10px] uppercase tracking-widest text-white/50 mt-1 font-mono tabular-nums">{pct.toFixed(0)}% paid down</p>
-            </div>
-
-            {!isCleared && min > 0 && (
+            <div className={`${isCardOpen ? "block" : "hidden"} sm:block`}>
               <div className="mb-3">
-                <p className="text-[10px] uppercase tracking-widest text-white/50 mb-1.5">Min. payment breakdown</p>
-                <div className="flex h-2 bg-white/10 overflow-hidden">
-                  <div className="bg-amber-500" style={{ width: `${interestPct}%` }} />
-                  <div className="bg-emerald-500" style={{ width: `${principalPct}%` }} />
+                <div className="h-1.5 bg-white/10 overflow-hidden">
+                  {isCleared ? (
+                    <div className="w-full h-full bg-emerald-500" />
+                  ) : (
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${pct}%` }}
+                      transition={{ duration: 0.6, ease: "easeOut" }}
+                      className="h-full bg-emerald-500"
+                    />
+                  )}
                 </div>
-                <div className="flex justify-between text-[10px] mt-1.5 font-mono tabular-nums">
-                  <span className="text-amber-400">INT {fmt(interest)}</span>
-                  <span className="text-emerald-400">PRIN {fmt(principal)}</span>
-                </div>
+                <p className="text-[10px] uppercase tracking-widest text-white/50 mt-1 font-mono tabular-nums">{pct.toFixed(0)}% paid down</p>
               </div>
-            )}
 
-            {!isFuture && <PayoffTarget debt={d} balance={balance} />}
+              {!isCleared && min > 0 && (
+                <div className="mb-3">
+                  <p className="text-[10px] uppercase tracking-widest text-white/50 mb-1.5">Min. payment breakdown</p>
+                  <div className="flex h-2 bg-white/10 overflow-hidden">
+                    <div className="bg-amber-500" style={{ width: `${interestPct}%` }} />
+                    <div className="bg-emerald-500" style={{ width: `${principalPct}%` }} />
+                  </div>
+                  <div className="flex justify-between text-[10px] mt-1.5 font-mono tabular-nums">
+                    <span className="text-amber-400">INT {fmt(interest)}</span>
+                    <span className="text-emerald-400">PRIN {fmt(principal)}</span>
+                  </div>
+                </div>
+              )}
 
-            {!isFuture && (
-              <div className="flex gap-2 mb-3">
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" size="sm" onClick={() => setPaying({ debt_id: d.id, amount: "", date: format(new Date(), "yyyy-MM-dd"), note: "" })} className="border-white/10 bg-black text-zinc-200 hover:border-white/30 hover:text-white flex-1">
-                      <CreditCard className="h-3 w-3 mr-1.5" /> Log Payment
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="bg-black border-white/10 text-zinc-100">
-                    <DialogHeader>
-                      <DialogTitle className="text-zinc-100">Log Payment · {d.name}</DialogTitle>
-                      <DialogDescription className="text-white/50">Record a payment against the live balance.</DialogDescription>
-                    </DialogHeader>
-                    <form onSubmit={logPayment} className="space-y-3">
-                      <div className="space-y-1.5">
-                        <Label className="text-white/50">Amount ($)</Label>
-                        <Input type="number" step="0.01" value={paying?.amount || ""} onChange={(e) => setPaying((p) => ({ ...p, amount: e.target.value }))} className="bg-black border-white/10 text-zinc-100" autoFocus />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-white/50">Date</Label>
-                        <Input type="date" value={paying?.date || ""} onChange={(e) => setPaying((p) => ({ ...p, date: e.target.value }))} className="bg-black border-white/10 text-zinc-100" />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-white/50">Note (optional)</Label>
-                        <Input value={paying?.note || ""} onChange={(e) => setPaying((p) => ({ ...p, note: e.target.value }))} placeholder="e.g. statement payment" className="bg-black border-white/10 text-zinc-100" />
-                      </div>
-                      <DialogFooter className="pt-2">
-                        <DialogClose asChild><Button type="button" variant="outline" className="border-white/10 text-white/50 hover:bg-white/5">Cancel</Button></DialogClose>
-                        <Button type="submit" disabled={logging} className="bg-emerald-500 text-black hover:bg-emerald-400">{logging ? "Saving..." : "Log Payment"}</Button>
-                      </DialogFooter>
-                    </form>
-                  </DialogContent>
-                </Dialog>
+              {!isFuture && <PayoffTarget debt={d} balance={balance} />}
 
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" size="sm" onClick={() => setEditing({ ...d })} className="border-white/10 bg-black text-zinc-200 hover:border-white/30 hover:text-white flex-1">
-                      <Plus className="h-3 w-3 mr-1.5 rotate-45" /> Edit
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="bg-black border-white/10 text-zinc-100">
-                    <DialogHeader>
-                      <DialogTitle className="text-zinc-100">Edit {d.name}</DialogTitle>
-                      <DialogDescription className="text-white/50">Update balance, rate, or minimum payment.</DialogDescription>
-                    </DialogHeader>
-                    <form onSubmit={saveEdit} className="space-y-3">
-                      <div className="space-y-1.5">
-                        <Label className="text-white/50">Current Balance ($)</Label>
-                        <Input type="number" step="any" defaultValue={d.current_balance} onChange={(e) => setEditing((prev) => ({ ...prev, current_balance: e.target.value }))} className="bg-black border-white/10 text-zinc-100" />
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
+              {!isFuture && (
+                <div className="flex gap-2 mb-3">
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" size="sm" onClick={() => setPaying({ debt_id: d.id, amount: "", date: format(new Date(), "yyyy-MM-dd"), note: "" })} className="border-white/10 bg-black text-zinc-200 hover:border-white/30 hover:text-white flex-1">
+                        <CreditCard className="h-3 w-3 mr-1.5" /> Log Payment
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="bg-black border-white/10 text-zinc-100">
+                      <DialogHeader>
+                        <DialogTitle className="text-zinc-100">Log Payment · {d.name}</DialogTitle>
+                        <DialogDescription className="text-white/50">Record a payment against the live balance.</DialogDescription>
+                      </DialogHeader>
+                      <form onSubmit={logPayment} className="space-y-3">
                         <div className="space-y-1.5">
-                          <Label className="text-white/50">Interest Rate (%)</Label>
-                          <Input type="number" step="any" defaultValue={d.interest_rate} onChange={(e) => setEditing((prev) => ({ ...prev, interest_rate: e.target.value }))} className="bg-black border-white/10 text-zinc-100" />
+                          <Label className="text-white/50">Amount ($)</Label>
+                          <Input type="number" step="0.01" value={paying?.amount || ""} onChange={(e) => setPaying((p) => ({ ...p, amount: e.target.value }))} className="bg-black border-white/10 text-zinc-100" autoFocus />
                         </div>
                         <div className="space-y-1.5">
-                          <Label className="text-white/50">Min. Payment ($)</Label>
-                          <Input type="number" step="any" defaultValue={d.minimum_payment} onChange={(e) => setEditing((prev) => ({ ...prev, minimum_payment: e.target.value }))} className="bg-black border-white/10 text-zinc-100" />
+                          <Label className="text-white/50">Date</Label>
+                          <Input type="date" value={paying?.date || ""} onChange={(e) => setPaying((p) => ({ ...p, date: e.target.value }))} className="bg-black border-white/10 text-zinc-100" />
                         </div>
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-white/50">Target Payoff Date</Label>
-                        <Input type="date" defaultValue={d.target_payoff_date || ""} onChange={(e) => setEditing((prev) => ({ ...prev, target_payoff_date: e.target.value }))} className="bg-black border-white/10 text-zinc-100" />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-white/50">Interest Type</Label>
-                        <Select
-                          value={editing?.interest_type || "APR"}
-                          onValueChange={(v) => setEditing((prev) => ({ ...prev, interest_type: v }))}
-                        >
-                          <SelectTrigger className="bg-black border-white/10 text-zinc-100">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent className="bg-black border-white/10">
-                            <SelectItem value="APR">APR</SelectItem>
-                            <SelectItem value="Fixed">Fixed Rate</SelectItem>
-                            <SelectItem value="Variable">Variable Rate</SelectItem>
-                            <SelectItem value="Simple">Simple Interest</SelectItem>
-                            <SelectItem value="Compound">Compound Interest</SelectItem>
-                            <SelectItem value="None">Interest-Free</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <DialogFooter className="pt-2">
-                        <DialogClose asChild><Button type="button" variant="outline" className="border-white/10 text-white/50 hover:bg-white/5">Cancel</Button></DialogClose>
-                        <Button type="submit" disabled={saving} className="bg-zinc-100 text-black hover:bg-white">{saving ? "Saving..." : "Save Changes"}</Button>
-                      </DialogFooter>
-                    </form>
-                  </DialogContent>
-                </Dialog>
+                        <div className="space-y-1.5">
+                          <Label className="text-white/50">Note (optional)</Label>
+                          <Input value={paying?.note || ""} onChange={(e) => setPaying((p) => ({ ...p, note: e.target.value }))} placeholder="e.g. statement payment" className="bg-black border-white/10 text-zinc-100" />
+                        </div>
+                        <DialogFooter className="pt-2">
+                          <DialogClose asChild><Button type="button" variant="outline" className="border-white/10 text-white/50 hover:bg-white/5">Cancel</Button></DialogClose>
+                          <Button type="submit" disabled={logging} className="bg-emerald-500 text-black hover:bg-emerald-400">{logging ? "Saving..." : "Log Payment"}</Button>
+                        </DialogFooter>
+                      </form>
+                    </DialogContent>
+                  </Dialog>
 
-                <Button variant="ghost" size="sm" onClick={() => remove(d.id)} className="text-white/40 hover:text-rose-400 hover:bg-rose-500/10">
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            )}
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" size="sm" onClick={() => setEditing({ ...d })} className="border-white/10 bg-black text-zinc-200 hover:border-white/30 hover:text-white flex-1">
+                        <Plus className="h-3 w-3 mr-1.5 rotate-45" /> Edit
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="bg-black border-white/10 text-zinc-100">
+                      <DialogHeader>
+                        <DialogTitle className="text-zinc-100">Edit {d.name}</DialogTitle>
+                        <DialogDescription className="text-white/50">Update balance, rate, or minimum payment.</DialogDescription>
+                      </DialogHeader>
+                      <form onSubmit={saveEdit} className="space-y-3">
+                        <div className="space-y-1.5">
+                          <Label className="text-white/50">Current Balance ($)</Label>
+                          <Input type="number" step="any" defaultValue={d.current_balance} onChange={(e) => setEditing((prev) => ({ ...prev, current_balance: e.target.value }))} className="bg-black border-white/10 text-zinc-100" />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1.5">
+                            <Label className="text-white/50">Interest Rate (%)</Label>
+                            <Input type="number" step="any" defaultValue={d.interest_rate} onChange={(e) => setEditing((prev) => ({ ...prev, interest_rate: e.target.value }))} className="bg-black border-white/10 text-zinc-100" />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-white/50">Min. Payment ($)</Label>
+                            <Input type="number" step="any" defaultValue={d.minimum_payment} onChange={(e) => setEditing((prev) => ({ ...prev, minimum_payment: e.target.value }))} className="bg-black border-white/10 text-zinc-100" />
+                          </div>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-white/50">Target Payoff Date</Label>
+                          <Input type="date" defaultValue={d.target_payoff_date || ""} onChange={(e) => setEditing((prev) => ({ ...prev, target_payoff_date: e.target.value }))} className="bg-black border-white/10 text-zinc-100" />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-white/50">Interest Type</Label>
+                          <Select
+                            value={editing?.interest_type || "APR"}
+                            onValueChange={(v) => setEditing((prev) => ({ ...prev, interest_type: v }))}
+                          >
+                            <SelectTrigger className="bg-black border-white/10 text-zinc-100">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="bg-black border-white/10">
+                              <SelectItem value="APR">APR</SelectItem>
+                              <SelectItem value="Fixed">Fixed Rate</SelectItem>
+                              <SelectItem value="Variable">Variable Rate</SelectItem>
+                              <SelectItem value="Simple">Simple Interest</SelectItem>
+                              <SelectItem value="Compound">Compound Interest</SelectItem>
+                              <SelectItem value="None">Interest-Free</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <DialogFooter className="pt-2">
+                          <DialogClose asChild><Button type="button" variant="outline" className="border-white/10 text-white/50 hover:bg-white/5">Cancel</Button></DialogClose>
+                          <Button type="submit" disabled={saving} className="bg-zinc-100 text-black hover:bg-white">{saving ? "Saving..." : "Save Changes"}</Button>
+                        </DialogFooter>
+                      </form>
+                    </DialogContent>
+                  </Dialog>
 
-            {isFuture && (
-              <div className="text-[10px] uppercase tracking-widest text-white/30 mb-3 font-mono">T+{fc.timelineIndex} · future state · log disabled</div>
-            )}
+                  <Button variant="ghost" size="sm" onClick={() => remove(d.id)} className="text-white/40 hover:text-rose-400 hover:bg-rose-500/10">
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              )}
 
-            <button
-              onClick={() => setExpanded((prev) => ({ ...prev, [d.id]: !prev[d.id] }))}
-              className="w-full flex items-center justify-between text-[10px] uppercase tracking-widest text-white/50 hover:text-white/80 transition-colors py-1.5 border-t border-white/10"
-            >
-              <span className="font-medium font-mono tabular-nums">
-                History · {history.length} {history.length === 1 ? "payment" : "payments"} · {fmt(totalPaid)} paid
-              </span>
-              <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isOpen ? "rotate-180" : ""}`} />
-            </button>
+              {isFuture && (
+                <div className="text-[10px] uppercase tracking-widest text-white/30 mb-3 font-mono">T+{fc.timelineIndex} · future state · log disabled</div>
+              )}
 
-            {isOpen && (
-              <div className="mt-1 space-y-1 max-h-40 overflow-y-auto">
-                {history.length === 0 ? (
-                  <p className="text-xs text-white/30 py-2 text-center">No payments logged yet.</p>
-                ) : (
-                  history.map((p) => (
-                    <div key={p.id} className="group flex items-center gap-2 px-2 py-1.5 hover:bg-white/5">
-                      <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium font-mono tabular-nums text-zinc-200">-{fmt(p.amount)}
-                          {p.note && <span className="text-white/40 font-normal ml-1.5 truncate">· {p.note}</span>}
-                        </p>
-                        <p className="text-[10px] font-mono tabular-nums text-white/40">{format(parseISO(p.date), "MMM d, yyyy")}</p>
+              <button
+                onClick={() => setExpanded((prev) => ({ ...prev, [d.id]: !prev[d.id] }))}
+                className="w-full flex items-center justify-between text-[10px] uppercase tracking-widest text-white/50 hover:text-white/80 transition-colors py-1.5 border-t border-white/10"
+              >
+                <span className="font-medium font-mono tabular-nums">
+                  History · {history.length} {history.length === 1 ? "payment" : "payments"} · {fmt(totalPaid)} paid
+                </span>
+                <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+              </button>
+
+              {isOpen && (
+                <div className="mt-1 space-y-1 max-h-40 overflow-y-auto">
+                  {history.length === 0 ? (
+                    <p className="text-xs text-white/30 py-2 text-center">No payments logged yet.</p>
+                  ) : (
+                    history.map((p) => (
+                      <div key={p.id} className="group flex items-center gap-2 px-2 py-1.5 hover:bg-white/5">
+                        <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium font-mono tabular-nums text-zinc-200">-{fmt(p.amount)}
+                            {p.note && <span className="text-white/40 font-normal ml-1.5 truncate">· {p.note}</span>}
+                          </p>
+                          <p className="text-[10px] font-mono tabular-nums text-white/40">{format(parseISO(p.date), "MMM d, yyyy")}</p>
+                        </div>
+                        {!isFuture && (
+                          <button onClick={() => removePayment(p)} className="h-11 w-11 flex items-center justify-center text-white/30 hover:text-rose-400 hover:bg-rose-500/10 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity" aria-label="Delete payment">
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
-                      {!isFuture && (
-                        <button onClick={() => removePayment(p)} className="h-11 w-11 flex items-center justify-center text-white/30 hover:text-rose-400 hover:bg-rose-500/10 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity" aria-label="Delete payment">
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      )}
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         );
       })}
