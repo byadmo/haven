@@ -312,8 +312,8 @@ export default function LiabilityLedger({ debts, onChanged }) {
                         <p className="text-[10px] font-mono tabular-nums text-white/40">{format(parseISO(p.date), "MMM d, yyyy")}</p>
                       </div>
                       {!isFuture && (
-                        <button onClick={() => removePayment(p)} className="h-5 w-5 flex items-center justify-center text-white/30 hover:text-rose-400 hover:bg-rose-500/10 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity" aria-label="Delete payment">
-                          <Trash2 className="h-3 w-3" />
+                        <button onClick={() => removePayment(p)} className="h-11 w-11 flex items-center justify-center text-white/30 hover:text-rose-400 hover:bg-rose-500/10 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity" aria-label="Delete payment">
+                          <Trash2 className="h-4 w-4" />
                         </button>
                       )}
                     </div>

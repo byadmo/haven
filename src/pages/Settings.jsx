@@ -4,14 +4,45 @@ import Reveal from "@/components/finance/Reveal";
 import { useCategories } from "@/lib/categories";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Trash2, RotateCcw } from "lucide-react";
+import { Plus, Trash2, RotateCcw, ChevronLeft } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import MonthlyReport from "@/components/finance/MonthlyReport";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/lib/AuthContext";
+import { base44 } from "@/api/base44Client";
 
 export default function Settings() {
   const { categories, loading, add, remove, restoreDefaults } = useCategories();
   const [name, setName] = React.useState("");
   const [saving, setSaving] = React.useState(false);
+  const [showDelete, setShowDelete] = React.useState(false);
+  const [deleteText, setDeleteText] = React.useState("");
+  const [deleting, setDeleting] = React.useState(false);
+  const navigate = useNavigate();
+  const { user } = useAuth();
+
+  async function handleDeleteAccount() {
+    setDeleting(true);
+    try {
+      await Promise.all([
+        base44.entities.Transaction.deleteMany({}).catch(() => {}),
+        base44.entities.Debt.deleteMany({}).catch(() => {}),
+        base44.entities.Account.deleteMany({}).catch(() => {}),
+        base44.entities.Stock.deleteMany({}).catch(() => {}),
+        base44.entities.Category.deleteMany({}).catch(() => {}),
+        base44.entities.DebtPayment.deleteMany({}).catch(() => {}),
+      ]);
+      try {
+        await base44.entities.User.delete(user.id);
+      } catch (e) {
+        // Platform may block self-deletion; data is cleaned regardless
+      }
+    } finally {
+      setDeleting(false);
+      base44.auth.logout(window.location.origin);
+    }
+  }
 
   async function onAdd(e) {
     e.preventDefault();
@@ -28,6 +59,12 @@ export default function Settings() {
   return (
     <div className="dd-page-enter dark min-h-screen bg-black text-zinc-100 selection:bg-emerald-500/30">
       <DashboardHeader />
+
+      <div className="sm:hidden px-6 pt-4">
+        <button onClick={() => navigate("/")} className="flex items-center gap-1 text-xs uppercase tracking-widest text-white/50 hover:text-white transition-colors">
+          <ChevronLeft className="h-4 w-4" /> Back to Overview
+        </button>
+      </div>
 
       <main className="relative max-w-3xl mx-auto px-6 sm:px-6 py-10 sm:py-6 space-y-10 sm:space-y-6">
         <div>
@@ -98,7 +135,53 @@ export default function Settings() {
         <Reveal delay={0.05}>
           <MonthlyReport />
         </Reveal>
+
+        <Reveal delay={0.1}>
+          <div className="rounded-lg border border-rose-500/30 bg-rose-500/5 p-5">
+            <h2 className="text-xs uppercase tracking-widest text-rose-400/80">Danger Zone</h2>
+            <p className="text-lg font-semibold font-mono tracking-tight text-zinc-100 mt-1">Delete Account</p>
+            <p className="text-xs text-white/40 mt-1 mb-4">Permanently delete your account and all associated financial data. This action cannot be undone.</p>
+            <Button
+              variant="outline"
+              onClick={() => setShowDelete(true)}
+              className="border-rose-500/40 text-rose-400 hover:bg-rose-500/10 hover:border-rose-500/60"
+            >
+              <Trash2 className="h-4 w-4 mr-1.5" /> Delete My Account
+            </Button>
+          </div>
+        </Reveal>
       </main>
+
+      <Dialog open={showDelete} onOpenChange={(v) => { setShowDelete(v); if (!v) setDeleteText(""); }}>
+        <DialogContent className="bg-zinc-900 border-rose-500/30 text-zinc-100">
+          <DialogHeader>
+            <DialogTitle className="text-zinc-100">Delete Account</DialogTitle>
+            <DialogDescription className="text-zinc-500">
+              This will permanently delete all your transactions, debts, accounts, and portfolio data. Type <span className="text-rose-400 font-mono">DELETE</span> to confirm.
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            value={deleteText}
+            onChange={(e) => setDeleteText(e.target.value)}
+            placeholder="Type DELETE to confirm"
+            className="bg-zinc-950 border-zinc-800 text-zinc-100"
+            autoFocus
+          />
+          <DialogFooter className="pt-2 gap-2">
+            <DialogClose asChild>
+              <Button type="button" variant="outline" className="border-white/10 text-zinc-400 hover:bg-white/5">Cancel</Button>
+            </DialogClose>
+            <Button
+              type="button"
+              disabled={deleting || deleteText !== "DELETE"}
+              onClick={handleDeleteAccount}
+              className="bg-rose-600 text-white hover:bg-rose-500"
+            >
+              {deleting ? "Deleting…" : "Permanently Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

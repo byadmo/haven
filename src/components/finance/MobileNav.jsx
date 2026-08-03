@@ -18,7 +18,7 @@ export default function MobileNav() {
     }`;
   return (
     <nav
-      className="sm:hidden fixed bottom-0 inset-x-0 z-30 border-t border-white/10 bg-black"
+      className="sm:hidden fixed bottom-0 inset-x-0 z-30 border-t border-white/10 bg-black select-none"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       aria-label="Primary"
     >

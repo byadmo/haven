@@ -204,7 +204,7 @@ export default function AccountsManager({ onChanged }) {
                     <button
                       onClick={() => toggleVisibility(a)}
                       title={a.show_in_summary === false ? "Show in summary" : "Hide from summary"}
-                      className="h-6 w-6 rounded-md flex items-center justify-center text-white/50 hover:text-zinc-200 hover:bg-zinc-800"
+                      className="h-11 w-11 rounded-md flex items-center justify-center text-white/50 hover:text-zinc-200 hover:bg-zinc-800"
                     >
                       {a.show_in_summary === false ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                     </button>
@@ -212,13 +212,13 @@ export default function AccountsManager({ onChanged }) {
                       <>
                         <button
                           onClick={() => commitRename(a.id)}
-                          className="h-6 w-6 rounded-md flex items-center justify-center text-emerald-400 hover:bg-emerald-500/10"
+                          className="h-11 w-11 rounded-md flex items-center justify-center text-emerald-400 hover:bg-emerald-500/10"
                         >
                           <Check className="h-3.5 w-3.5" />
                         </button>
                         <button
                           onClick={() => setEditId(null)}
-                          className="h-6 w-6 rounded-md flex items-center justify-center text-zinc-500 hover:bg-zinc-800"
+                          className="h-11 w-11 rounded-md flex items-center justify-center text-zinc-500 hover:bg-zinc-800"
                         >
                           <X className="h-3.5 w-3.5" />
                         </button>
@@ -231,13 +231,13 @@ export default function AccountsManager({ onChanged }) {
                             setEditName(a.name);
                             setEditBal(String(a.balance ?? 0));
                           }}
-                          className="h-6 w-6 rounded-md flex items-center justify-center text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800"
+                          className="h-11 w-11 rounded-md flex items-center justify-center text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800"
                         >
                           <Pencil className="h-3.5 w-3.5" />
                         </button>
                         <button
                           onClick={() => remove(a.id)}
-                          className="h-6 w-6 rounded-md flex items-center justify-center text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10"
+                          className="h-11 w-11 rounded-md flex items-center justify-center text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
