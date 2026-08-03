@@ -1,0 +1,41 @@
+{
+  "name": "Stock",
+  "type": "object",
+  "properties": {
+    "symbol": {
+      "type": "string",
+      "description": "Ticker symbol, e.g. AAPL"
+    },
+    "name": {
+      "type": "string",
+      "description": "Company name"
+    },
+    "shares": {
+      "type": "number",
+      "description": "Number of shares held"
+    },
+    "avg_buy_price": {
+      "type": "number",
+      "description": "Average purchase price per share"
+    }
+  },
+  "required": [
+    "symbol",
+    "shares",
+    "avg_buy_price"
+  ],
+  "rls": {
+    "read": {
+      "created_by_id": "{{user.id}}"
+    },
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}

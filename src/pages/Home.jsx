@@ -15,6 +15,7 @@ import LiabilityLedger from "@/components/finance/LiabilityLedger";
 import FundFlows from "@/components/finance/FundFlows";
 import TransactionForm from "@/components/finance/TransactionForm";
 import DebtForm from "@/components/finance/DebtForm";
+import StockTracker from "@/components/finance/StockTracker";
 
 export default function Home() {
   const [txns, setTxns] = React.useState([]);
@@ -132,6 +133,9 @@ export default function Home() {
           </div>
           <LiabilityLedger debts={debts} onChanged={() => setRefreshKey((k) => k + 1)} />
         </section>
+
+        {/* Stock portfolio */}
+        <StockTracker onChanged={() => setRefreshKey((k) => k + 1)} />
 
         {/* Fund flows */}
         <section>
