@@ -3,6 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Paperclip, Send, Sparkles, Loader2 } from "lucide-react";
 import ApprovalModal from "@/components/assistant/ApprovalModal";
+import { adjustAccountBalance, txEffect } from "@/lib/accounts";
 
 const uid = () => Math.random().toString(36).slice(2);
 
@@ -219,7 +220,10 @@ export default function AssistantChat({ accounts, debts, transactions }) {
         const E = base44.entities[op.entity];
         if (!E) { failed.push(op.summary || op.action); continue; }
         try {
-          if (op.action === "create") {
+          if (op.entity === "Transaction") {
+            await applyTransactionOp(op);
+            applied.push(op);
+          } else if (op.action === "create") {
             const data = withCreateDefaults(op.entity, cleanData(op.data));
             await E.create(data);
             applied.push(op);
@@ -258,6 +262,41 @@ export default function AssistantChat({ accounts, debts, transactions }) {
       if (out.amount === undefined) out.amount = 0;
     }
     return out;
+  }
+
+  // Apply a Transaction op AND mirror its money effect to the linked Account balance.
+  async function applyTransactionOp(op) {
+    const T = base44.entities.Transaction;
+    if (op.action === "create") {
+      const data = withCreateDefaults("Transaction", cleanData(op.data));
+      await T.create(data);
+      if (data.account_id) await adjustAccountBalance(data.account_id, txEffect(data));
+      return;
+    }
+    if (op.action === "update" && op.targetId) {
+      const old = await T.get(op.targetId);
+      const next = cleanData(op.data);
+      await T.update(op.targetId, next);
+      const oldAcct = old.account_id;
+      const newAcct = next.account_id !== undefined ? (next.account_id || null) : oldAcct;
+      const oldEff = txEffect(old);
+      const merged = { ...old, ...next };
+      const newEff = txEffect(merged);
+      if (oldAcct && oldAcct === newAcct) {
+        await adjustAccountBalance(oldAcct, newEff - oldEff);
+      } else {
+        if (oldAcct) await adjustAccountBalance(oldAcct, -oldEff);
+        if (newAcct) await adjustAccountBalance(newAcct, newEff);
+      }
+      return;
+    }
+    if (op.action === "delete" && op.targetId) {
+      const old = await T.get(op.targetId);
+      await T.delete(op.targetId);
+      if (old.account_id) await adjustAccountBalance(old.account_id, -txEffect(old));
+      return;
+    }
+    throw new Error(`${op.action} needs a targetId`);
   }
 
   async function regenerateOps(priorOps, feedback) {
