@@ -17,7 +17,7 @@ function Metric({ label, value, tone, badge }) {
   return (
     <div className="p-4 sm:p-5 flex-1">
       <p className="text-[10px] tracking-[0.2em] text-white/50 font-mono uppercase">{label}</p>
-      <p className={`mt-1 text-2xl sm:text-3xl font-mono tabular-nums tracking-tight ${toneColor(tone)}`}>{value}</p>
+      <p className={`mt-1 text-xl sm:text-3xl font-mono tabular-nums tracking-tight ${toneColor(tone)}`}>{value}</p>
       {badge && (
         <span className="mt-1.5 inline-block text-[9px] tracking-[0.18em] px-1.5 py-0.5 border border-emerald-500/40 text-emerald-400 font-mono">
           {badge}
@@ -39,7 +39,7 @@ export default function TelemetryReadout() {
     <div className="flex flex-col sm:flex-row sm:items-stretch divide-y sm:divide-y-0 sm:divide-x divide-white/10">
       <div className="p-4 sm:p-5">
         <p className="text-[10px] tracking-[0.2em] text-white/50 font-mono uppercase">Forecast</p>
-        <p className="mt-1 text-2xl font-mono tabular-nums tracking-tight text-zinc-50">T+{point.month}</p>
+        <p className="mt-1 text-xl sm:text-2xl font-mono tabular-nums tracking-tight text-zinc-50">T+{point.month}</p>
         <p className="text-[11px] font-mono tabular-nums tracking-tight text-white/50">{format(point.date, "MMM yyyy").toUpperCase()}</p>
       </div>
       <Metric label="Net Worth" value={money(nw)} tone={nw >= 0 ? "emerald" : "rose"} />

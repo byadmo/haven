@@ -118,5 +118,6 @@
 
 /* Mobile: reserve space so the fixed bottom tab bar never covers content. */
 @media (max-width: 639px) {
+  html { font-size: 14px; }          /* scale rem-based spacing/type down ~12% so mobile feels less zoomed-in */
   body { padding-bottom: 4.5rem; }
 }

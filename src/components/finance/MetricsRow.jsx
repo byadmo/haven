@@ -83,7 +83,7 @@ export default function MetricsRow({ netWorth, income, expense, incomePct, expen
               </div>
               {c.chip}
             </div>
-            <p className="text-2xl font-bold font-mono tabular-nums tracking-tight text-zinc-50">{c.value}</p>
+            <p className="text-xl sm:text-2xl font-bold font-mono tabular-nums tracking-tight text-zinc-50">{c.value}</p>
             {c.bar !== null && (
               <div className="mt-3 h-1.5 bg-white/10 overflow-hidden">
                 <motion.div

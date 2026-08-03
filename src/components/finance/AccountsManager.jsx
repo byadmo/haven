@@ -169,7 +169,7 @@ export default function AccountsManager({ onChanged }) {
                 ) : (
                   <p className="text-sm font-semibold text-zinc-100 mb-1 truncate">{a.name}</p>
                 )}
-                <p className="text-xl font-bold font-mono tabular-nums tracking-tight text-emerald-400">{fmt(a.balance || 0)}</p>
+                <p className="text-lg sm:text-xl font-bold font-mono tabular-nums tracking-tight text-emerald-400">{fmt(a.balance || 0)}</p>
               </motion.div>
             ))}
           </AnimatePresence>
