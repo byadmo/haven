@@ -29,7 +29,7 @@ export default function DashboardHeader({ actions }) {
 
         <div className="hidden sm:block h-5 w-px bg-white/10" />
 
-        <nav className="hidden sm:flex items-center min-w-0 flex-1 overflow-x-auto">
+        <nav className="hidden sm:flex items-center min-w-0 flex-1 overflow-visible">
           <NavLink to="/" className={linkClass} end>Overview</NavLink>
           <NavLink to="/forecast" className={linkClass}>Forecast</NavLink>
           <NavLink to="/assistant" className={linkClass}>Ask Adam</NavLink>
