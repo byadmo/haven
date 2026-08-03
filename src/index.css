@@ -128,7 +128,8 @@
   @media (prefers-reduced-motion: reduce) { .dd-page-enter { animation: none; } }
 }
 
-/* Mobile: reserve space so the fixed bottom tab bar never covers content. */
+/* Mobile: zoom out 20% so everything is smaller and more readable. */
 @media (max-width: 639px) {
-  body { padding-bottom: 5rem; }
+  html { zoom: 0.8; }
+  body { padding-bottom: 5.5rem; }
 }
