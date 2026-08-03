@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Paperclip, Send, Sparkles, Loader2 } from "lucide-react";
 import ApprovalModal from "@/components/assistant/ApprovalModal";
-import { adjustAccountBalance, txEffect } from "@/lib/accounts";
+import { adjustAccountBalance, txEffect, balanceApplies } from "@/lib/accounts";
 
 const uid = () => Math.random().toString(36).slice(2);
 
@@ -270,7 +270,7 @@ export default function AssistantChat({ accounts, debts, transactions }) {
     if (op.action === "create") {
       const data = withCreateDefaults("Transaction", cleanData(op.data));
       await T.create(data);
-      if (data.account_id) await adjustAccountBalance(data.account_id, txEffect(data));
+      if (data.account_id && balanceApplies(data.date)) await adjustAccountBalance(data.account_id, txEffect(data));
       return;
     }
     if (op.action === "update" && op.targetId) {
@@ -282,18 +282,21 @@ export default function AssistantChat({ accounts, debts, transactions }) {
       const oldEff = txEffect(old);
       const merged = { ...old, ...next };
       const newEff = txEffect(merged);
+      const oldApplied = balanceApplies(old.date);
+      const newApplied = balanceApplies(merged.date);
       if (oldAcct && oldAcct === newAcct) {
-        await adjustAccountBalance(oldAcct, newEff - oldEff);
+        const delta = (newApplied ? newEff : 0) - (oldApplied ? oldEff : 0);
+        if (delta !== 0) await adjustAccountBalance(oldAcct, delta);
       } else {
-        if (oldAcct) await adjustAccountBalance(oldAcct, -oldEff);
-        if (newAcct) await adjustAccountBalance(newAcct, newEff);
+        if (oldAcct && oldApplied) await adjustAccountBalance(oldAcct, -oldEff);
+        if (newAcct && newApplied) await adjustAccountBalance(newAcct, newEff);
       }
       return;
     }
     if (op.action === "delete" && op.targetId) {
       const old = await T.get(op.targetId);
       await T.delete(op.targetId);
-      if (old.account_id) await adjustAccountBalance(old.account_id, -txEffect(old));
+      if (old.account_id && balanceApplies(old.date)) await adjustAccountBalance(old.account_id, -txEffect(old));
       return;
     }
     throw new Error(`${op.action} needs a targetId`);

@@ -17,7 +17,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { adjustAccountBalance, txEffect } from "@/lib/accounts";
+import { adjustAccountBalance, txEffect, balanceApplies } from "@/lib/accounts";
 import { format } from "date-fns";
 import { TrendingDown, TrendingUp } from "lucide-react";
 import RecurringFields from "@/components/finance/RecurringFields";
@@ -76,7 +76,7 @@ export default function QuickAddModal({ open, onOpenChange, accounts = [], onSav
         custom_interval: recurring && frequency === "custom" ? (parseInt(customInterval) || 1) : undefined,
         custom_unit: recurring && frequency === "custom" ? customUnit : undefined,
       });
-      if (accountId) await adjustAccountBalance(accountId, txEffect({ type, amount: parseFloat(amount) }));
+      if (accountId && balanceApplies(date)) await adjustAccountBalance(accountId, txEffect({ type, amount: parseFloat(amount) }));
       onOpenChange?.(false);
       onSaved?.();
     } finally {
@@ -156,7 +156,7 @@ export default function QuickAddModal({ open, onOpenChange, accounts = [], onSav
               </Select>
             </div>
             <div>
-              <Label className="text-[11px] text-zinc-500 uppercase tracking-wider">Account</Label>
+              <Label className="text-[11px] text-zinc-500 uppercase tracking-wider">{type === "income" ? "Into account" : "From account"}</Label>
               <Select value={accountId} onValueChange={setAccountId}>
                 <SelectTrigger className="mt-1 bg-zinc-950 border-zinc-800 text-zinc-100 h-10"><SelectValue placeholder="No account" /></SelectTrigger>
                 <SelectContent className="bg-zinc-900 border-zinc-800">

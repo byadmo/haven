@@ -1,4 +1,18 @@
 import { base44 } from "@/api/base44Client";
+import { isFuture, parseISO } from "date-fns";
+
+/**
+ * A transaction only affects an account balance once its date has arrived
+ * (today or earlier). Future-dated transactions leave the balance untouched.
+ */
+export function balanceApplies(dateStr) {
+  if (!dateStr) return true;
+  try {
+    return !isFuture(parseISO(dateStr));
+  } catch {
+    return true;
+  }
+}
 
 /**
  * Signed effect a transaction has on its linked account balance.
