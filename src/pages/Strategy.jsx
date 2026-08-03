@@ -4,21 +4,26 @@ import { startOfMonth, endOfMonth, isWithinInterval, parseISO } from "date-fns";
 import DashboardHeader from "@/components/finance/DashboardHeader";
 import DebtStrategyEngine from "@/components/finance/DebtStrategyEngine";
 import DebtProjectionChart from "@/components/finance/DebtProjectionChart";
+import GoalPlanner from "@/components/finance/GoalPlanner";
 import Reveal from "@/components/finance/Reveal";
 
 export default function Strategy() {
   const [debts, setDebts] = React.useState([]);
+  const [accounts, setAccounts] = React.useState([]);
   const [txns, setTxns] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
   const [refreshKey, setRefreshKey] = React.useState(0);
+  const [goalExtra, setGoalExtra] = React.useState(0);
 
   React.useEffect(() => {
     Promise.all([
       base44.entities.Debt.list("-created_date"),
       base44.entities.Transaction.list("-date", 500),
-    ]).then(([d, t]) => {
+      base44.entities.Account.list("-created_date"),
+    ]).then(([d, t, a]) => {
       setDebts(d);
       setTxns(t);
+      setAccounts(a);
       setLoading(false);
     });
   }, [refreshKey]);
@@ -57,6 +62,17 @@ export default function Strategy() {
       <main className="relative max-w-6xl mx-auto px-6 sm:px-6 py-10 sm:py-6 space-y-10 sm:space-y-6">
         <Reveal>
           <DebtProjectionChart debts={debts} surplus={surplus} />
+        </Reveal>
+        <Reveal delay={0.03}>
+          <GoalPlanner
+            debts={debts}
+            accounts={accounts}
+            transactions={txns}
+            method="avalanche"
+            months={120}
+            currentExtra={goalExtra}
+            onApply={(e) => setGoalExtra(e)}
+          />
         </Reveal>
         <Reveal delay={0.05}>
           <DebtStrategyEngine debts={debts} monthlySurplus={surplus} />
