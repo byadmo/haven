@@ -1,6 +1,6 @@
 import React from "react";
 import { parseISO, format, isToday, isFuture } from "date-fns";
-import { ArrowDownLeft, ArrowUpRight, Pencil, X, Search, CalendarClock } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, Pencil, X, Search, CalendarClock, CreditCard } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger, DialogClose,
@@ -234,15 +234,32 @@ function Row({ t, accountsMap, onChanged, categories }) {
   );
 }
 
-export default function RecentTransactions({ transactions, accounts = [], onChanged }) {
+export default function RecentTransactions({ transactions, accounts = [], onChanged, debts = [], refreshKey = 0 }) {
   const [filter, setFilter] = React.useState("all");
   const [query, setQuery] = React.useState("");
+  const [payments, setPayments] = React.useState([]);
   const { categories: cats } = useCategories();
   const options = categoryOptions(cats);
 
   const accountsMap = React.useMemo(() => Object.fromEntries(accounts.map((a) => [a.id, a])), [accounts]);
+  const debtMap = React.useMemo(() => Object.fromEntries((debts || []).map((d) => [d.id, d])), [debts]);
 
-  const filtered = transactions
+  React.useEffect(() => {
+    base44.entities.DebtPayment.list("-date", 500).then(setPayments).catch(() => {});
+  }, [refreshKey]);
+
+  const debtRows = payments.map((p) => ({
+    _kind: "debt_payment",
+    id: `dp_${p.id}`,
+    description: `${debtMap[p.debt_id]?.name || "Liability"} payment`,
+    category: "Debt Payment",
+    type: "expense",
+    amount: p.amount || 0,
+    date: p.date,
+    note: p.note,
+  }));
+
+  const filtered = [...transactions, ...debtRows]
     .filter((t) => (filter === "all" ? true : t.type === filter))
     .filter((t) =>
       query.trim()
@@ -292,10 +309,35 @@ export default function RecentTransactions({ transactions, accounts = [], onChan
           {filtered.length === 0 ? (
             <p className="text-sm text-zinc-500 text-center py-8">No transactions match.</p>
           ) : (
-            filtered.map((t) => <Row key={t.id} t={t} accountsMap={accountsMap} onChanged={onChanged} categories={options} />)
+            filtered.map((t) =>
+              t._kind === "debt_payment"
+                ? <DebtPaymentRow key={t.id} t={t} />
+                : <Row key={t.id} t={t} accountsMap={accountsMap} onChanged={onChanged} categories={options} />
+            )
           )}
         </AnimatePresence>
       </div>
+    </div>
+  );
+}
+
+function DebtPaymentRow({ t }) {
+  return (
+    <div className="group flex items-center gap-2.5 py-2 border-b border-zinc-800/60 last:border-0">
+      <div className="h-7 w-7 rounded-full flex items-center justify-center shrink-0 bg-emerald-500/15">
+        <CreditCard className="h-3.5 w-3.5 text-emerald-400" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium text-zinc-200 truncate">{t.description}</p>
+        <p className="text-[11px] text-zinc-500 flex items-center gap-1.5">
+          {t.category}
+          {t.note && <span>· {t.note}</span>}
+          <span>· {format(parseISO(t.date), "MMM d")}</span>
+        </p>
+      </div>
+      <span className="text-sm font-semibold tabular-nums text-rose-400">
+        -${t.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+      </span>
     </div>
   );
 }

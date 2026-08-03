@@ -134,7 +134,7 @@ export default function Home() {
           <div className="lg:col-span-2 space-y-6">
             <Reveal><CashFlowAnalytics transactions={txns} /></Reveal>
             <Reveal delay={0.05}>
-              <RecentTransactions transactions={txns} accounts={accounts} onChanged={() => setRefreshKey((k) => k + 1)} />
+              <RecentTransactions transactions={txns} accounts={accounts} debts={debts} refreshKey={refreshKey} onChanged={() => setRefreshKey((k) => k + 1)} />
             </Reveal>
           </div>
           <div className="space-y-6">
