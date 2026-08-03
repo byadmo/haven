@@ -1,4 +1,5 @@
 import React from "react";
+import { format, addMonths } from "date-fns";
 import { useForecast } from "@/lib/forecast-context";
 import {
   ResponsiveContainer, LineChart, Line, AreaChart, Area,
@@ -10,6 +11,8 @@ const money0 = (v) =>
     style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 0,
   });
 
+const fmtDate = (m) => format(addMonths(new Date(), m), "MMM yy");
+
 const PALETTE = ["#f43f5e", "#6366f1", "#f59e0b", "#10b981", "#3b82f6", "#a855f7", "#ec4899", "#22d3ee"];
 const axisProps = {
   stroke: "rgba(255,255,255,0.25)",
@@ -20,7 +23,7 @@ const axisProps = {
 const tooltipProps = {
   contentStyle: { background: "#000", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 12 },
   labelStyle: { color: "rgba(255,255,255,0.5)" },
-  labelFormatter: (m) => `T+${m}`,
+  labelFormatter: (m) => format(addMonths(new Date(), m), "MMM yyyy"),
 };
 
 function Card({ title, subtitle, children, height = 220 }) {
@@ -35,7 +38,7 @@ function Card({ title, subtitle, children, height = 220 }) {
   );
 }
 
-export default function ForecastCharts({ series, order, baselineSeries }) {
+export default function ForecastCharts({ series, order }) {
   const fc = useForecast();
   const index = fc?.timelineIndex ?? 0;
 
@@ -50,25 +53,11 @@ export default function ForecastCharts({ series, order, baselineSeries }) {
     return row;
   });
 
-  const compareData = baselineSeries?.length
-    ? series.map((p, i) => ({ m: p.month, you: p.netWorth, base: baselineSeries[i]?.netWorth ?? 0 }))
-    : null;
-
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-      <Card title="Net Worth Projection" subtitle="Cash minus debt · horizon">
-        <LineChart data={netWorthData} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-          <XAxis dataKey="m" {...axisProps} />
-          <YAxis tickFormatter={money0} width={56} {...axisProps} axisLine={false} />
-          <Tooltip formatter={(v) => money0(v)} {...tooltipProps} />
-          <ReferenceLine x={index} stroke="#10b981" strokeDasharray="3 3" />
-          <Line type="monotone" dataKey="nw" stroke="#10b981" strokeWidth={2} dot={false} />
-        </LineChart>
-      </Card>
-
-      <Card title="Debt Remaining" subtitle="Total liability balance over time">
+      <Card title="Debt Remaining" subtitle="Total balance over time — drops to $0 at payoff">
         <AreaChart data={series.map((p) => ({ m: p.month, dr: p.debtRemaining }))} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-          <XAxis dataKey="m" {...axisProps} />
+          <XAxis dataKey="m" tickFormatter={fmtDate} {...axisProps} />
           <YAxis tickFormatter={money0} width={56} {...axisProps} axisLine={false} />
           <Tooltip formatter={(v) => money0(v)} {...tooltipProps} />
           <ReferenceLine x={index} stroke="#f43f5e" strokeDasharray="3 3" />
@@ -76,9 +65,19 @@ export default function ForecastCharts({ series, order, baselineSeries }) {
         </AreaChart>
       </Card>
 
+      <Card title="Net Worth" subtitle="Cash minus debt — your financial health">
+        <LineChart data={netWorthData} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+          <XAxis dataKey="m" tickFormatter={fmtDate} {...axisProps} />
+          <YAxis tickFormatter={money0} width={56} {...axisProps} axisLine={false} />
+          <Tooltip formatter={(v) => money0(v)} {...tooltipProps} />
+          <ReferenceLine x={index} stroke="#10b981" strokeDasharray="3 3" />
+          <Line type="monotone" dataKey="nw" stroke="#10b981" strokeWidth={2} dot={false} />
+        </LineChart>
+      </Card>
+
       <Card title="Cash Balance" subtitle="Projected liquid reserves">
         <LineChart data={cashData} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-          <XAxis dataKey="m" {...axisProps} />
+          <XAxis dataKey="m" tickFormatter={fmtDate} {...axisProps} />
           <YAxis tickFormatter={money0} width={56} {...axisProps} axisLine={false} />
           <Tooltip formatter={(v) => money0(v)} {...tooltipProps} />
           <ReferenceLine x={index} stroke="#6366f1" strokeDasharray="3 3" />
@@ -86,24 +85,10 @@ export default function ForecastCharts({ series, order, baselineSeries }) {
         </LineChart>
       </Card>
 
-      {compareData && (
-        <Card title="You vs Baseline" subtitle="Net worth: current plan vs no extra payment">
-          <LineChart data={compareData} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-            <XAxis dataKey="m" {...axisProps} />
-            <YAxis tickFormatter={money0} width={56} {...axisProps} axisLine={false} />
-            <Tooltip formatter={(v) => money0(v)} {...tooltipProps} />
-            <ReferenceLine x={index} stroke="rgba(255,255,255,0.3)" strokeDasharray="3 3" />
-            <Legend wrapperStyle={{ fontSize: 10 }} iconType="plainline" />
-            <Line type="monotone" dataKey="you" name="Your Plan" stroke="#10b981" strokeWidth={2} dot={false} />
-            <Line type="monotone" dataKey="base" name="Baseline" stroke="rgba(255,255,255,0.35)" strokeWidth={1.5} strokeDasharray="4 4" dot={false} />
-          </LineChart>
-        </Card>
-      )}
-
       <div className="lg:col-span-2">
-        <Card title="Per-Liability Decline" subtitle="Each balance to zero" height={260}>
+        <Card title="Each Debt to Zero" subtitle="Individual liability balances over time" height={260}>
           <LineChart data={liabData} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-            <XAxis dataKey="m" {...axisProps} />
+            <XAxis dataKey="m" tickFormatter={fmtDate} {...axisProps} />
             <YAxis tickFormatter={money0} width={56} {...axisProps} axisLine={false} />
             <Tooltip formatter={(v) => money0(v)} {...tooltipProps} />
             <ReferenceLine x={index} stroke="rgba(255,255,255,0.3)" strokeDasharray="3 3" />

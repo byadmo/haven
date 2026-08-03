@@ -1,9 +1,18 @@
 import React from "react";
+import { format } from "date-fns";
 import { useForecast } from "@/lib/forecast-context";
 
 // Hover-driven forecast timeline: move the pointer across the track to sweep
 // the playhead. Touch works too (drag finger). No press/drag needed.
 const SNAP = 1.4;
+
+function relativeLabel(month) {
+  if (month === 0) return "Now";
+  if (month < 12) return `${month} mo`;
+  const y = Math.floor(month / 12);
+  const m = month % 12;
+  return m ? `${y}y ${m}m` : `${y}y`;
+}
 
 export default function HoverTimeline() {
   const fc = useForecast();
@@ -45,13 +54,17 @@ export default function HoverTimeline() {
   const pct = (m) => `${(m / max) * 100}%`;
   const yearTicks = Array.from({ length: Math.floor(max / 12) + 1 }, (_, i) => i * 12).filter((y) => y <= max);
   const point = fc.point;
+  const lastPoint = series[max];
+  const debtFree = lastPoint?.keyframe && lastPoint?.keyframeLabel === "DEBT FREE";
 
   return (
     <div className="border-t border-white/10 p-4">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-[10px] tracking-[0.25em] text-white/50 font-mono uppercase">Timeline · Hover to Forecast</span>
+        <span className="text-[10px] tracking-[0.25em] text-white/50 font-mono uppercase">Drag the slider to preview your future</span>
         <span className={`text-[10px] tracking-[0.18em] font-mono ${point?.keyframe ? "text-emerald-400" : "text-white/40"}`}>
-          {point?.keyframe ? `◉ ${point.keyframeLabel}` : `○ T+${index}`}
+          {point?.keyframe
+            ? `◉ ${point.keyframeLabel}`
+            : index === 0 ? "○ Now" : `○ ${relativeLabel(index)} · ${format(series[index].date, "MMM yyyy")}`}
         </span>
       </div>
 
@@ -91,8 +104,8 @@ export default function HoverTimeline() {
       </div>
 
       <div className="flex justify-between mt-1 font-mono tabular-nums tracking-tight text-[9px] tracking-wider text-white/30 uppercase">
-        <span>T+0 Now</span>
-        <span>T+{max} · {Math.floor(max / 12)}y Horizon</span>
+        <span>Now · {format(series[0].date, "MMM yyyy")}</span>
+        <span>{debtFree ? "Debt Free · " : ""}{format(series[max].date, "MMM yyyy")}</span>
       </div>
     </div>
   );

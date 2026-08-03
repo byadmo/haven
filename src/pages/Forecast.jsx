@@ -11,94 +11,144 @@ import GoalPlanner from "@/components/finance/GoalPlanner";
 import Reveal from "@/components/finance/Reveal";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Slider } from "@/components/ui/slider";
-import {
-  Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
-} from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { TrendingUp, Flame, Snowflake } from "lucide-react";
+
+const fmt = (v) =>
+  (v || 0).toLocaleString(undefined, {
+    style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 0,
+  });
 
 export default function Forecast() {
   const { transactions: txns, debts, accounts } = useFinanceData();
   const [method, setMethod] = React.useState("avalanche");
-  const [months, setMonths] = React.useState(60);
   const [extra, setExtra] = React.useState(0);
   const [incomeAdjust, setIncomeAdjust] = React.useState(0);
 
-  const { series, keyframes, order } = React.useMemo(
-    () => computeTrajectory({ debts, accounts, transactions: txns, months, method, extraPayment: extra, incomeAdjust }),
-    [debts, accounts, txns, months, method, extra, incomeAdjust]
+  // Always compute 120-month projection, then auto-size the view to the debt-free date
+  const { series: fullSeries, order } = React.useMemo(
+    () => computeTrajectory({ debts, accounts, transactions: txns, months: 120, method, extraPayment: extra, incomeAdjust }),
+    [debts, accounts, txns, method, extra, incomeAdjust]
   );
 
-  const baselineSeries = React.useMemo(
-    () => computeTrajectory({ debts, accounts, transactions: txns, months, method: "avalanche", extraPayment: 0, incomeAdjust: 0 }).series,
-    [debts, accounts, txns, months]
+  const debtFreeMonth = React.useMemo(
+    () => fullSeries.findIndex((p) => p.debtRemaining <= 0.005),
+    [fullSeries]
   );
+  // Auto-adjust: show up to debt-free month + 6 months padding (min 12)
+  const autoMonths = debtFreeMonth >= 0 ? Math.min(120, debtFreeMonth + 7) : 120;
+  const series = React.useMemo(() => fullSeries.slice(0, autoMonths), [fullSeries, autoMonths]);
 
-  const debtFreeMonth = series.find((p) => p.debtRemaining <= 0.005)?.month;
-  const debtFreeDate = debtFreeMonth != null ? format(series[debtFreeMonth].date, "MMM yyyy") : null;
-  const milestoneRows = (keyframes || []).map((m) => ({
-    m, label: series[m]?.keyframeLabel || `T+${m}`, date: series[m] ? format(series[m].date, "MMM yyyy") : "",
-  }));
+  const debtFreeDate = debtFreeMonth >= 0 && debtFreeMonth < fullSeries.length
+    ? format(fullSeries[debtFreeMonth].date, "MMM yyyy") : null;
 
+  const totalDebt = debts.reduce((s, d) => s + (d.current_balance || 0), 0);
+  const minTotal = debts.reduce((s, d) => s + (d.minimum_payment || 0), 0);
   const sliderMax = Math.max(5000, Math.ceil((extra || 0) * 1.5));
+
+  const timeLeft = debtFreeMonth > 0
+    ? (Math.floor(debtFreeMonth / 12) > 0 ? `${Math.floor(debtFreeMonth / 12)}y ` : "") + (debtFreeMonth % 12 > 0 ? `${debtFreeMonth % 12}m` : "")
+    : null;
 
   return (
     <div className="dd-page-enter dark min-h-screen bg-black text-zinc-100">
       <DashboardHeader />
       <ForecastProvider forecastData={series}>
-        <main className="max-w-6xl mx-auto px-6 sm:px-6 py-10 sm:py-6 space-y-6">
+        <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-6 space-y-5">
+
+          {/* Hero Summary */}
           <Reveal>
-            <div className="rounded-lg border border-white/10 bg-black">
-              <TelemetryReadout />
-              <HoverTimeline />
+            <div className="rounded-lg border border-white/10 bg-black p-5 sm:p-6">
+              <h1 className="text-lg sm:text-xl font-bold text-zinc-50 mb-1">Your Debt Payoff Plan</h1>
+              <p className="text-sm text-white/50 mb-4">See exactly when you'll be debt-free and how to get there faster.</p>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div>
+                  <p className="text-[10px] uppercase tracking-widest text-white/50 font-mono">Total Debt</p>
+                  <p className="text-xl sm:text-2xl font-mono tabular-nums text-rose-400">{fmt(totalDebt)}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-widest text-white/50 font-mono">Debt-Free By</p>
+                  <p className="text-xl sm:text-2xl font-mono tabular-nums text-emerald-400">{debtFreeDate || "—"}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-widest text-white/50 font-mono">Paying Now</p>
+                  <p className="text-xl sm:text-2xl font-mono tabular-nums text-zinc-200">{fmt(minTotal + extra)}<span className="text-xs text-white/40">/mo</span></p>
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-widest text-white/50 font-mono">Time Left</p>
+                  <p className="text-xl sm:text-2xl font-mono tabular-nums text-zinc-200">{timeLeft || "—"}</p>
+                </div>
+              </div>
             </div>
           </Reveal>
 
-          {/* Controls */}
+          {/* Goal Setter */}
           <Reveal>
-            <div className="rounded-lg border border-white/10 bg-black p-4 sm:p-5 space-y-5">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-zinc-100">Forecast Controls</h2>
-                {debtFreeDate && (
-                  <span className="text-[10px] tracking-[0.18em] font-mono uppercase border border-emerald-500/40 text-emerald-400 px-2 py-0.5">
-                    Debt Free · {debtFreeDate}
-                  </span>
-                )}
+            <div className="rounded-lg border border-white/10 bg-black p-4 sm:p-5">
+              <GoalPlanner
+                debts={debts}
+                accounts={accounts}
+                transactions={txns}
+                method={method}
+                months={120}
+                currentExtra={extra}
+                onApply={(amt) => setExtra(amt)}
+              />
+            </div>
+          </Reveal>
+
+          {/* Strategy & Payment Controls */}
+          <Reveal>
+            <div className="rounded-lg border border-white/10 bg-black p-4 sm:p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <TrendingUp className="h-4 w-4 text-indigo-400" />
+                <h2 className="text-sm font-semibold text-zinc-100">Tune Your Plan</h2>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              <div className="space-y-5">
+                {/* Strategy */}
                 <div>
-                  <Label className="text-[10px] tracking-[0.2em] uppercase text-white/50 font-mono">Strategy</Label>
-                  <ToggleGroup
-                    type="single"
-                    value={method}
-                    onValueChange={(v) => v && setMethod(v)}
-                    className="mt-2 border border-white/10 rounded-md w-full"
-                  >
-                    <ToggleGroupItem value="avalanche" className="flex-1 text-xs uppercase tracking-widest font-mono">Avalanche</ToggleGroupItem>
-                    <ToggleGroupItem value="snowball" className="flex-1 text-xs uppercase tracking-widest font-mono">Snowball</ToggleGroupItem>
-                  </ToggleGroup>
+                  <Label className="text-[10px] tracking-[0.2em] uppercase text-white/50 font-mono">How should we prioritize your debts?</Label>
+                  <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <button
+                      onClick={() => setMethod("avalanche")}
+                      className={`text-left p-3 rounded-md border transition-colors ${
+                        method === "avalanche"
+                          ? "border-emerald-500/50 bg-emerald-500/10 text-zinc-100"
+                          : "border-white/10 text-white/50 hover:border-white/30"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <Flame className="h-3.5 w-3.5" />
+                        <span className="text-sm font-semibold">Avalanche</span>
+                        {method === "avalanche" && <span className="text-[9px] text-emerald-400 ml-auto">SELECTED</span>}
+                      </div>
+                      <p className="text-[11px] text-white/40 leading-relaxed">Pays the highest interest debt first. Saves the most money overall.</p>
+                    </button>
+                    <button
+                      onClick={() => setMethod("snowball")}
+                      className={`text-left p-3 rounded-md border transition-colors ${
+                        method === "snowball"
+                          ? "border-sky-500/50 bg-sky-500/10 text-zinc-100"
+                          : "border-white/10 text-white/50 hover:border-white/30"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <Snowflake className="h-3.5 w-3.5" />
+                        <span className="text-sm font-semibold">Snowball</span>
+                        {method === "snowball" && <span className="text-[9px] text-sky-400 ml-auto">SELECTED</span>}
+                      </div>
+                      <p className="text-[11px] text-white/40 leading-relaxed">Pays the smallest balance first. Quick wins to stay motivated.</p>
+                    </button>
+                  </div>
                 </div>
 
+                {/* Extra Payment */}
                 <div>
-                  <Label className="text-[10px] tracking-[0.2em] uppercase text-white/50 font-mono">Horizon</Label>
-                  <Select value={String(months)} onValueChange={(v) => setMonths(Number(v))}>
-                    <SelectTrigger className="mt-2 bg-black">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="12">1 Year</SelectItem>
-                      <SelectItem value="60">5 Years</SelectItem>
-                      <SelectItem value="120">10 Years</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between">
-                    <Label className="text-[10px] tracking-[0.2em] uppercase text-white/50 font-mono">Extra / Month</Label>
-                    <span className="text-[11px] font-mono tabular-nums text-emerald-400">
-                      ${(extra || 0).toLocaleString()}
-                    </span>
+                  <div className="flex items-center justify-between mb-1">
+                    <Label className="text-[10px] tracking-[0.2em] uppercase text-white/50 font-mono">Extra Payment / Month</Label>
+                    <span className="text-[11px] font-mono tabular-nums text-emerald-400">{fmt(extra || 0)}</span>
                   </div>
                   <Slider
                     value={[extra]}
@@ -106,13 +156,16 @@ export default function Forecast() {
                     min={0}
                     max={sliderMax}
                     step={50}
-                    className="mt-3"
                   />
+                  <p className="text-[10px] text-white/40 mt-1.5 leading-relaxed">
+                    Pay more than the minimum to reach your goal faster. Drag the slider to see the impact.
+                  </p>
                 </div>
 
+                {/* Income Adjust */}
                 <div>
-                  <div className="flex items-center justify-between">
-                    <Label className="text-[10px] tracking-[0.2em] uppercase text-white/50 font-mono">Income Adjust</Label>
+                  <div className="flex items-center justify-between mb-1">
+                    <Label className="text-[10px] tracking-[0.2em] uppercase text-white/50 font-mono">Income Adjustment</Label>
                     <span className={`text-[11px] font-mono tabular-nums ${incomeAdjust >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
                       {incomeAdjust >= 0 ? "+" : ""}{incomeAdjust}%
                     </span>
@@ -123,49 +176,26 @@ export default function Forecast() {
                     min={-50}
                     max={50}
                     step={5}
-                    className="mt-3"
                   />
+                  <p className="text-[10px] text-white/40 mt-1.5 leading-relaxed">
+                    Expecting a raise or cut? Adjust to see how income changes affect your payoff date.
+                  </p>
                 </div>
               </div>
             </div>
           </Reveal>
 
-          {/* Payoff Goal */}
+          {/* Timeline + Snapshot */}
           <Reveal>
-            <GoalPlanner
-              debts={debts}
-              accounts={accounts}
-              transactions={txns}
-              method={method}
-              months={months}
-              currentExtra={extra}
-              onApply={(amt) => setExtra(amt)}
-            />
-          </Reveal>
-
-          <Reveal><ForecastCharts series={series} order={order} baselineSeries={baselineSeries} /></Reveal>
-
-          {/* Milestones */}
-          <Reveal>
-            <div className="rounded-lg border border-white/10 bg-black p-4 sm:p-5">
-              <h2 className="text-sm font-semibold text-zinc-100 mb-3">Milestones</h2>
-              {milestoneRows.length === 0 ? (
-                <p className="text-[11px] uppercase tracking-widest text-white/40">No keyframes projected.</p>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {milestoneRows.map((row) => (
-                    <div key={row.m} className="border border-white/10 rounded-md p-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-mono uppercase tracking-widest text-white/50">T+{row.m}</span>
-                        <span className="text-[10px] font-mono tabular-nums text-white/40">{row.date}</span>
-                      </div>
-                      <p className="mt-1 text-sm font-mono text-emerald-400">{row.label}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
+            <div className="rounded-lg border border-white/10 bg-black">
+              <TelemetryReadout />
+              <HoverTimeline />
             </div>
           </Reveal>
+
+          {/* Charts */}
+          <Reveal><ForecastCharts series={series} order={order} /></Reveal>
+
         </main>
       </ForecastProvider>
     </div>

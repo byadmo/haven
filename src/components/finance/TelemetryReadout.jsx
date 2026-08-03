@@ -7,6 +7,14 @@ const money = (v) =>
     style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 0,
   });
 
+function relativeLabel(month) {
+  if (month === 0) return "Now";
+  if (month < 12) return `In ${month} mo`;
+  const y = Math.floor(month / 12);
+  const m = month % 12;
+  return m ? `In ${y}y ${m}m` : `In ${y}y`;
+}
+
 function toneColor(tone) {
   return tone === "emerald" ? "text-emerald-400"
     : tone === "amber" ? "text-amber-400"
@@ -38,8 +46,8 @@ export default function TelemetryReadout() {
   return (
     <div className="flex flex-col sm:flex-row sm:items-stretch divide-y sm:divide-y-0 sm:divide-x divide-white/10">
       <div className="p-4 sm:p-5">
-        <p className="text-[10px] tracking-[0.2em] text-white/50 font-mono uppercase">Forecast</p>
-        <p className="mt-1 text-xl sm:text-2xl font-mono tabular-nums tracking-tight text-zinc-50">T+{point.month}</p>
+        <p className="text-[10px] tracking-[0.2em] text-white/50 font-mono uppercase">Snapshot</p>
+        <p className="mt-1 text-xl sm:text-2xl font-mono tabular-nums tracking-tight text-zinc-50">{relativeLabel(point.month)}</p>
         <p className="text-[11px] font-mono tabular-nums tracking-tight text-white/50">{format(point.date, "MMM yyyy").toUpperCase()}</p>
       </div>
       <Metric label="Net Worth" value={money(nw)} tone={nw >= 0 ? "emerald" : "rose"} />
