@@ -130,5 +130,5 @@
 
 /* Mobile: reserve space so the fixed bottom tab bar never covers content. */
 @media (max-width: 639px) {
-  body { padding-bottom: 4.5rem; }
+  body { padding-bottom: 5rem; }
 }

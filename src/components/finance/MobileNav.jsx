@@ -18,8 +18,12 @@ export default function MobileNav() {
     }`;
   return (
     <nav
-      className="sm:hidden fixed bottom-0 inset-x-0 z-30 border-t border-white/10 bg-black select-none"
-      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      className="sm:hidden fixed bottom-0 inset-x-0 z-30 border-t border-white/10 bg-black select-none rounded-t-2xl overflow-hidden"
+      style={{
+        paddingBottom: "env(safe-area-inset-bottom)",
+        paddingLeft: "max(env(safe-area-inset-left), 6px)",
+        paddingRight: "max(env(safe-area-inset-right), 6px)",
+      }}
       aria-label="Primary"
     >
       <div className="grid grid-cols-6">

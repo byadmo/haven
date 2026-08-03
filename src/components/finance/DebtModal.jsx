@@ -6,7 +6,7 @@ import DebtForm from "@/components/finance/DebtForm";
 
 export default function DebtModal({ open, onOpenChange, onSaved }) {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange} onOpenAutoFocus={(e) => e.preventDefault()}>
       <DialogContent className="bg-zinc-900 border-zinc-800 text-zinc-100 max-w-md p-0 overflow-hidden">
         <DialogHeader className="px-5 pt-5 pb-2">
           <DialogTitle className="text-zinc-50">Add Liability</DialogTitle>
