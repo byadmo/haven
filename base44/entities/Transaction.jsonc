@@ -31,8 +31,12 @@
       "type": "string",
       "enum": [
         "one_time",
+        "daily",
         "weekly",
-        "monthly"
+        "biweekly",
+        "monthly",
+        "yearly",
+        "custom"
       ],
       "default": "one_time"
     },
