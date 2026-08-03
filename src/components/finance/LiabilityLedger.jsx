@@ -171,7 +171,7 @@ export default function LiabilityLedger({ debts, onChanged }) {
                   <div className="px-2 py-1 bg-emerald-500/20 text-emerald-400 font-mono text-xs uppercase border border-emerald-500/50">Cleared</div>
                 ) : (
                   d.interest_rate > 0 ? (
-                    <span className="text-[10px] px-2 py-0.5 font-mono tabular-nums uppercase border border-white/10 text-white/50">{d.interest_rate}% APR</span>
+                    <span className="text-[10px] px-2 py-0.5 font-mono tabular-nums uppercase border border-white/10 text-white/50">{d.interest_rate}%</span>
                   ) : null
                 )}
               </div>
@@ -252,7 +252,7 @@ export default function LiabilityLedger({ debts, onChanged }) {
                   <DialogContent className="bg-black border-white/10 text-zinc-100">
                     <DialogHeader>
                       <DialogTitle className="text-zinc-100">Edit {d.name}</DialogTitle>
-                      <DialogDescription className="text-white/50">Update balance, APR, or minimum payment.</DialogDescription>
+                      <DialogDescription className="text-white/50">Update balance, rate, or minimum payment.</DialogDescription>
                     </DialogHeader>
                     <form onSubmit={saveEdit} className="space-y-3">
                       <div className="space-y-1.5">
@@ -261,7 +261,7 @@ export default function LiabilityLedger({ debts, onChanged }) {
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1.5">
-                          <Label className="text-white/50">APR (%)</Label>
+                          <Label className="text-white/50">Interest Rate (%)</Label>
                           <Input type="number" step="0.01" defaultValue={d.interest_rate} onChange={(e) => setEditing((prev) => ({ ...prev, interest_rate: e.target.value }))} className="bg-black border-white/10 text-zinc-100" />
                         </div>
                         <div className="space-y-1.5">
