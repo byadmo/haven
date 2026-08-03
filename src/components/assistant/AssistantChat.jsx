@@ -2,11 +2,32 @@ import React from "react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Paperclip, Send, Sparkles, Loader2, X, Trash2 } from "lucide-react";
-import { startOfMonth, endOfMonth, isWithinInterval, parseISO, subMonths, format } from "date-fns";
+import { startOfMonth, endOfMonth, isWithinInterval, parseISO, subMonths, format, differenceInMonths } from "date-fns";
+import { computeTrajectory, solveExtraForTarget } from "@/lib/trajectory";
 import ApprovalModal from "@/components/assistant/ApprovalModal";
 import { adjustLinkedBalance, txEffect, balanceApplies } from "@/lib/accounts";
 
 const uid = () => Math.random().toString(36).slice(2);
+
+const fmtMoney = (v) =>
+  (v || 0).toLocaleString(undefined, {
+    style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 0,
+  });
+
+// Detect a target debt-free date the user mentions in plain language.
+function parseTargetDate(text) {
+  if (!text) return null;
+  const months = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
+  const m1 = text.match(/\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+(\d{4})\b/i);
+  if (m1) { const d = new Date(Number(m1[2]), months[m1[1].toLowerCase().slice(0, 3)], 1); if (!isNaN(d)) return d; }
+  const m2 = text.match(/\b(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})\b/);
+  if (m2) { const d = new Date(Number(m2[3]), Number(m2[1]) - 1, Number(m2[2])); if (!isNaN(d)) return d; }
+  const m3 = text.match(/\b(20\d{2})-(\d{2})-(\d{2})\b/);
+  if (m3) { const d = new Date(Number(m3[1]), Number(m3[2]) - 1, Number(m3[3])); if (!isNaN(d)) return d; }
+  const m4 = text.match(/\b(20\d{2})\b/);
+  if (m4) { const d = new Date(Number(m4[1]), 11, 1); if (!isNaN(d)) return d; }
+  return null;
+}
 
 const STORAGE_KEY = "haven_assistant_chat_v1";
 
@@ -84,6 +105,9 @@ PERSONALITY:
 ANALYTICS:
 When the user asks for a review, insights, a "read" on their situation, or any open-ended question about their finances, synthesize across ALL provided data — net worth, cash balances, debts (balances, APRs, minimums), income, spending, portfolio holdings, recurring items, and payment history.
 Produce concrete, numbers-grounded conclusions: cite the actual figures, point out trends and ratios (savings rate, debt-to-income, weighted APR, spending concentration), surface risks and opportunities, and end with a prioritized, specific action plan. Prefer depth and specificity over generic advice.
+
+DEBT-FREE GOALS:
+If a GOAL ANALYSIS block is present in the context, it contains the EXACT solver-computed extra monthly payment and projected debt-free date for the target date the user mentioned. Cite those figures verbatim, explain exactly what that payment buys them (months/interest saved vs minimums-only), and give a concrete plan to free up that amount monthly. Treat the GOAL ANALYSIS numbers as ground truth — do not recompute or round them differently.
 
 CAPABILITIES:
 You are action-capable: you can propose operations to add, remove, or change the user's Transaction, Debt, and Account records.
@@ -316,7 +340,37 @@ export default function AssistantChat({ accounts, debts, transactions, debtPayme
         fileUrls = [up.file_url];
       }
       const userText = text || "Please review the attached statement and propose operations to log any transactions found.";
-      const prompt = `${SYSTEM_INSTRUCTIONS}\n\n${buildContext(ctxData)}\n\nUSER: ${userText}`;
+
+      let goalSection = "";
+      const targetDate = parseTargetDate(userText);
+      if (targetDate) {
+        const activeDebts = (ctxData.debts || []).filter((d) => (d.current_balance || 0) > 0.005);
+        if (activeDebts.length) {
+          const targetMonths = Math.max(1, differenceInMonths(targetDate, new Date()));
+          const horizon = Math.max(120, targetMonths + 3);
+          const solved = solveExtraForTarget({
+            debts: ctxData.debts, accounts: ctxData.accounts, transactions: ctxData.transactions,
+            months: horizon, method: "avalanche", targetMonths,
+          });
+          let projMonth = null;
+          if (solved.extra != null) {
+            const { series } = computeTrajectory({
+              debts: ctxData.debts, accounts: ctxData.accounts, transactions: ctxData.transactions,
+              months: horizon, method: "avalanche", extraPayment: solved.extra,
+            });
+            const p = series.find((x) => x.debtRemaining <= 0.005);
+            if (p) projMonth = p.date;
+          }
+          goalSection =
+            "\n\nGOAL ANALYSIS (computed by the deterministic payoff solver — cite these EXACT figures):\n" +
+            `- Target debt-free by: ${format(targetDate, "MMM d, yyyy")} (~${targetMonths} months from now)\n` +
+            `- Required extra monthly payment above minimums: ${solved.extra != null ? `${fmtMoney(solved.extra)}/mo` : "not reachable within a reasonable range"}\n` +
+            `- Reachable by target date: ${solved.reached ? "yes" : "no"}\n` +
+            (projMonth ? `- With that payment, projected debt-free: ${format(projMonth, "MMM yyyy")}` : "- The target is not reachable at any practical monthly payment of $2,000 or more.");
+        }
+      }
+
+      const prompt = `${SYSTEM_INSTRUCTIONS}\n\n${buildContext(ctxData)}${goalSection}\n\nUSER: ${userText}`;
       const obj = await callLLM(prompt, fileUrls);
       setMessages((s) => s.filter((m) => m.id !== thinking));
       if (obj?.message) addMsg({ role: "assistant", kind: "text", text: obj.message });
