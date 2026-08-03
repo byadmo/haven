@@ -20,7 +20,7 @@ import {
 import { adjustLinkedBalance, txEffect, balanceApplies } from "@/lib/accounts";
 import { useCategories, categoryOptions } from "@/lib/categories";
 import { format } from "date-fns";
-import { UploadCloud, Loader2, Trash2, Check, FileText, ImageIcon } from "lucide-react";
+import { UploadCloud, Loader2, Trash2, Check, FileText, ImageIcon, Camera } from "lucide-react";
 import confetti from "canvas-confetti";
 
 const today = () => format(new Date(), "yyyy-MM-dd");
@@ -165,7 +165,7 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!importing) onOpenChange?.(v); }}>
-      <DialogContent className="bg-zinc-900 border-zinc-800 text-zinc-100 max-w-2xl p-0">
+      <DialogContent className="bg-zinc-900 border-zinc-800 text-zinc-100 max-w-full sm:max-w-2xl p-0 max-h-[90vh] overflow-y-auto">
         <DialogHeader className="px-5 pt-5 pb-2">
           <DialogTitle className="text-zinc-50">Import Bank Statement</DialogTitle>
           <DialogDescription className="text-zinc-500">
@@ -181,7 +181,7 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
                 onClick={() => fileRef.current?.click()}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (f) handleFile(f); }}
-                className="cursor-pointer rounded-lg border border-dashed border-zinc-700 bg-zinc-950/60 hover:border-indigo-500/50 transition-colors p-8 flex flex-col items-center justify-center gap-3 text-center"
+                className="cursor-pointer rounded-lg border border-dashed border-zinc-700 bg-zinc-950/60 hover:border-indigo-500/50 transition-colors p-6 sm:p-8 flex flex-col items-center justify-center gap-3 text-center touch-manipulation"
               >
                 {parsing ? (
                   <>
@@ -199,8 +199,9 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
                   <>
                     <UploadCloud className="h-8 w-8 text-zinc-500" />
                     <div>
-                      <p className="text-sm text-zinc-300">Drop a statement here or click to browse</p>
-                      <p className="text-[11px] text-zinc-600 mt-0.5">PNG, JPG, or PDF</p>
+                      <p className="text-sm text-zinc-300">Tap to snap a photo or upload a statement</p>
+                      <p className="text-[11px] text-zinc-600 mt-0.5 hidden sm:block">PNG, JPG, or PDF · camera ready on mobile</p>
+                      <p className="text-[11px] text-zinc-600 mt-0.5 sm:hidden flex items-center justify-center gap-1"><Camera className="h-3 w-3" /> Camera ready</p>
                     </div>
                   </>
                 )}
@@ -209,6 +210,7 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
                 ref={fileRef}
                 type="file"
                 accept="image/*,application/pdf"
+                capture="environment"
                 className="hidden"
                 onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }}
               />
@@ -250,11 +252,11 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
                     <div className="flex items-start gap-3">
                       <button
                         onClick={() => updateRow(i, { included: !r.included })}
-                        className={`mt-1 h-5 w-5 rounded border flex items-center justify-center shrink-0 ${
+                        className={`mt-1.5 h-7 w-7 rounded border flex items-center justify-center shrink-0 ${
                           r.included ? "bg-emerald-500 border-emerald-500 text-black" : "border-zinc-600"
                         }`}
                       >
-                        {r.included && <Check className="h-3 w-3" />}
+                        {r.included && <Check className="h-4 w-4" />}
                       </button>
 
                       <div className="flex-1 grid grid-cols-12 gap-2">
@@ -263,24 +265,24 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
                           <Input
                             value={r.description}
                             onChange={(e) => updateRow(i, { description: e.target.value })}
-                            className="h-8 bg-zinc-950 border-zinc-800 text-sm"
+                            className="h-10 sm:h-8 bg-zinc-950 border-zinc-800 text-sm"
                             placeholder="Description"
                           />
                         </div>
                         {/* amount */}
-                        <div className="col-span-4 sm:col-span-2">
+                        <div className="col-span-6 sm:col-span-2">
                           <Input
                             type="number"
                             step="0.01"
                             value={r.amount}
                             onChange={(e) => updateRow(i, { amount: Number(e.target.value) || 0 })}
-                            className="h-8 bg-zinc-950 border-zinc-800 text-sm tabular-nums"
+                            className="h-10 sm:h-8 bg-zinc-950 border-zinc-800 text-sm tabular-nums"
                           />
                         </div>
                         {/* type */}
-                        <div className="col-span-4 sm:col-span-2">
+                        <div className="col-span-6 sm:col-span-2">
                           <Select value={r.type} onValueChange={(v) => updateRow(i, { type: v })}>
-                            <SelectTrigger className="h-8 bg-zinc-950 border-zinc-800 text-sm"><SelectValue /></SelectTrigger>
+                            <SelectTrigger className="h-10 sm:h-8 bg-zinc-950 border-zinc-800 text-sm"><SelectValue /></SelectTrigger>
                             <SelectContent className="bg-zinc-900 border-zinc-800">
                               <SelectItem value="expense">Expense</SelectItem>
                               <SelectItem value="income">Income</SelectItem>
@@ -288,33 +290,33 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
                           </Select>
                         </div>
                         {/* date */}
-                        <div className="col-span-4 sm:col-span-3">
+                        <div className="col-span-12 sm:col-span-3">
                           <Input
                             type="date"
                             value={r.date}
                             onChange={(e) => updateRow(i, { date: e.target.value })}
-                            className="h-8 bg-zinc-950 border-zinc-800 text-sm"
+                            className="h-10 sm:h-8 bg-zinc-950 border-zinc-800 text-sm"
                           />
                         </div>
 
                         {/* category + account row */}
-                        <div className="col-span-6 sm:col-span-4">
+                        <div className="col-span-12 sm:col-span-4">
                           <Label className="text-[9px] text-zinc-600 uppercase tracking-wider">Category</Label>
                           <input
                             list={`cats-${i}`}
                             value={r.category}
                             onChange={(e) => updateRow(i, { category: e.target.value })}
-                            className="w-full h-8 mt-0.5 rounded-md border border-zinc-800 bg-zinc-950 px-2 text-sm outline-none focus:border-indigo-500/60"
+                            className="w-full h-10 sm:h-8 mt-0.5 rounded-md border border-zinc-800 bg-zinc-950 px-2 text-sm outline-none focus:border-indigo-500/60"
                             placeholder="Category"
                           />
                           <datalist id={`cats-${i}`}>
                             {categoryList.map((c) => <option key={c} value={c} />)}
                           </datalist>
                         </div>
-                        <div className="col-span-6 sm:col-span-5">
+                        <div className="col-span-8 sm:col-span-5">
                           <Label className="text-[9px] text-zinc-600 uppercase tracking-wider">Account</Label>
                           <Select value={r.account_id || "none"} onValueChange={(v) => updateRow(i, { account_id: v === "none" ? "" : v })}>
-                            <SelectTrigger className="h-8 mt-0.5 bg-zinc-950 border-zinc-800 text-sm">
+                            <SelectTrigger className="h-10 sm:h-8 mt-0.5 bg-zinc-950 border-zinc-800 text-sm">
                               <SelectValue placeholder="No account" />
                             </SelectTrigger>
                             <SelectContent className="bg-zinc-900 border-zinc-800">
@@ -325,11 +327,11 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
                             </SelectContent>
                           </Select>
                         </div>
-                        <div className="col-span-12 sm:col-span-3 flex items-end">
+                        <div className="col-span-4 sm:col-span-3 flex items-end">
                           <button
                             onClick={() => setRows((prev) => prev.filter((_, idx) => idx !== i))}
                             disabled={importing}
-                            className="h-8 w-full rounded-md border border-zinc-800 text-zinc-500 hover:text-rose-400 hover:border-rose-500/40 flex items-center justify-center transition-colors disabled:opacity-40"
+                            className="h-10 sm:h-8 w-full rounded-md border border-zinc-800 text-zinc-500 hover:text-rose-400 hover:border-rose-500/40 flex items-center justify-center transition-colors disabled:opacity-40"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>

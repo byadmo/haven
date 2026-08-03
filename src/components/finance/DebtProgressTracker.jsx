@@ -12,7 +12,7 @@ const fmt = (v) =>
     maximumFractionDigits: 0,
   });
 
-const MILESTONES = [25, 50, 75, 100];
+const MILESTONES = [50, 75, 100];
 
 function celebrate(milestone) {
   if (typeof confetti !== "function") return;
@@ -93,7 +93,7 @@ export default function DebtProgressTracker({ debts }) {
             animate={{ width: `${pct}%` }}
             transition={{ type: "spring", stiffness: 90, damping: 18 }}
           />
-          {MILESTONES.slice(0, 3).map((m) => (
+          {MILESTONES.slice(0, 2).map((m) => (
             <div key={m} className="absolute inset-y-0 w-px bg-black/40" style={{ left: `${m}%` }} />
           ))}
         </div>

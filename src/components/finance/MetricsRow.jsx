@@ -36,6 +36,7 @@ export default function MetricsRow({ netWorth, income, expense, incomePct, expen
       accent: "indigo",
       bar: null,
       chip: isFuture ? <span className="text-[10px] font-mono tabular-nums text-emerald-400">T+{fc.timelineIndex} PROJ</span> : null,
+      valueColor: netWorth >= 0 ? "text-emerald-400" : "text-rose-400",
     },
     {
       label: "Monthly Income",
@@ -44,6 +45,7 @@ export default function MetricsRow({ netWorth, income, expense, incomePct, expen
       accent: "emerald",
       bar: Math.min(100, (income / Math.max(1, income + expense)) * 100),
       chip: <ChangeChip pct={incomePct} />,
+      valueColor: income <= 0 ? "text-rose-400" : (incomePct != null && incomePct < 0) ? "text-amber-400" : "text-emerald-400",
     },
     {
       label: "Monthly Spend",
@@ -52,6 +54,7 @@ export default function MetricsRow({ netWorth, income, expense, incomePct, expen
       accent: "rose",
       bar: Math.min(100, spendRatio * 100),
       chip: <ChangeChip pct={expensePct} />,
+      valueColor: expensePct != null && expensePct > 0 ? "text-rose-400" : expensePct != null && expensePct < 0 ? "text-emerald-400" : "text-amber-400",
     },
   ];
 
@@ -83,7 +86,7 @@ export default function MetricsRow({ netWorth, income, expense, incomePct, expen
               </div>
               {c.chip}
             </div>
-            <p className="text-xl sm:text-2xl font-bold font-mono tabular-nums tracking-tight text-zinc-50">{c.value}</p>
+            <p className={`text-xl sm:text-2xl font-bold font-mono tabular-nums tracking-tight ${c.valueColor}`}>{c.value}</p>
             {c.bar !== null && (
               <div className="mt-3 h-1.5 bg-white/10 overflow-hidden">
                 <motion.div
