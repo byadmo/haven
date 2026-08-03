@@ -1,15 +1,13 @@
 import React from "react";
 import { Link, NavLink } from "react-router-dom";
 import { Wallet, Settings as SettingsIcon } from "lucide-react";
-import { format } from "date-fns";
 import CommandPalette from "@/components/finance/CommandPalette";
 import BackupModal from "@/components/finance/BackupModal";
 import MobileNav from "@/components/finance/MobileNav";
 
 export default function DashboardHeader({ actions }) {
-  const now = new Date();
   const linkClass = ({ isActive }) =>
-    `px-2.5 py-1.5 text-xs font-mono uppercase tracking-widest transition-colors duration-150 ${
+    `px-2 py-1.5 text-[11px] font-mono uppercase tracking-wide transition-colors duration-150 ${
       isActive ? "text-emerald-400 border-b-2 border-emerald-400" : "text-white/50 hover:text-white border-b-2 border-transparent"
     }`;
 
@@ -23,11 +21,8 @@ export default function DashboardHeader({ actions }) {
           </div>
           <div className="flex items-baseline gap-2 font-mono">
             <span className="text-sm font-bold tracking-tight text-zinc-50">HAVEN</span>
-            <span className="hidden sm:inline text-[10px] uppercase tracking-widest text-white/40">{format(now, "EEE · MMM d")}</span>
           </div>
         </Link>
-
-        <div className="hidden sm:block h-5 w-px bg-white/10" />
 
         <nav className="hidden sm:flex items-center shrink-0 mr-auto">
           <NavLink to="/" className={linkClass} end>Overview</NavLink>
@@ -40,7 +35,7 @@ export default function DashboardHeader({ actions }) {
 
         <div className="flex items-center gap-1.5 ml-auto shrink-0">
           <BackupModal />
-          <div className="hidden sm:block"><CommandPalette /></div>
+          <div className="hidden xl:block"><CommandPalette /></div>
           <Link to="/settings" className="h-8 w-8 rounded-md flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/5 transition-colors" aria-label="Settings">
             <SettingsIcon className="h-4 w-4" />
           </Link>

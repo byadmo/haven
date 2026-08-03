@@ -95,6 +95,7 @@
     background-color: #000;
     color-scheme: dark;
     overscroll-behavior-y: none;
+    overflow-x: hidden;
   }
 }
 
