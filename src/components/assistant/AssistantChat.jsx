@@ -1,30 +1,19 @@
 import React from "react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
-import { Paperclip, Send, Sparkles, Loader2 } from "lucide-react";
+import { Paperclip, Send, Sparkles, Loader2, X, Trash2 } from "lucide-react";
 import ApprovalModal from "@/components/assistant/ApprovalModal";
 import { adjustLinkedBalance, txEffect, balanceApplies } from "@/lib/accounts";
 
 const uid = () => Math.random().toString(36).slice(2);
 
-const EXTRACTION_SCHEMA = {
-  type: "object",
-  properties: {
-    transactions: {
-      type: "array",
-      items: {
-        type: "object",
-        properties: {
-          description: { type: "string" },
-          amount: { type: "number" },
-          date: { type: "string" },
-          type: { type: "string", enum: ["income", "expense"] },
-          category: { type: "string" },
-        },
-        required: ["description", "amount", "date", "type"],
-      },
-    },
-  },
+const STORAGE_KEY = "haven_assistant_chat_v1";
+
+const GREETING = {
+  id: uid(),
+  role: "assistant",
+  kind: "text",
+  text: "Hello — I'm Adam, your personal AI financial advisor. Ask me anything about budgeting, debt strategy, investing, taxes, or a big money decision you're weighing. I can also make changes to your transactions, debts, and accounts (you'll approve every edit first). Upload a statement photo or PDF to import transactions, or just tell me what's on your mind.",
 };
 
 const OPS_SCHEMA = {
@@ -95,6 +84,7 @@ CAPABILITIES:
 You are action-capable: you can propose operations to add, remove, or change the user's Transaction, Debt, and Account records.
 Only propose operations the user actually requested. For purely informational questions or advice, return operations: [] and answer in "message".
 The user approves every change before it is applied.
+If the user attached an image or PDF (provided via file_urls), review it and propose operations to log any transactions found, following any instructions in the user's message.
 
 Entity fields:
 - Transaction: description(string), amount(number, positive), type("income"|"expense"), category(string), date(yyyy-mm-dd), account_id(string), is_scheduled(bool), frequency("one_time"|"daily"|"weekly"|"biweekly"|"monthly"|"yearly"|"custom"), next_date(yyyy-mm-dd), custom_interval(number), custom_unit("days"|"weeks"|"months"|"years")
@@ -125,17 +115,23 @@ function buildContext({ accounts, debts, transactions, summary }) {
 }
 
 export default function AssistantChat({ accounts, debts, transactions, summary }) {
-  const [messages, setMessages] = React.useState([
-    {
-      id: uid(), role: "assistant", kind: "text",
-      text: "Hello — I'm Adam, your personal AI financial advisor. Ask me anything about budgeting, debt strategy, investing, taxes, or a big money decision you're weighing. I can also make changes to your transactions, debts, and accounts (you'll approve every edit first). Upload a statement photo or PDF to import transactions, or just tell me what's on your mind.",
-    },
-  ]);
+  const [messages, setMessages] = React.useState(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length) return parsed;
+      }
+    } catch (_) {}
+    return [GREETING];
+  });
   const [input, setInput] = React.useState("");
   const [busy, setBusy] = React.useState(false);
   const [ops, setOps] = React.useState(null);
   const [opsOpen, setOpsOpen] = React.useState(false);
   const [opsBusy, setOpsBusy] = React.useState(false);
+  const [pendingFile, setPendingFile] = React.useState(null);
+  const [pendingPreview, setPendingPreview] = React.useState(null);
   const fileRef = React.useRef(null);
   const scrollRef = React.useRef(null);
 
@@ -143,76 +139,71 @@ export default function AssistantChat({ accounts, debts, transactions, summary }
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, busy]);
 
+  React.useEffect(() => {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(messages)); } catch (_) {}
+  }, [messages]);
+
   const ctxData = { accounts, debts, transactions, summary };
 
   function addMsg(m) { setMessages((s) => [...s, { id: uid(), ...m }]); }
-
   function opsFromResponse(obj) {
     return (obj?.operations || []).map((o) => ({ ...o, id: o.id || uid() }));
   }
 
-  async function handleFile(file) {
+  function handleFileSelect(file) {
     if (!file) return;
-    addMsg({ role: "user", kind: "file", text: file.name });
-    const thinking = uid();
-    addMsg({ role: "assistant", kind: "thinking", id: thinking });
-    setBusy(true);
-    try {
-      const up = await base44.integrations.Core.UploadFile({ file });
-      const res = await base44.integrations.Core.ExtractDataFromUploadedFile({
-        file_url: up.file_url,
-        json_schema: EXTRACTION_SCHEMA,
-      });
-      const txns = res?.output?.transactions || res?.output || [];
-      const list = Array.isArray(txns) ? txns : [];
-      setMessages((s) => s.filter((m) => m.id !== thinking));
-      if (!list.length) {
-        addMsg({ role: "assistant", kind: "text", text: "I couldn't find any transactions in that file. Try a clearer screenshot or a different page." });
-      } else {
-        const opsList = list.map((t) => ({
-          id: uid(),
-          entity: "Transaction",
-          action: "create",
-          summary: `Log ${t.type} "${t.description || "Transaction"}" · $${Math.abs(t.amount || 0)}`,
-          data: {
-            description: t.description || "Imported transaction",
-            amount: Math.abs(Number(t.amount) || 0),
-            type: t.type === "income" ? "income" : "expense",
-            date: t.date,
-            category: t.category || "",
-          },
-        }));
-        addMsg({ role: "assistant", kind: "text", text: `I found ${list.length} transaction${list.length === 1 ? "" : "s"}. Approve them to log.` });
-        setOps(opsList);
-        setOpsOpen(true);
-      }
-    } catch (e) {
-      setMessages((s) => s.filter((m) => m.id !== thinking));
-      addMsg({ role: "assistant", kind: "text", text: "Something went wrong while reading that file — please try again." });
-    } finally {
-      setBusy(false);
-    }
+    if (pendingPreview) URL.revokeObjectURL(pendingPreview);
+    setPendingFile(file);
+    setPendingPreview(file.type.startsWith("image/") ? URL.createObjectURL(file) : null);
   }
 
-  async function callLLM(prompt) {
+  function removePending() {
+    if (pendingPreview) URL.revokeObjectURL(pendingPreview);
+    setPendingPreview(null);
+    setPendingFile(null);
+  }
+
+  function handleClear() {
+    if (!window.confirm("Clear this conversation? This cannot be undone.")) return;
+    removePending();
+    setMessages([GREETING]);
+  }
+
+  async function callLLM(prompt, fileUrls) {
     const res = await base44.integrations.Core.InvokeLLM({
       prompt,
       response_json_schema: OPS_SCHEMA,
+      ...(fileUrls && fileUrls.length ? { file_urls: fileUrls } : {}),
     });
     return typeof res === "string" ? JSON.parse(res) : res;
   }
 
   async function handleSend() {
     const text = input.trim();
-    if (!text || busy) return;
+    const file = pendingFile;
+    if ((!text && !file) || busy) return;
     setInput("");
-    addMsg({ role: "user", kind: "text", text });
+    const preview = pendingPreview;
+    setPendingFile(null);
+    setPendingPreview(null);
+
+    const label = file
+      ? (text ? `${text}  ·  📎 ${file.name}` : `📎 ${file.name}`)
+      : text;
+    addMsg({ role: "user", kind: file ? "file" : "text", text: label });
+
     const thinking = uid();
     addMsg({ role: "assistant", kind: "thinking", id: thinking });
     setBusy(true);
     try {
-      const prompt = `${SYSTEM_INSTRUCTIONS}\n\n${buildContext(ctxData)}\n\nUSER: ${text}`;
-      const obj = await callLLM(prompt);
+      let fileUrls;
+      if (file) {
+        const up = await base44.integrations.Core.UploadFile({ file });
+        fileUrls = [up.file_url];
+      }
+      const userText = text || "Please review the attached statement and propose operations to log any transactions found.";
+      const prompt = `${SYSTEM_INSTRUCTIONS}\n\n${buildContext(ctxData)}\n\nUSER: ${userText}`;
+      const obj = await callLLM(prompt, fileUrls);
       setMessages((s) => s.filter((m) => m.id !== thinking));
       if (obj?.message) addMsg({ role: "assistant", kind: "text", text: obj.message });
       const opsList = opsFromResponse(obj);
@@ -279,7 +270,6 @@ export default function AssistantChat({ accounts, debts, transactions, summary }
     return out;
   }
 
-  // Apply a Transaction op AND mirror its money effect to the linked Account balance.
   async function applyTransactionOp(op) {
     const T = base44.entities.Transaction;
     if (op.action === "create") {
@@ -336,9 +326,24 @@ export default function AssistantChat({ accounts, debts, transactions, summary }
     }
   }
 
+  const canSend = !busy && (!!input.trim() || !!pendingFile);
+
   return (
     <>
-      <div className="flex flex-col h-[calc(100vh-9rem)] rounded-lg border border-white/10 bg-black">
+      <div className="flex flex-col h-[calc(100dvh-9rem)] rounded-lg border border-white/10 bg-black">
+        <div className="flex items-center justify-between px-4 py-2 border-b border-white/10">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-3.5 w-3.5 text-indigo-400" />
+            <span className="text-[10px] font-mono uppercase tracking-widest text-white/50">Adam · saved on this device</span>
+          </div>
+          <button
+            onClick={handleClear}
+            className="flex items-center gap-1 text-[10px] font-mono uppercase tracking-widest text-white/40 hover:text-red-400 transition-colors"
+          >
+            <Trash2 className="h-3 w-3" /> Clear
+          </button>
+        </div>
+
         <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4">
           {messages.map((m) => (
             <Message key={m.id} m={m} />
@@ -356,15 +361,37 @@ export default function AssistantChat({ accounts, debts, transactions, summary }
             type="file"
             accept="image/*,application/pdf"
             className="hidden"
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }}
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileSelect(f); e.target.value = ""; }}
           />
+
+          {pendingFile && (
+            <div className="flex items-center gap-2 p-2 rounded-md border border-white/10 bg-white/5">
+              {pendingPreview ? (
+                <img src={pendingPreview} alt="preview" className="h-12 w-12 object-cover rounded border border-white/10" />
+              ) : (
+                <Paperclip className="h-5 w-5 text-white/40 shrink-0" />
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="text-[9px] font-mono uppercase tracking-widest text-white/40">Attached · waiting for your message</p>
+                <p className="text-xs text-zinc-200 truncate">{pendingFile.name}</p>
+              </div>
+              <button
+                onClick={removePending}
+                className="p-1 text-white/40 hover:text-white"
+                aria-label="Remove attachment"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="icon"
               onClick={() => fileRef.current?.click()}
               disabled={busy}
-              className="border-white/10 bg-black text-white/70 hover:text-white hover:border-white/30"
+              className="border-white/10 bg-black text-white/70 hover:text-white hover:border-white/30 shrink-0"
               aria-label="Upload statement"
             >
               <Paperclip className="h-4 w-4" />
@@ -374,12 +401,12 @@ export default function AssistantChat({ accounts, debts, transactions, summary }
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
               placeholder="Ask anything — “how do I tackle my debt?” or “add a $50 Visa payment”"
-              className="flex-1 h-10 bg-black border border-white/10 rounded-md px-3 text-sm text-zinc-100 placeholder:text-white/30 focus:outline-none focus:border-white/30"
+              className="flex-1 min-w-0 h-10 bg-black border border-white/10 rounded-md px-3 text-[16px] sm:text-sm text-zinc-100 placeholder:text-white/30 focus:outline-none focus:border-white/30"
             />
             <Button
               onClick={handleSend}
-              disabled={busy || !input.trim()}
-              className="bg-emerald-500 text-black hover:bg-emerald-400"
+              disabled={!canSend}
+              className="bg-emerald-500 text-black hover:bg-emerald-400 shrink-0"
               size="icon"
               aria-label="Send"
             >
