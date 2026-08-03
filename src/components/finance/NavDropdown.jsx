@@ -11,7 +11,7 @@ export default function NavDropdown({ label, items }) {
   );
 
   return (
-    <DropdownMenu.Root>
+    <DropdownMenu.Root modal={false}>
       <DropdownMenu.Trigger asChild>
         <button
           className={`px-2 py-1.5 text-[11px] font-mono uppercase tracking-wide transition-colors duration-150 flex items-center gap-1 ${

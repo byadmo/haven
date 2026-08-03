@@ -1,6 +1,6 @@
 import React from "react";
 import { base44 } from "@/api/base44Client";
-import { Plus, X, TrendingDown, TrendingUp, RefreshCw } from "lucide-react";
+import { Plus, X, TrendingDown, TrendingUp, RefreshCw, Camera } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import StockChart from "@/components/finance/StockChart";
+import StockImportModal from "@/components/finance/StockImportModal";
 
 const fmt = (v) =>
   (v || 0).toLocaleString(undefined, {
@@ -45,6 +46,7 @@ export default function StockTracker({ onChanged }) {
   const [saving, setSaving] = React.useState(false);
   const [priceKey, setPriceKey] = React.useState(0);
   const [filter, setFilter] = React.useState("All");
+  const [showImport, setShowImport] = React.useState(false);
 
   const loadStocks = React.useCallback(async () => {
     const s = await base44.entities.Stock.list("-created_date");
@@ -128,16 +130,27 @@ export default function StockTracker({ onChanged }) {
           <h2 className="font-semibold text-sm text-zinc-100">Stock Portfolio</h2>
           <p className="text-xs text-zinc-500">Live prices via Yahoo Finance · grouped by account</p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setPriceKey((k) => k + 1)}
-          disabled={fetching || stocks.length === 0}
-          className="bg-zinc-900/60 border-zinc-800 text-zinc-300 hover:bg-zinc-800 hover:text-zinc-50"
-        >
-          <RefreshCw className={`h-3.5 w-3.5 mr-1 ${fetching ? "animate-spin" : ""}`} />
-          {fetching ? "Updating" : "Refresh"}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowImport(true)}
+            className="bg-zinc-900/60 border-zinc-800 text-zinc-300 hover:bg-zinc-800 hover:text-zinc-50"
+          >
+            <Camera className="h-3.5 w-3.5 mr-1" />
+            Import
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPriceKey((k) => k + 1)}
+            disabled={fetching || stocks.length === 0}
+            className="bg-zinc-900/60 border-zinc-800 text-zinc-300 hover:bg-zinc-800 hover:text-zinc-50"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 mr-1 ${fetching ? "animate-spin" : ""}`} />
+            {fetching ? "Updating" : "Refresh"}
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-4">
@@ -289,6 +302,8 @@ export default function StockTracker({ onChanged }) {
       </div>
 
       <StockChart stocks={stocks} />
+
+      <StockImportModal open={showImport} onOpenChange={setShowImport} onSaved={loadStocks} />
     </section>
   );
 }
