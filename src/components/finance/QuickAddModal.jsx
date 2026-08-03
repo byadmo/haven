@@ -35,6 +35,8 @@ export default function QuickAddModal({ open, onOpenChange, accounts = [], onSav
   const [recurring, setRecurring] = React.useState(false);
   const [frequency, setFrequency] = React.useState("monthly");
   const [nextDate, setNextDate] = React.useState(format(new Date(), "yyyy-MM-dd"));
+  const [customInterval, setCustomInterval] = React.useState("1");
+  const [customUnit, setCustomUnit] = React.useState("weeks");
   const [saving, setSaving] = React.useState(false);
   const amountRef = React.useRef(null);
 
@@ -49,6 +51,8 @@ export default function QuickAddModal({ open, onOpenChange, accounts = [], onSav
       setRecurring(false);
       setFrequency("monthly");
       setNextDate(format(new Date(), "yyyy-MM-dd"));
+      setCustomInterval("1");
+      setCustomUnit("weeks");
       const t = setTimeout(() => amountRef.current?.focus(), 60);
       return () => clearTimeout(t);
     }
@@ -69,6 +73,8 @@ export default function QuickAddModal({ open, onOpenChange, accounts = [], onSav
         is_scheduled: recurring,
         frequency: recurring ? frequency : "one_time",
         next_date: recurring ? (nextDate || date) : undefined,
+        custom_interval: recurring && frequency === "custom" ? (parseInt(customInterval) || 1) : undefined,
+        custom_unit: recurring && frequency === "custom" ? customUnit : undefined,
       });
       if (accountId) await adjustAccountBalance(accountId, txEffect({ type, amount: parseFloat(amount) }));
       onOpenChange?.(false);
@@ -178,6 +184,10 @@ export default function QuickAddModal({ open, onOpenChange, accounts = [], onSav
             onFrequencyChange={setFrequency}
             nextDate={nextDate}
             onNextDateChange={setNextDate}
+            customInterval={customInterval}
+            onCustomIntervalChange={setCustomInterval}
+            customUnit={customUnit}
+            onCustomUnitChange={setCustomUnit}
           />
 
           <Button

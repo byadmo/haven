@@ -40,6 +40,20 @@
       ],
       "default": "one_time"
     },
+    "custom_interval": {
+      "type": "number",
+      "description": "When frequency is 'custom', the number of units between occurrences"
+    },
+    "custom_unit": {
+      "type": "string",
+      "enum": [
+        "days",
+        "weeks",
+        "months",
+        "years"
+      ],
+      "description": "When frequency is 'custom', the unit for custom_interval"
+    },
     "next_date": {
       "type": "string",
       "format": "date"

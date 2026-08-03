@@ -51,6 +51,8 @@ function Row({ t, accountsMap, onChanged, categories }) {
         is_scheduled: payload.is_scheduled ?? false,
         frequency: payload.frequency ?? "one_time",
         next_date: payload.is_scheduled ? payload.next_date : undefined,
+        custom_interval: payload.custom_interval,
+        custom_unit: payload.custom_unit,
       });
       setEdit(null);
       onChanged?.();
@@ -102,6 +104,8 @@ function Row({ t, accountsMap, onChanged, categories }) {
                 next_date: sched
                   ? (ev.next_date ?? (t.next_date ? format(parseISO(t.next_date), "yyyy-MM-dd") : format(parseISO(t.date), "yyyy-MM-dd")))
                   : undefined,
+                custom_interval: sched && (ev.frequency ?? t.frequency) === "custom" ? (parseInt(ev.custom_interval ?? t.custom_interval) || 1) : undefined,
+                custom_unit: sched && (ev.frequency ?? t.frequency) === "custom" ? (ev.custom_unit ?? t.custom_unit ?? "weeks") : undefined,
               });
             }}
             className="space-y-3"
@@ -158,6 +162,10 @@ function Row({ t, accountsMap, onChanged, categories }) {
               onFrequencyChange={(v) => setEdit((p) => ({ ...p, frequency: v }))}
               nextDate={edit?.next_date ?? (t.next_date ? format(parseISO(t.next_date), "yyyy-MM-dd") : format(parseISO(t.date), "yyyy-MM-dd"))}
               onNextDateChange={(v) => setEdit((p) => ({ ...p, next_date: v }))}
+              customInterval={edit?.custom_interval ?? t.custom_interval ?? 1}
+              onCustomIntervalChange={(v) => setEdit((p) => ({ ...p, custom_interval: v }))}
+              customUnit={edit?.custom_unit ?? t.custom_unit ?? "weeks"}
+              onCustomUnitChange={(v) => setEdit((p) => ({ ...p, custom_unit: v }))}
             />
             <DialogFooter className="pt-2">
               <DialogClose asChild><Button type="button" variant="outline" className="border-zinc-800 text-zinc-400 hover:bg-zinc-800">Cancel</Button></DialogClose>

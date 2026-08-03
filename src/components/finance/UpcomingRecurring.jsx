@@ -39,6 +39,8 @@ function Row({ t, accountsMap, categories, onChanged }) {
       next_date: t.next_date
         ? format(parseISO(t.next_date), "yyyy-MM-dd")
         : format(parseISO(t.date), "yyyy-MM-dd"),
+      custom_interval: t.custom_interval ?? 1,
+      custom_unit: t.custom_unit ?? "weeks",
     });
     setOpen(true);
   }
@@ -58,6 +60,8 @@ function Row({ t, accountsMap, categories, onChanged }) {
         is_scheduled: ev.is_scheduled,
         frequency: ev.is_scheduled ? ev.frequency : "one_time",
         next_date: ev.is_scheduled ? ev.next_date : undefined,
+        custom_interval: ev.is_scheduled && ev.frequency === "custom" ? (parseInt(ev.custom_interval) || 1) : undefined,
+        custom_unit: ev.is_scheduled && ev.frequency === "custom" ? ev.custom_unit : undefined,
       });
       setOpen(false);
       setEdit(null);
@@ -93,7 +97,9 @@ function Row({ t, accountsMap, categories, onChanged }) {
             {format(due, "EEE, MMM d")}
             {t.is_scheduled && (
               <span className="px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 uppercase tracking-wider text-[9px]">
-                {(t.frequency || "").replace("_", " ")}
+                {t.frequency === "custom" && t.custom_interval
+                  ? `every ${t.custom_interval} ${t.custom_unit || "wks"}`
+                  : (t.frequency || "").replace("_", " ")}
               </span>
             )}
           </p>
@@ -205,6 +211,10 @@ function Row({ t, accountsMap, categories, onChanged }) {
             onFrequencyChange={(v) => setEdit((p) => ({ ...p, frequency: v }))}
             nextDate={edit.next_date}
             onNextDateChange={(v) => setEdit((p) => ({ ...p, next_date: v }))}
+            customInterval={edit.custom_interval}
+            onCustomIntervalChange={(v) => setEdit((p) => ({ ...p, custom_interval: v }))}
+            customUnit={edit.custom_unit}
+            onCustomUnitChange={(v) => setEdit((p) => ({ ...p, custom_unit: v }))}
           />
 
           <div className="flex justify-end gap-2 pt-1">
