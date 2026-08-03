@@ -276,7 +276,7 @@ export default function LiabilityLedger({ debts, onChanged }) {
                       <div className="space-y-1.5">
                         <Label className="text-white/50">Interest Type</Label>
                         <Select
-                          value={editing.interest_type || "APR"}
+                          value={editing?.interest_type || "APR"}
                           onValueChange={(v) => setEditing((prev) => ({ ...prev, interest_type: v }))}
                         >
                           <SelectTrigger className="bg-black border-white/10 text-zinc-100">
