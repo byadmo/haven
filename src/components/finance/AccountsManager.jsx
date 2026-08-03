@@ -9,9 +9,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Trash2, Pencil, Check, X, Landmark, Eye, EyeOff, CreditCard, ScanLine, Briefcase } from "lucide-react";
+import { Plus, Trash2, Pencil, Check, X, Landmark, Eye, EyeOff, ScanLine, Briefcase } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import AccountBalanceImportModal from "@/components/finance/AccountBalanceImportModal";
+import LiabilityLedger from "@/components/finance/LiabilityLedger";
 import { useForecast } from "@/lib/forecast-context";
 
 const fmt = (v) =>
@@ -298,36 +299,14 @@ export default function AccountsManager({ onChanged }) {
           </div>
         )}
 
-        {/* Liabilities */}
-        {activeDebts.length > 0 && (
-          <div>
-            <SectionHeader icon={CreditCard}>Liabilities</SectionHeader>
-            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3">
-              {activeDebts.map((d) => (
-                <motion.div
-                  key={`debt-${d.id}`}
-                  layout
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -6 }}
-                  transition={{ duration: 0.2 }}
-                  className="rounded-lg border border-white/10 bg-black p-3 sm:p-3.5 hover:border-rose-500/30 transition-colors"
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] uppercase tracking-widest text-white/50 font-medium">Liability</span>
-                    <CreditCard className="h-3.5 w-3.5 text-rose-300" />
-                  </div>
-                  <p className="text-sm font-semibold text-zinc-100 mb-1 truncate">{d.name}</p>
-                  <p className="text-lg sm:text-xl font-bold font-mono tabular-nums tracking-tight text-rose-300">
-                    -{fmt(d.current_balance || 0)}
-                  </p>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        )}
+        {/* Liabilities — full editable ledger */}
+        <LiabilityLedger debts={debts} onChanged={onChanged} />
+      </div>
 
-        <form onSubmit={create} className="flex flex-col sm:flex-row gap-2 pt-3 border-t border-zinc-800">
+      {/* Add Account — separate box */}
+      <div className="rounded-lg bg-black border border-white/10 p-4 sm:p-5 mt-4">
+        <h3 className="text-[11px] uppercase tracking-widest text-white/50 mb-3">Add Account</h3>
+        <form onSubmit={create} className="flex flex-col sm:flex-row gap-2">
           <Input
             value={name}
             onChange={(e) => setName(e.target.value)}
