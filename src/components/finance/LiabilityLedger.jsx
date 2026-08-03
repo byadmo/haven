@@ -24,10 +24,14 @@ export default function LiabilityLedger({ debts, onChanged }) {
   const [paying, setPaying] = React.useState(null);
   const [logging, setLogging] = React.useState(false);
   const [expanded, setExpanded] = React.useState({});
+  const [showOverride, setShowOverride] = React.useState({});
 
   const fc = useForecast();
   const point = fc?.point;
   const isFuture = !!fc?.isFuture;
+
+  const currentShow = (d) =>
+    showOverride[d.id] !== undefined ? showOverride[d.id] : !!d.show_in_accounts;
 
   React.useEffect(() => {
     base44.entities.DebtPayment.list("-date", 500).then(setPayments).catch(() => {});
@@ -62,8 +66,17 @@ export default function LiabilityLedger({ debts, onChanged }) {
   }
 
   async function toggleShowOnAccounts(d) {
-    const next = d.show_in_accounts ? false : true;
-    await base44.entities.Debt.update(d.id, { show_in_accounts: next });
+    const next = !currentShow(d);
+    setShowOverride((prev) => ({ ...prev, [d.id]: next }));
+    try {
+      await base44.entities.Debt.update(d.id, { show_in_accounts: next });
+    } catch {
+      setShowOverride((prev) => {
+        const c = { ...prev };
+        delete c[d.id];
+        return c;
+      });
+    }
     onChanged?.();
   }
 
@@ -146,12 +159,12 @@ export default function LiabilityLedger({ debts, onChanged }) {
                     title="Toggle show on Accounts"
                     whileTap={{ scale: 0.94 }}
                     className={`flex items-center gap-1 text-[10px] uppercase tracking-widest border px-2 py-0.5 transition-colors ${
-                      d.show_in_accounts
+                      currentShow(d)
                         ? "border-emerald-500/40 text-emerald-300 bg-emerald-500/10"
                         : "border-white/10 text-white/40 hover:text-white"
                     }`}
                   >
-                    <Eye className="h-3 w-3" /> {d.show_in_accounts ? "On accounts" : "Show on accounts"}
+                    <Eye className="h-3 w-3" /> {currentShow(d) ? "On accounts" : "Show on accounts"}
                   </motion.button>
                 )}
                 {isCleared ? (
