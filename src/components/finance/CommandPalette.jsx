@@ -59,11 +59,11 @@ export default function CommandPalette() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="hidden sm:flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-1.5 text-xs text-zinc-500 hover:text-zinc-200 hover:border-zinc-700 transition-colors"
+        className="hidden sm:flex items-center gap-2 h-8 min-w-[11rem] rounded-md border border-white/10 bg-transparent px-2.5 text-xs text-zinc-500 hover:text-zinc-200 hover:border-white/25 transition-colors"
       >
         <Search className="h-3.5 w-3.5" />
-        <span>Search</span>
-        <kbd className="ml-1 rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-400">⌘K</kbd>
+        <span className="flex-1 text-left">Search</span>
+        <kbd className="rounded border border-white/10 px-1.5 py-0.5 text-[10px] text-zinc-500">⌘K</kbd>
       </button>
 
       <AnimatePresence>

@@ -71,7 +71,7 @@ export default function BackupModal() {
       <button
         onClick={() => setOpen(true)}
         title="Backup & Restore"
-        className="h-8 w-8 rounded-lg flex items-center justify-center border border-zinc-800 bg-zinc-950/60 text-zinc-400 hover:text-zinc-100 hover:border-zinc-700 transition-colors"
+        className="h-8 w-8 rounded-md flex items-center justify-center border border-white/10 bg-transparent text-zinc-400 hover:text-white hover:border-white/25 transition-colors"
       >
         <Database className="h-4 w-4" />
       </button>
