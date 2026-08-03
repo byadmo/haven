@@ -4,6 +4,7 @@ import { Wallet } from "lucide-react";
 import { format } from "date-fns";
 import CommandPalette from "@/components/finance/CommandPalette";
 import BackupModal from "@/components/finance/BackupModal";
+import MobileNav from "@/components/finance/MobileNav";
 
 export default function DashboardHeader({ actions }) {
   const now = new Date();
@@ -13,6 +14,7 @@ export default function DashboardHeader({ actions }) {
     }`;
 
   return (
+    <>
     <header className="sticky top-0 z-30 bg-black border-b border-white/10">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between gap-3">
         <div className="flex items-center gap-4">
@@ -33,11 +35,13 @@ export default function DashboardHeader({ actions }) {
           </nav>
         </div>
         <div className="flex items-center gap-2">
-          <CommandPalette />
+          <div className="hidden sm:block"><CommandPalette /></div>
           <BackupModal />
           {actions && <div className="flex gap-2">{actions}</div>}
         </div>
       </div>
     </header>
+    <MobileNav />
+    </>
   );
 }

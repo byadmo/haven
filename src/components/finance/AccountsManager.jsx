@@ -121,7 +121,7 @@ export default function AccountsManager({ onChanged }) {
                   <span className="text-[10px] uppercase tracking-widest text-white/50 font-medium">
                     {a.type || "chequing"}
                   </span>
-                  <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex items-center gap-0.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                     {editId === a.id ? (
                       <>
                         <button

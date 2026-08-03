@@ -76,7 +76,7 @@ function Row({ t, accountsMap, onChanged }) {
       </span>
       <Dialog>
         <DialogTrigger asChild>
-          <button className="h-6 w-6 rounded-md flex items-center justify-center text-zinc-600 hover:text-zinc-200 hover:bg-zinc-800 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button className="h-6 w-6 rounded-md flex items-center justify-center text-zinc-600 hover:text-zinc-200 hover:bg-zinc-800 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
             <Pencil className="h-3.5 w-3.5" />
           </button>
         </DialogTrigger>
@@ -151,7 +151,7 @@ function Row({ t, accountsMap, onChanged }) {
           </form>
         </DialogContent>
       </Dialog>
-      <button onClick={remove} className="h-6 w-6 rounded-md flex items-center justify-center text-zinc-600 hover:text-rose-400 hover:bg-rose-500/10 opacity-0 group-hover:opacity-100 transition-opacity" aria-label="Delete">
+      <button onClick={remove} className="h-6 w-6 rounded-md flex items-center justify-center text-zinc-600 hover:text-rose-400 hover:bg-rose-500/10 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity" aria-label="Delete">
         <X className="h-3.5 w-3.5" />
       </button>
     </div>
