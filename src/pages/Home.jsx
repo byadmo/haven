@@ -18,6 +18,7 @@ import LiabilityLedger from "@/components/finance/LiabilityLedger";
 import DebtRepaymentGraph from "@/components/finance/DebtRepaymentGraph";
 import DebtForm from "@/components/finance/DebtForm";
 import DebtModal from "@/components/finance/DebtModal";
+import DebtProgressTracker from "@/components/finance/DebtProgressTracker";
 import AccountsManager from "@/components/finance/AccountsManager";
 import Reveal from "@/components/finance/Reveal";
 import { Link } from "react-router-dom";
@@ -170,6 +171,7 @@ export default function Home() {
             <p className="text-xs text-zinc-500">Manage your active debts</p>
           </div>
           <div className="space-y-4">
+            <DebtProgressTracker debts={debts} />
             <Reveal><DebtRepaymentGraph debts={debts} /></Reveal>
             <Reveal><LiabilityLedger debts={debts} onChanged={() => setRefreshKey((k) => k + 1)} /></Reveal>
           </div>
