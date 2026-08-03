@@ -17,17 +17,17 @@ export default function MobileNav() {
       style={{ bottom: "calc(env(safe-area-inset-bottom) + 12px)" }}
       aria-label="Primary"
     >
-      <div className="pointer-events-auto flex items-center gap-1 rounded-full border border-white/10 bg-zinc-900/95 backdrop-blur-md px-2.5 py-1.5 shadow-lg">
+      <div className="pointer-events-auto flex items-center gap-0.5 rounded-full border border-white/10 bg-zinc-900/95 backdrop-blur-md px-2 py-1 shadow-lg">
         {items.map(({ to, label, icon: Icon, end }, i) => (
-          <NavLink key={to} to={to} end={end} className={`flex-col items-center justify-center rounded-full transition-all duration-150 py-1.5 ${
-            i === 0 ? "pl-4 pr-2.5" : i === items.length - 1 ? "pr-4 pl-2.5" : "px-2.5"
+          <NavLink key={to} to={to} end={end} className={`flex-col items-center justify-center rounded-full transition-all duration-150 py-1 ${
+            i === 0 ? "pl-3 pr-1.5" : i === items.length - 1 ? "pr-3 pl-1.5" : "px-1.5"
           }`}>
             {({ isActive }) => (
-              <div className={`flex flex-col items-center justify-center gap-0.5 rounded-full px-1.5 py-1 transition-all duration-150 ${
+              <div className={`flex flex-col items-center justify-center rounded-full px-1 py-0.5 transition-all duration-150 ${
                 isActive ? "bg-white/10" : ""
               }`}>
-                <Icon className={`h-[16px] w-[16px] transition-colors ${isActive ? "text-white" : "text-white/40"}`} />
-                <span className={`text-[8px] uppercase tracking-[0.1em] font-mono transition-colors ${isActive ? "text-white" : "text-white/40"}`}>
+                <Icon className={`h-[14px] w-[14px] transition-colors ${isActive ? "text-white" : "text-white/40"}`} />
+                <span className={`text-[7px] uppercase tracking-[0.05em] font-mono transition-colors ${isActive ? "text-white" : "text-white/40"}`}>
                   {label}
                 </span>
               </div>
