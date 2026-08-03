@@ -44,6 +44,8 @@ export default function TelemetryReadout() {
       </div>
       <Metric label="Net Worth" value={money(nw)} tone={nw >= 0 ? "emerald" : "rose"} />
       <Metric label="Debt Remaining" value={money(debt)} tone={debt <= 0 ? "emerald" : "amber"} />
+      <Metric label="Cash Balance" value={money(point.cashBalance || 0)} tone={(point.cashBalance || 0) < 0 ? "rose" : "emerald"} />
+      <Metric label="Monthly Net" value={money(point.monthlyNet || 0)} tone={(point.monthlyNet || 0) < 0 ? "rose" : "emerald"} />
       <Metric label="Cash Buffer" value={money(buf)} tone={buf < 0 ? "amber" : "emerald"} badge={point.keyframe && point.keyframeLabel ? point.keyframeLabel : null} />
     </div>
   );

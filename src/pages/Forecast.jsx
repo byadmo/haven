@@ -7,6 +7,7 @@ import { computeTrajectory } from "@/lib/trajectory";
 import TelemetryReadout from "@/components/finance/TelemetryReadout";
 import HoverTimeline from "@/components/finance/HoverTimeline";
 import ForecastCharts from "@/components/finance/ForecastCharts";
+import GoalPlanner from "@/components/finance/GoalPlanner";
 import Reveal from "@/components/finance/Reveal";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Slider } from "@/components/ui/slider";
@@ -23,6 +24,7 @@ export default function Forecast() {
   const [method, setMethod] = React.useState("avalanche");
   const [months, setMonths] = React.useState(60);
   const [extra, setExtra] = React.useState(0);
+  const [incomeAdjust, setIncomeAdjust] = React.useState(0);
 
   React.useEffect(() => {
     Promise.all([
@@ -35,8 +37,13 @@ export default function Forecast() {
   }, []);
 
   const { series, keyframes, order } = React.useMemo(
-    () => computeTrajectory({ debts, accounts, transactions: txns, months, method, extraPayment: extra }),
-    [debts, accounts, txns, months, method, extra]
+    () => computeTrajectory({ debts, accounts, transactions: txns, months, method, extraPayment: extra, incomeAdjust }),
+    [debts, accounts, txns, months, method, extra, incomeAdjust]
+  );
+
+  const baselineSeries = React.useMemo(
+    () => computeTrajectory({ debts, accounts, transactions: txns, months, method: "avalanche", extraPayment: 0, incomeAdjust: 0 }).series,
+    [debts, accounts, txns, months]
   );
 
   const debtFreeMonth = series.find((p) => p.debtRemaining <= 0.005)?.month;
@@ -44,6 +51,8 @@ export default function Forecast() {
   const milestoneRows = (keyframes || []).map((m) => ({
     m, label: series[m]?.keyframeLabel || `T+${m}`, date: series[m] ? format(series[m].date, "MMM yyyy") : "",
   }));
+
+  const sliderMax = Math.max(5000, Math.ceil((extra || 0) * 1.5));
 
   if (loading) {
     return (
@@ -65,7 +74,7 @@ export default function Forecast() {
             </div>
           </Reveal>
 
-          {/* Options */}
+          {/* Controls */}
           <Reveal>
             <div className="rounded-lg border border-white/10 bg-black p-4 sm:p-5 space-y-5">
               <div className="flex items-center justify-between">
@@ -77,7 +86,7 @@ export default function Forecast() {
                 )}
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
                 <div>
                   <Label className="text-[10px] tracking-[0.2em] uppercase text-white/50 font-mono">Strategy</Label>
                   <ToggleGroup
@@ -116,8 +125,25 @@ export default function Forecast() {
                     value={[extra]}
                     onValueChange={(v) => setExtra(v[0])}
                     min={0}
-                    max={2000}
+                    max={sliderMax}
                     step={50}
+                    className="mt-3"
+                  />
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[10px] tracking-[0.2em] uppercase text-white/50 font-mono">Income Adjust</Label>
+                    <span className={`text-[11px] font-mono tabular-nums ${incomeAdjust >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                      {incomeAdjust >= 0 ? "+" : ""}{incomeAdjust}%
+                    </span>
+                  </div>
+                  <Slider
+                    value={[incomeAdjust]}
+                    onValueChange={(v) => setIncomeAdjust(v[0])}
+                    min={-50}
+                    max={50}
+                    step={5}
                     className="mt-3"
                   />
                 </div>
@@ -125,7 +151,20 @@ export default function Forecast() {
             </div>
           </Reveal>
 
-          <Reveal><ForecastCharts series={series} order={order} /></Reveal>
+          {/* Payoff Goal */}
+          <Reveal>
+            <GoalPlanner
+              debts={debts}
+              accounts={accounts}
+              transactions={txns}
+              method={method}
+              months={months}
+              currentExtra={extra}
+              onApply={(amt) => setExtra(amt)}
+            />
+          </Reveal>
+
+          <Reveal><ForecastCharts series={series} order={order} baselineSeries={baselineSeries} /></Reveal>
 
           {/* Milestones */}
           <Reveal>

@@ -16,7 +16,7 @@ const WEEK_TO_MONTH = 52 / 12;
  */
 export function computeTrajectory({
   debts = [], accounts = [], transactions = [],
-  months = 60, method = "avalanche", extraPayment = 0,
+  months = 60, method = "avalanche", extraPayment = 0, incomeAdjust = 0,
 } = {}) {
   const now = new Date();
   const startingCash = Math.max(0, accounts.reduce((s, a) => s + (a.balance || 0), 0));
@@ -29,7 +29,7 @@ export function computeTrajectory({
     if (t.type === "income") recIn += (t.amount || 0) * factor;
     else recOut += (t.amount || 0) * factor;
   });
-  const monthlyNet = recIn - recOut;
+  const monthlyNet = (recIn - recOut) * (1 + (incomeAdjust || 0) / 100);
 
   const active = debts
     .map((d) => ({
@@ -59,6 +59,7 @@ export function computeTrajectory({
     netWorth: startingCash - totalDebt0,
     debtRemaining: totalDebt0,
     income: recIn,
+    monthlyNet,
     liabilities: liabilities0,
     cashBuffer: startingCash - recOut,
     cashBalance: startingCash,
@@ -122,6 +123,7 @@ export function computeTrajectory({
       netWorth: cash - debtRemaining,
       debtRemaining,
       income: recIn,
+      monthlyNet,
       liabilities: libs,
       cashBuffer: cash - recOut,
       cashBalance: cash,
@@ -131,4 +133,31 @@ export function computeTrajectory({
   }
 
   return { series, keyframes: [...keyframeMonths].sort((a, b) => a - b), order };
+}
+
+/**
+ * Solve for the minimum extra monthly payment that clears all debt on or before
+ * `targetMonths`. Returns { extra, reached }.
+ */
+export function solveExtraForTarget({
+  debts = [], accounts = [], transactions = [],
+  months = 120, method = "avalanche", targetMonths = 12,
+} = {}) {
+  const totalDebt = debts.reduce((s, d) => s + (d.current_balance || 0), 0);
+  const cap = Math.max(1000, Math.ceil(totalDebt) + 1000);
+
+  const at = (extra) => {
+    const { series } = computeTrajectory({ debts, accounts, transactions, months, method, extraPayment: extra });
+    const df = series.find((p) => p.debtRemaining <= 0.005)?.month;
+    return df != null && df <= targetMonths;
+  };
+
+  if (at(0)) return { extra: 0, reached: true };
+  let lo = 1, hi = cap, ans = null;
+  while (lo <= hi) {
+    const mid = Math.round((lo + hi) / 2);
+    if (at(mid)) { ans = mid; hi = mid - 1; }
+    else lo = mid + 1;
+  }
+  return { extra: ans, reached: ans != null };
 }
