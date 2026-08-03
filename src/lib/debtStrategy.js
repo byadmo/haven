@@ -33,13 +33,18 @@ export function simulatePayoff(debts, monthlySurplus, method = "avalanche") {
   const monthly = Math.max(monthlySurplus, minTotal);
 
   let months = 0;
+  let totalInterest = 0;
   const cap = 600; // 50-year safety cap
 
   while (balances.some((d) => d.balance > 0.005) && months < cap) {
     months++;
     // Accrue interest
     balances.forEach((d) => {
-      if (d.balance > 0) d.balance += d.balance * (d.apr / 100 / 12);
+      if (d.balance > 0) {
+        const interest = d.balance * (d.apr / 100 / 12);
+        totalInterest += interest;
+        d.balance += interest;
+      }
     });
     let budget = monthly;
     // Pay minimums across all debts
@@ -64,7 +69,27 @@ export function simulatePayoff(debts, monthlySurplus, method = "avalanche") {
     months,
     debtFreeDate: addMonths(new Date(), months),
     totalDebt,
+    totalInterest,
     order,
+  };
+}
+
+/**
+ * Compare the current payoff path vs an optimized path that adds an extra monthly boost.
+ * Returns months faster and interest saved.
+ */
+export function computeSavings(debts, baseSurplus, extra, method = "avalanche") {
+  const base = simulatePayoff(debts, baseSurplus || 0, method);
+  const optimal = simulatePayoff(debts, (baseSurplus || 0) + (extra || 0), method);
+  return {
+    baseMonths: base.months,
+    baseInterest: base.totalInterest || 0,
+    optMonths: optimal.months,
+    optInterest: optimal.totalInterest || 0,
+    monthsFaster: Math.max(0, base.months - optimal.months),
+    interestSaved: Math.max(0, (base.totalInterest || 0) - (optimal.totalInterest || 0)),
+    baseDate: base.debtFreeDate,
+    optDate: optimal.debtFreeDate,
   };
 }
 

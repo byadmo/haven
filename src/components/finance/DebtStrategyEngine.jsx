@@ -2,13 +2,22 @@ import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Card } from "@/components/ui/card";
-import { simulatePayoff } from "@/lib/debtStrategy";
+import { simulatePayoff, computeSavings } from "@/lib/debtStrategy";
 import { format } from "date-fns";
-import { Sparkles, TrendingDown, CalendarCheck, ArrowRight } from "lucide-react";
+import { Sparkles, TrendingDown, CalendarCheck, ArrowRight, Wand2, PiggyBank } from "lucide-react";
+
+const fmt = (v) =>
+  (v || 0).toLocaleString(undefined, {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 
 export default function DebtStrategyEngine({ debts, monthlySurplus }) {
   const [method, setMethod] = React.useState("avalanche");
   const [surplus, setSurplus] = React.useState(monthlySurplus || 0);
+  const [boost, setBoost] = React.useState(0);
 
   React.useEffect(() => {
     if (monthlySurplus) setSurplus(monthlySurplus);
@@ -19,6 +28,11 @@ export default function DebtStrategyEngine({ debts, monthlySurplus }) {
     [debts, surplus, method]
   );
 
+  const savings = React.useMemo(
+    () => computeSavings(debts, surplus, boost, method),
+    [debts, surplus, boost, method]
+  );
+
   const years = Math.floor(projection.months / 12);
   const remainMonths = projection.months % 12;
   const payoffLabel = projection.months
@@ -26,13 +40,13 @@ export default function DebtStrategyEngine({ debts, monthlySurplus }) {
     : "—";
 
   const totalDebt = projection.totalDebt || 0;
-  // progress toward paid: based on a 10-year horizon reference
   const horizonMonths = 120;
   const progress = projection.months
     ? Math.min(100, Math.round(((horizonMonths - projection.months) / horizonMonths) * 100))
     : 0;
 
-  const startDate = new Date();
+  const totalInterest = projection.totalInterest || 0;
+  const optInterest = savings.optInterest || 0;
 
   return (
     <Card className="p-5 bg-zinc-900/60 backdrop-blur-xl border-zinc-800 shadow-2xl shadow-black/40">
@@ -78,10 +92,10 @@ export default function DebtStrategyEngine({ debts, monthlySurplus }) {
         </div>
         <div className="rounded-xl bg-zinc-950/60 border border-zinc-800 p-3.5">
           <div className="flex items-center gap-1.5 mb-1 text-zinc-500">
-            <TrendingDown className="h-3 w-3" />
-            <p className="text-[11px] uppercase tracking-wider">Active Debt</p>
+            <PiggyBank className="h-3 w-3" />
+            <p className="text-[11px] uppercase tracking-wider">Interest Cost</p>
           </div>
-          <p className="text-lg font-bold text-rose-400 tabular-nums">${totalDebt.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</p>
+          <p className="text-lg font-bold text-orange-400 tabular-nums">{fmt(totalInterest)}</p>
         </div>
       </div>
 
@@ -121,7 +135,7 @@ export default function DebtStrategyEngine({ debts, monthlySurplus }) {
       </div>
 
       {/* Payoff order */}
-      <div>
+      <div className="mb-5">
         <p className="text-[11px] uppercase tracking-wider text-zinc-500 mb-2">Recommended Payoff Order</p>
         <div className="space-y-1.5">
           <AnimatePresence mode="popLayout">
@@ -156,6 +170,65 @@ export default function DebtStrategyEngine({ debts, monthlySurplus }) {
             ? "Avalanche: highest interest rate first — saves the most money."
             : "Snowball: lowest balance first — fastest wins, builds momentum."}
         </p>
+      </div>
+
+      {/* What-If Optimizer */}
+      <div className="rounded-xl border border-violet-500/25 bg-gradient-to-br from-violet-500/10 to-fuchsia-500/5 p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Wand2 className="h-4 w-4 text-violet-300" />
+          <p className="text-xs font-semibold uppercase tracking-wider text-violet-300">What-If Optimizer</p>
+        </div>
+
+        <div className="mb-4">
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="text-xs text-zinc-400">Extra monthly boost</label>
+            <span className="text-sm font-semibold text-violet-200 tabular-nums">+{fmt(boost)}</span>
+          </div>
+          <input
+            type="range"
+            min={0}
+            max={1500}
+            step={25}
+            value={boost}
+            onChange={(e) => setBoost(Number(e.target.value))}
+            className="w-full h-1.5 rounded-full accent-fuchsia-500 bg-zinc-800 cursor-pointer"
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 mb-3">
+          <div className="rounded-lg bg-zinc-950/60 border border-zinc-800 p-3">
+            <p className="text-[10px] uppercase tracking-wider text-zinc-500 mb-1">Current Path</p>
+            <p className="text-base font-bold text-zinc-200 tabular-nums">
+              {savings.baseMonths ? `${savings.baseMonths} mo` : "—"}
+            </p>
+            <p className="text-[11px] text-rose-300/80 tabular-nums mt-0.5">{fmt(savings.baseInterest)} interest</p>
+          </div>
+          <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/30 p-3">
+            <p className="text-[10px] uppercase tracking-wider text-emerald-400/80 mb-1">Optimized Path</p>
+            <p className="text-base font-bold text-emerald-300 tabular-nums">
+              {savings.optMonths ? `${savings.optMonths} mo` : "—"}
+            </p>
+            <p className="text-[11px] text-emerald-400/80 tabular-nums mt-0.5">{fmt(optInterest)} interest</p>
+          </div>
+        </div>
+
+        <AnimatePresence>
+          {boost > 0 && savings.monthsFaster > 0 && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="overflow-hidden"
+            >
+              <p className="text-xs text-zinc-200 leading-relaxed">
+                By adding{" "}
+                <span className="font-semibold text-violet-300 tabular-nums">+{fmt(boost)}/mo</span>, you become debt-free{" "}
+                <span className="font-semibold text-emerald-300 tabular-nums">{savings.monthsFaster} months faster</span> and save{" "}
+                <span className="font-semibold text-emerald-300 tabular-nums">{fmt(savings.interestSaved)}</span> in interest.
+              </p>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </Card>
   );

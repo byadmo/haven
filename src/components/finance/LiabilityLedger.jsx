@@ -16,6 +16,25 @@ import { Label } from "@/components/ui/label";
 import { Plus, CreditCard, Trash2, ChevronDown } from "lucide-react";
 import { interestBreakdown } from "@/lib/debtStrategy";
 import { format, parseISO } from "date-fns";
+import { motion } from "framer-motion";
+import confetti from "canvas-confetti";
+
+const TIER_META = {
+  entry: { label: "10% Down", icon: "🌱", className: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30" },
+  midway: { label: "Halfway", icon: "⚡", className: "bg-violet-500/15 text-violet-300 border-violet-500/30" },
+  mastery: { label: "Paid Off!", icon: "🏆", className: "bg-emerald-500/20 text-emerald-300 border-emerald-500/40" },
+};
+
+function getMilestone(d) {
+  const orig = d.original_balance || 0;
+  const cur = d.current_balance || 0;
+  const pct = orig > 0 ? Math.min(100, Math.max(0, ((orig - cur) / orig) * 100)) : 0;
+  let tier = null;
+  if (cur <= 0.005) tier = "mastery";
+  else if (pct >= 50) tier = "midway";
+  else if (pct >= 10) tier = "entry";
+  return { pct, tier };
+}
 
 export default function LiabilityLedger({ debts, onChanged }) {
   const [editing, setEditing] = React.useState(null);
@@ -80,6 +99,9 @@ export default function LiabilityLedger({ debts, onChanged }) {
       const fresh = await base44.entities.DebtPayment.list("-date", 500);
       setPayments(fresh);
       setPaying(null);
+      if (newBalance <= 0) {
+        confetti({ particleCount: 130, spread: 80, origin: { y: 0.65 }, colors: ["#8b5cf6", "#d946ef", "#34d399"] });
+      }
       onChanged?.();
     } finally {
       setLogging(false);
@@ -111,6 +133,7 @@ export default function LiabilityLedger({ debts, onChanged }) {
         const isPaid = d.status === "paid_off" || (d.current_balance || 0) <= 0;
         const interestPct = min > 0 ? Math.min(100, (interest / min) * 100) : 0;
         const principalPct = 100 - interestPct;
+        const milestone = getMilestone(d);
         const history = paymentsByDebt[d.id] || [];
         const totalPaid = history.reduce((s, p) => s + (p.amount || 0), 0);
         const isOpen = expanded[d.id];
@@ -127,16 +150,37 @@ export default function LiabilityLedger({ debts, onChanged }) {
                 <p className="font-semibold text-sm text-zinc-100">{d.name}</p>
                 <p className="text-[11px] text-zinc-500 mt-0.5">{isPaid ? "Paid off" : "Active liability"}</p>
               </div>
-              {d.interest_rate > 0 && (
-                <span className="text-[10px] px-2 py-0.5 rounded-md bg-rose-500/15 text-rose-300 font-medium tabular-nums border border-rose-500/20">
-                  {d.interest_rate}% APR
-                </span>
-              )}
+              <div className="flex items-center gap-1.5">
+                {milestone.tier && (
+                  <span className={`text-[10px] px-2 py-0.5 rounded-md font-medium border flex items-center gap-1 ${TIER_META[milestone.tier].className}`}>
+                    <span>{TIER_META[milestone.tier].icon}</span>
+                    {TIER_META[milestone.tier].label}
+                  </span>
+                )}
+                {d.interest_rate > 0 && (
+                  <span className="text-[10px] px-2 py-0.5 rounded-md bg-rose-500/15 text-rose-300 font-medium tabular-nums border border-rose-500/20">
+                    {d.interest_rate}% APR
+                  </span>
+                )}
+              </div>
             </div>
 
-            <p className="text-2xl font-bold text-zinc-50 tabular-nums mb-3">
+            <p className="text-2xl font-bold text-zinc-50 tabular-nums mb-2">
               ${(d.current_balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
+            {(d.original_balance || 0) > 0 && (
+              <div className="mb-3">
+                <div className="h-1.5 rounded-full bg-zinc-800 overflow-hidden">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${milestone.pct}%` }}
+                    transition={{ duration: 0.6, ease: "easeOut" }}
+                    className="h-full rounded-full bg-gradient-to-r from-violet-500 to-emerald-400"
+                  />
+                </div>
+                <p className="text-[10px] text-zinc-500 mt-1 tabular-nums">{milestone.pct.toFixed(0)}% paid down</p>
+              </div>
+            )}
 
             {min > 0 && (
               <div className="mb-3">
