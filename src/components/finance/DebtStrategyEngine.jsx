@@ -2,9 +2,10 @@ import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Card } from "@/components/ui/card";
-import { simulatePayoff, computeSavings } from "@/lib/debtStrategy";
+import { simulatePayoff, computeSavings, simulateTimeline } from "@/lib/debtStrategy";
 import { format } from "date-fns";
 import { Sparkles, TrendingDown, CalendarCheck, ArrowRight, Wand2, PiggyBank } from "lucide-react";
+import { ResponsiveContainer, ComposedChart, Line, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 
 const fmt = (v) =>
   (v || 0).toLocaleString(undefined, {
@@ -32,6 +33,27 @@ export default function DebtStrategyEngine({ debts, monthlySurplus }) {
     () => computeSavings(debts, surplus, boost, method),
     [debts, surplus, boost, method]
   );
+
+  const baseTimeline = React.useMemo(
+    () => simulateTimeline(debts, surplus, method),
+    [debts, surplus, method]
+  );
+  const optTimeline = React.useMemo(
+    () => simulateTimeline(debts, Math.max(0, surplus) + boost, method),
+    [debts, surplus, boost, method]
+  );
+  const chartData = React.useMemo(() => {
+    const maxM = Math.max(baseTimeline.series.length, optTimeline.series.length, 1);
+    const out = [];
+    for (let i = 0; i <= maxM; i++) {
+      out.push({
+        month: i,
+        base: baseTimeline.series[i] ? Math.max(0, baseTimeline.series[i].balance) : 0,
+        accelerated: optTimeline.series[i] ? Math.max(0, optTimeline.series[i].balance) : 0,
+      });
+    }
+    return out;
+  }, [baseTimeline, optTimeline]);
 
   const years = Math.floor(projection.months / 12);
   const remainMonths = projection.months % 12;
@@ -209,6 +231,25 @@ export default function DebtStrategyEngine({ debts, monthlySurplus }) {
               {savings.optMonths ? `${savings.optMonths} mo` : "—"}
             </p>
             <p className="text-[11px] text-emerald-400/80 tabular-nums mt-0.5">{fmt(optInterest)} interest</p>
+          </div>
+        </div>
+
+        <div className="mb-3">
+          <div className="flex items-center gap-3 text-[10px] text-zinc-400 mb-1">
+            <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-rose-500" />Base trajectory</span>
+            <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-400" />Accelerated (+{fmt(boost)}/mo)</span>
+          </div>
+          <div className="h-40 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+                <XAxis dataKey="month" stroke="#52525b" fontSize={10} tickFormatter={(m) => `${m}mo`} tickLine={false} axisLine={false} />
+                <YAxis stroke="#52525b" fontSize={10} width={44} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} tickLine={false} axisLine={false} />
+                <Tooltip contentStyle={{ background: "#18181b", border: "1px solid #27272a", borderRadius: 8, fontSize: 11 }} labelFormatter={(m) => `Month ${m}`} formatter={(v) => fmt(v)} />
+                <Line type="monotone" dataKey="base" stroke="#f43f5e" strokeWidth={2} dot={false} isAnimationActive={false} />
+                <Line type="monotone" dataKey="accelerated" stroke="#34d399" strokeWidth={2} strokeDasharray="5 4" dot={false} isAnimationActive={false} />
+              </ComposedChart>
+            </ResponsiveContainer>
           </div>
         </div>
 

@@ -23,7 +23,17 @@ export default async function(req) {
     } catch (e) {
       body = {};
     }
-    const symbols = (body.symbols || []).filter((s) => typeof s === 'string' && s.trim()).map((s) => s.trim().toUpperCase());
+    const raw = (body.symbols || []).filter((s) => typeof s === 'string' && s.trim()).map((s) => s.trim().toUpperCase());
+    // Restrict to traditional equities & ETFs — reject crypto pairs, forex, and indices.
+    const isNonEquity = (s) => {
+      if (s.includes('=X')) return true;             // forex, e.g. EURUSD=X
+      if (s.startsWith('^')) return true;            // index,  e.g. ^GSPC
+      if (s.includes('-') && /(USD|USDT|USDC|EUR|GBP|JPY|CAD|AUD|CHF)$/.test(s)) return true; // crypto e.g. BTC-USD
+      if (!/^[A-Z][A-Z0-9.]{0,9}$/.test(s)) return true; // not a plain ticker/ETF
+      return false;
+    };
+    const symbols = raw.filter((s) => !isNonEquity(s));
+    const rejected = raw.filter((s) => isNonEquity(s));
     const interval = body.interval || '5m';
     const range = body.range || RANGE_DEFAULTS[interval] || '1mo';
 
@@ -53,6 +63,7 @@ export default async function(req) {
       timestamps: timestamps || [],
       series,
       prices,
+      rejected,
     });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });

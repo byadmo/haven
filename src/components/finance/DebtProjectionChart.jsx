@@ -40,27 +40,18 @@ function ChartTooltip({ active, payload, label }) {
 
 export default function DebtProjectionChart({ debts, surplus }) {
   const [method, setMethod] = React.useState("avalanche");
-  const [boost, setBoost] = React.useState(0);
 
   const base = React.useMemo(
     () => simulateTimeline(debts, surplus, method),
     [debts, surplus, method]
   );
-  const opt = React.useMemo(
-    () => simulateTimeline(debts, Math.max(0, surplus) + boost, method),
-    [debts, surplus, boost, method]
-  );
 
-  const maxMonths = Math.max(base.series.length, opt.series.length, 1);
+  const maxMonths = Math.max(base.series.length, 1);
   const data = [];
   for (let i = 0; i <= maxMonths; i++) {
     const b = base.series[i] ? base.series[i].balance : 0;
-    const o = opt.series[i] ? opt.series[i].balance : 0;
-    data.push({ month: i, current: Math.max(0, b), optimized: Math.max(0, o) });
+    data.push({ month: i, current: Math.max(0, b) });
   }
-
-  const monthsFaster = Math.max(0, base.months - opt.months);
-  const interestSaved = Math.max(0, (base.totalInterest || 0) - (opt.totalInterest || 0));
 
   return (
     <div className="rounded-2xl bg-zinc-900/60 backdrop-blur-xl border border-zinc-800 p-5 shadow-2xl shadow-black/40">
@@ -135,43 +126,10 @@ export default function DebtProjectionChart({ debts, surplus }) {
               name="Current path"
               isAnimationActive
             />
-            <Area
-              type="monotone"
-              dataKey="optimized"
-              stroke="#34d399"
-              strokeWidth={2}
-              strokeDasharray="5 4"
-              fill="url(#optFill)"
-              name="Optimized path"
-              isAnimationActive
-            />
           </ComposedChart>
         </ResponsiveContainer>
       </div>
 
-      <div className="mt-4">
-        <div className="flex items-center justify-between mb-1.5">
-          <label className="text-xs text-zinc-400">What-if: extra monthly boost</label>
-          <span className="text-sm font-semibold text-emerald-300 tabular-nums">+{fmt(boost)}</span>
-        </div>
-        <input
-          type="range"
-          min={0}
-          max={1500}
-          step={25}
-          value={boost}
-          onChange={(e) => setBoost(Number(e.target.value))}
-          className="w-full h-1.5 rounded-full accent-emerald-500 bg-zinc-800 cursor-pointer"
-        />
-        {boost > 0 && monthsFaster > 0 && (
-          <p className="text-xs text-zinc-300 mt-3 leading-relaxed">
-            Adding{" "}
-            <span className="font-semibold text-emerald-300 tabular-nums">+{fmt(boost)}/mo</span> gets you
-            debt-free <span className="font-semibold text-emerald-300 tabular-nums">{monthsFaster} months faster</span>{" "}
-            and saves <span className="font-semibold text-emerald-300 tabular-nums">{fmt(interestSaved)}</span> in interest.
-          </p>
-        )}
-      </div>
     </div>
   );
 }

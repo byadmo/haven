@@ -148,7 +148,7 @@ export default function LiabilityLedger({ debts, onChanged }) {
             <div className="flex items-start justify-between mb-3">
               <div>
                 <p className="font-semibold text-sm text-zinc-100">{d.name}</p>
-                <p className="text-[11px] text-zinc-500 mt-0.5">{isPaid ? "Paid off" : "Active liability"}</p>
+                <p className="text-[11px] text-zinc-400 mt-0.5">{isPaid ? "Paid off" : "Active liability"}</p>
               </div>
               <div className="flex items-center gap-1.5">
                 {milestone.tier && (
@@ -178,13 +178,13 @@ export default function LiabilityLedger({ debts, onChanged }) {
                     className="h-full rounded-full bg-gradient-to-r from-violet-500 to-emerald-400"
                   />
                 </div>
-                <p className="text-[10px] text-zinc-500 mt-1 tabular-nums">{milestone.pct.toFixed(0)}% paid down</p>
+                <p className="text-[10px] text-zinc-400 mt-1 tabular-nums">{milestone.pct.toFixed(0)}% paid down</p>
               </div>
             )}
 
             {min > 0 && (
               <div className="mb-3">
-                <p className="text-[10px] uppercase tracking-wider text-zinc-500 mb-1.5">Min. payment breakdown</p>
+                <p className="text-[10px] uppercase tracking-wider text-zinc-400 mb-1.5">Min. payment breakdown</p>
                 <div className="flex h-2 rounded-full overflow-hidden bg-zinc-800">
                   <div className="bg-rose-500/70" style={{ width: `${interestPct}%` }} title="Interest" />
                   <div className="bg-emerald-500/70" style={{ width: `${principalPct}%` }} title="Principal" />
@@ -276,7 +276,7 @@ export default function LiabilityLedger({ debts, onChanged }) {
 
             <button
               onClick={() => setExpanded((prev) => ({ ...prev, [d.id]: !prev[d.id] }))}
-              className="w-full flex items-center justify-between text-[11px] text-zinc-500 hover:text-zinc-300 transition-colors py-1.5 border-t border-zinc-800/70"
+              className="w-full flex items-center justify-between text-[11px] text-zinc-400 hover:text-zinc-300 transition-colors py-1.5 border-t border-zinc-800/70"
             >
               <span className="font-medium uppercase tracking-wider">
                 History · {history.length} {history.length === 1 ? "payment" : "payments"} · ${totalPaid.toFixed(2)} paid
@@ -297,7 +297,7 @@ export default function LiabilityLedger({ debts, onChanged }) {
                           -${p.amount.toFixed(2)}
                           {p.note && <span className="text-zinc-500 font-normal ml-1.5 truncate">· {p.note}</span>}
                         </p>
-                        <p className="text-[10px] text-zinc-500">{format(parseISO(p.date), "MMM d, yyyy")}</p>
+                        <p className="text-[10px] text-zinc-400">{format(parseISO(p.date), "MMM d, yyyy")}</p>
                       </div>
                       <button onClick={() => removePayment(p)} className="h-5 w-5 rounded-md flex items-center justify-center text-zinc-600 hover:text-rose-400 hover:bg-rose-500/10 opacity-0 group-hover:opacity-100 transition-opacity" aria-label="Delete payment">
                         <Trash2 className="h-3 w-3" />

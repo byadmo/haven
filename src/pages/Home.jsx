@@ -11,6 +11,7 @@ import MetricsRow from "@/components/finance/MetricsRow";
 import CashFlowAnalytics from "@/components/finance/CashFlowAnalytics";
 import RecentTransactions from "@/components/finance/RecentTransactions";
 import UpcomingRecurring from "@/components/finance/UpcomingRecurring";
+import CashBuffer from "@/components/finance/CashBuffer";
 import LiabilityLedger from "@/components/finance/LiabilityLedger";
 import DebtForm from "@/components/finance/DebtForm";
 import AccountsManager from "@/components/finance/AccountsManager";
@@ -132,6 +133,7 @@ export default function Home() {
             </Reveal>
           </div>
           <div className="space-y-6">
+            <Reveal><CashBuffer accounts={accounts} transactions={txns} /></Reveal>
             <Reveal><UpcomingRecurring transactions={txns} accounts={accounts} /></Reveal>
 
             <div className="space-y-3">

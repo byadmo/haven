@@ -55,7 +55,7 @@ export function simulatePayoff(debts, monthlySurplus, method = "avalanche") {
         budget -= pay;
       }
     });
-    // Throw remaining surplus at the highest-priority debt (in sorted order)
+    // Rollover: leftover budget (incl. any freed minimum from a debt that hit $0) is applied to the next debt in priority order
     for (let i = 0; i < balances.length && budget > 0; i++) {
       if (balances[i].balance > 0) {
         const pay = Math.min(budget, balances[i].balance);

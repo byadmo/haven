@@ -3,6 +3,7 @@ import { Link, NavLink } from "react-router-dom";
 import { Wallet } from "lucide-react";
 import { format } from "date-fns";
 import CommandPalette from "@/components/finance/CommandPalette";
+import BackupModal from "@/components/finance/BackupModal";
 
 export default function DashboardHeader({ actions }) {
   const now = new Date();
@@ -32,6 +33,7 @@ export default function DashboardHeader({ actions }) {
         </div>
         <div className="flex items-center gap-2">
           <CommandPalette />
+          <BackupModal />
           {actions && <div className="flex gap-2">{actions}</div>}
         </div>
       </div>
