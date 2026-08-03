@@ -65,7 +65,7 @@ export default function CashFlowChart({ refreshKey }) {
               borderRadius: "0.75rem",
               fontSize: "13px",
             }}
-            formatter={(v) => `$${v.toLocaleString()}`}
+            formatter={(v) => `$${v.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`}
           />
           <Legend wrapperStyle={{ fontSize: "13px" }} />
           <Bar dataKey="inflow" name="Inflow" fill="#22c55e" radius={[6, 6, 0, 0]} />

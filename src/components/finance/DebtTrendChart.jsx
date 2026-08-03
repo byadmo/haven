@@ -63,7 +63,7 @@ export default function DebtTrendChart({ debts }) {
               borderRadius: "0.75rem",
               fontSize: "13px",
             }}
-            formatter={(v) => [`$${v.toLocaleString()}`, "Total Debt"]}
+            formatter={(v) => [`$${v.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`, "Total Debt"]}
           />
           <Area type="monotone" dataKey="total" stroke="#ef4444" strokeWidth={2.5} fill="url(#debtGrad)" />
         </AreaChart>

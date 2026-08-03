@@ -4,7 +4,7 @@ import { TrendingUp, TrendingDown, PiggyBank, Percent } from "lucide-react";
 
 const money = (v) =>
   (v || 0).toLocaleString(undefined, {
-    style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 0,
+    style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2,
   });
 
 export default function InsightMetrics({ income, spending, savings, savingsRate }) {

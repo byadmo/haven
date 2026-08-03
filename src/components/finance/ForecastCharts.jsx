@@ -8,7 +8,7 @@ import {
 
 const money0 = (v) =>
   (v || 0).toLocaleString(undefined, {
-    style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 0,
+    style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2,
   });
 
 const fmtDate = (m) => format(addMonths(new Date(), m), "MMM yy");

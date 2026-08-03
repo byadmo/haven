@@ -7,7 +7,7 @@ import { Target, Calendar } from "lucide-react";
 
 const fmt = (v) =>
   (v || 0).toLocaleString(undefined, {
-    style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 0,
+    style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2,
   });
 
 export default function GoalPlanner({ debts, accounts, transactions, method, months, onApply, currentExtra }) {

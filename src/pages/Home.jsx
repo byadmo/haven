@@ -13,11 +13,8 @@ import RecentTransactions from "@/components/finance/RecentTransactions";
 import UpcomingRecurring from "@/components/finance/UpcomingRecurring";
 import { computeTrajectory } from "@/lib/trajectory";
 import { ForecastProvider } from "@/lib/forecast-context";
-import LiabilityLedger from "@/components/finance/LiabilityLedger";
-import DebtRepaymentGraph from "@/components/finance/DebtRepaymentGraph";
 import DebtForm from "@/components/finance/DebtForm";
 import DebtModal from "@/components/finance/DebtModal";
-import DebtProgressTracker from "@/components/finance/DebtProgressTracker";
 import StatementImportModal from "@/components/finance/StatementImportModal";
 import AccountsSummary from "@/components/finance/AccountsSummary";
 import Reveal from "@/components/finance/Reveal";
@@ -123,17 +120,7 @@ export default function Home() {
           </div>
         </div>
 
-        <section>
-          <div className="mb-3">
-            <h2 className="font-semibold text-sm text-zinc-100">Liability Ledger</h2>
-            <p className="text-xs text-zinc-500">Manage your active debts</p>
-          </div>
-          <div className="space-y-4">
-            <DebtProgressTracker debts={debts} />
-            <Reveal><DebtRepaymentGraph debts={debts} /></Reveal>
-            <Reveal><LiabilityLedger debts={debts} onChanged={refresh} /></Reveal>
-          </div>
-        </section>
+
       </main>
       </ForecastProvider>
 

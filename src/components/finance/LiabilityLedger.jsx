@@ -262,7 +262,7 @@ export default function LiabilityLedger({ debts, onChanged, showPayoffTarget = t
                     </DialogContent>
                   </Dialog>
 
-                  <Dialog>
+                  <Dialog open={editing?.id === d.id} onOpenChange={(open) => { if (!open) setEditing(null); }}>
                     <DialogTrigger asChild>
                       <Button variant="outline" size="sm" onClick={() => setEditing({ ...d })} className="border-white/10 bg-black text-zinc-200 hover:border-white/30 hover:text-white flex-1">
                         <Plus className="h-3 w-3 mr-1.5 rotate-45" /> Edit

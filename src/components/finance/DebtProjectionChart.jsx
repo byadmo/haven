@@ -16,8 +16,8 @@ const fmt = (v) =>
   (v || 0).toLocaleString(undefined, {
     style: "currency",
     currency: "USD",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   });
 
 function ChartTooltip({ active, payload, label }) {
