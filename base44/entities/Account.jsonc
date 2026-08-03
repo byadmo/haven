@@ -16,6 +16,11 @@
         "savings"
       ],
       "default": "chequing"
+    },
+    "show_in_summary": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether this account is displayed in the Accounts section"
     }
   },
   "required": [
