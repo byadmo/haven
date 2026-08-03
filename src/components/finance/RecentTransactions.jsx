@@ -88,10 +88,15 @@ function Row({ t, accountsMap, onChanged, categories }) {
       </div>
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium text-zinc-200 truncate">{t.description}</p>
-        <p className="text-[11px] text-zinc-500 flex items-center gap-1.5">
+        <p className="text-[11px] text-zinc-500 flex items-center gap-1.5 flex-wrap">
           {t.category}
           {accountsMap[t.account_id] && <span>· {accountsMap[t.account_id].name}</span>}
           <span>· {format(parseISO(t.date), "MMM d")}</span>
+          {t.is_scheduled && (
+            <span className="inline-flex items-center gap-0.5 text-emerald-400/80">
+              <CalendarClock className="h-3 w-3" />{t.frequency || "recurring"}
+            </span>
+          )}
         </p>
       </div>
       <span className={`text-sm font-semibold tabular-nums ${isIncome ? "text-emerald-400" : "text-rose-400"}`}>

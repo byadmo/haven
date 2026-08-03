@@ -195,6 +195,13 @@ function buildContext({ accounts, debts, transactions, debtPayments, stocks, cat
     .map((t) => `- ${money(t.amount)} · ${t.description || ""}${t.category ? ` (${t.category})` : ""}`)
     .join("\n");
 
+  const upcoming = txns
+    .filter((t) => t.is_scheduled)
+    .sort((a, b) => (a.next_date || a.date || "").localeCompare(b.next_date || b.date || ""))
+    .slice(0, 8)
+    .map((t) => `- ${t.next_date || t.date} | ${t.type} | ${money(t.amount)} | ${t.frequency || "recurring"} | "${t.description || ""}"`)
+    .join("\n");
+
   const recurring = txns.filter((t) => t.is_scheduled);
   const recentPayments = pays.slice(0, 10).map((x) => `- ${x.date} | ${money(x.amount)} | debt ${x.debt_id}${x.note ? ` | "${x.note}"` : ""}`).join("\n");
   const lifetimePayments = pays.reduce((s, p) => s + (p.amount || 0), 0);
@@ -231,6 +238,9 @@ function buildContext({ accounts, debts, transactions, debtPayments, stocks, cat
     "",
     "=== TOP EXPENSES (this month) ===",
     topExp || "- (none)",
+    "",
+    "=== UPCOMING RECURRING / SCHEDULED ===",
+    upcoming || "(none)",
     "",
     "=== ACCOUNTS ===",
     a || "(none)",
@@ -280,6 +290,22 @@ export default function AssistantChat({ accounts, debts, transactions, debtPayme
   React.useEffect(() => {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(messages)); } catch (_) {}
   }, [messages]);
+
+  // Mobile: track the visual viewport so the chat area resizes correctly
+  // when the on-screen keyboard opens (avoids the input being covered/shifted).
+  const [vpHeight, setVpHeight] = React.useState(null);
+  React.useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const update = () => setVpHeight(vv.height);
+    update();
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+    };
+  }, []);
 
   const ctxData = { accounts, debts, transactions, debtPayments, stocks, categories, summary };
 
@@ -498,7 +524,10 @@ export default function AssistantChat({ accounts, debts, transactions, debtPayme
 
   return (
     <>
-      <div className="flex flex-col h-[calc(100dvh-9rem)] rounded-lg border border-white/10 bg-black">
+      <div
+        className="flex flex-col rounded-lg border border-white/10 bg-black"
+        style={vpHeight ? { height: `${Math.max(240, vpHeight - 144)}px` } : undefined}
+      >
         <div className="flex items-center justify-between px-4 py-2 border-b border-white/10">
           <div className="flex items-center gap-2">
             <Sparkles className="h-3.5 w-3.5 text-indigo-400" />
