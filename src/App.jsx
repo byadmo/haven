@@ -13,6 +13,7 @@ import Portfolio from '@/pages/Portfolio';
 import Insights from '@/pages/Insights';
 import Settings from '@/pages/Settings';
 import Forecast from '@/pages/Forecast';
+import Assistant from '@/pages/Assistant';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { Navigate } from 'react-router-dom';
 import Login from '@/pages/Login';
@@ -58,6 +59,7 @@ const AuthenticatedApp = () => {
         <Route path="/insights" element={<Insights />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/forecast" element={<Forecast />} />
+        <Route path="/assistant" element={<Assistant />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>

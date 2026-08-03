@@ -1,10 +1,11 @@
 import React from "react";
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, Target, LineChart, PieChart, TrendingUp } from "lucide-react";
+import { LayoutDashboard, Target, LineChart, PieChart, TrendingUp, Sparkles } from "lucide-react";
 
 const items = [
   { to: "/", label: "Overview", icon: LayoutDashboard, end: true },
   { to: "/forecast", label: "Forecast", icon: TrendingUp },
+  { to: "/assistant", label: "Assistant", icon: Sparkles },
   { to: "/strategy", label: "Strategy", icon: Target },
   { to: "/portfolio", label: "Portfolio", icon: LineChart },
   { to: "/insights", label: "Insights", icon: PieChart },
@@ -21,7 +22,7 @@ export default function MobileNav() {
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       aria-label="Primary"
     >
-      <div className="grid grid-cols-5">
+      <div className="grid grid-cols-6">
         {items.map(({ to, label, icon: Icon, end }) => (
           <NavLink key={to} to={to} end={end} className={cls}>
             <Icon className="h-5 w-5" />

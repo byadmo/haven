@@ -30,6 +30,7 @@ export default function DashboardHeader({ actions }) {
           <nav className="hidden sm:flex items-center gap-1 ml-2">
             <NavLink to="/" className={linkClass} end>Overview</NavLink>
             <NavLink to="/forecast" className={linkClass}>Forecast</NavLink>
+            <NavLink to="/assistant" className={linkClass}>Assistant</NavLink>
             <NavLink to="/strategy" className={linkClass}>Strategy</NavLink>
             <NavLink to="/portfolio" className={linkClass}>Portfolio</NavLink>
             <NavLink to="/insights" className={linkClass}>Insights</NavLink>
