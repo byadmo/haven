@@ -29,21 +29,24 @@ export default function ForecastTip({ series, extra, method }) {
         .filter((d) => (d.current_balance || 0) > 0)
         .map((d) => `${d.name}: $${(d.current_balance || 0).toFixed(2)} at ${(d.interest_rate || 0)}% (${d.interest_type || "APR"}), min $${(d.minimum_payment || 0).toFixed(2)}/mo`);
 
-      const prompt = `You are a friendly financial advisor. Based on the user's financial snapshot below, give ONE specific, actionable tip (max 3 sentences) on what they should do to improve their debt payoff plan. Be direct, practical, and encouraging. Do not use bullet points — just write 2-3 sentences.
+      const highestAPR = Math.max(...debts.filter(d => d.current_balance > 0).map(d => d.interest_rate || 0));
+      const smallestBalance = Math.min(...debts.filter(d => d.current_balance > 0).map(d => d.current_balance || 0));
 
-Total debt: $${totalDebt.toFixed(2)}
-Total minimum payments: $${totalMin.toFixed(2)}/month
-Extra monthly payment: $${extra.toFixed(2)}/month
-Total cash on hand: $${totalCash.toFixed(2)}
-Strategy: ${method} (${method === "avalanche" ? "highest interest first" : "smallest balance first"})
-Recurring monthly income: $${recIn.toFixed(2)}
-Recurring monthly expenses: $${recOut.toFixed(2)}
-Projected debt-free date: ${debtFreeDate}
+      const prompt = `You are a financial advisor. Give a concise, straight-to-the-point recommendation. Exactly 2 sentences. No fluff.
 
-Individual debts:
+Sentence 1: Recommend Avalanche or Snowball strategy and say why based on their debts.
+Sentence 2: One specific action to take (e.g. "Add $X more per month to [debt name]" or "Your surplus of $Y is enough to pay off by [date] — just keep going").
+
+User's debts:
 ${debtList.join("\n")}
 
-Recommend a specific action: e.g. increase the extra payment by $X, switch from ${method} to the other strategy because of [specific debt], prioritize a specific debt, or address a cash flow issue. Keep it to one clear recommendation.`;
+Highest APR: ${highestAPR}%, Smallest balance: $${smallestBalance.toFixed(2)}
+Currently using: ${method}
+Total debt: $${totalDebt.toFixed(2)}, Min payments: $${totalMin.toFixed(2)}/mo, Extra: $${extra.toFixed(2)}/mo
+Monthly income: $${recIn.toFixed(2)}, Monthly expenses: $${recOut.toFixed(2)}, Surplus: $${(recIn - recOut).toFixed(2)}/mo
+Cash on hand: $${totalCash.toFixed(2)}, Projected debt-free: ${debtFreeDate}
+
+Format: Two sentences only. Start with the strategy recommendation.`;
 
       const result = await base44.integrations.Core.InvokeLLM({ prompt });
       const text = typeof result === "string" ? result : result?.response || result?.text || JSON.stringify(result);

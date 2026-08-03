@@ -50,9 +50,17 @@ export default function GoalPlanner({ debts, accounts, transactions, method, mon
       </div>
 
       {/* Earliest possible date */}
-      <div className="mt-3 p-3 rounded-md border border-emerald-500/20 bg-emerald-500/5 flex flex-wrap items-center gap-x-6 gap-y-2">
+      <button
+        onClick={() => {
+          if (earliestFreeMonth >= 0) {
+            const d = earliestTraj.series[earliestFreeMonth].date;
+            setTarget(format(d, "yyyy-MM-dd"));
+          }
+        }}
+        className="mt-3 w-full text-left p-3 rounded-md border border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10 hover:border-emerald-500/40 transition-colors cursor-pointer flex flex-wrap items-center gap-x-6 gap-y-2"
+      >
         <div>
-          <p className="text-[10px] tracking-[0.2em] uppercase text-white/50 font-mono">Earliest Possible · Paying Just Minimums + Surplus</p>
+          <p className="text-[10px] tracking-[0.2em] uppercase text-white/50 font-mono">Earliest Possible · Click to Set as Goal</p>
           <p className="text-xl font-mono tabular-nums text-emerald-400">{earliestDate || "10+ years"}</p>
         </div>
         <div className="flex gap-4 text-sm">
@@ -62,9 +70,9 @@ export default function GoalPlanner({ debts, accounts, transactions, method, mon
           </div>
         </div>
         <p className="text-[10px] text-white/40 leading-relaxed flex-1 min-w-[200px]">
-          This is the fastest you'd be debt-free with your current recurring income and expenses — no extra payments needed. Pick a date below to see if you can beat it.
+          Fastest payoff with your current income and expenses — no extra payments needed. Click to set this as your goal.
         </p>
-      </div>
+      </button>
 
       <div className="mt-4">
         <Label className="text-[10px] tracking-[0.2em] uppercase text-white/50 font-mono">When do you want to be debt-free?</Label>
