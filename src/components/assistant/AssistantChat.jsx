@@ -2,6 +2,7 @@ import React from "react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Paperclip, Send, Sparkles, Loader2, X, Trash2 } from "lucide-react";
+import { startOfMonth, endOfMonth, isWithinInterval, parseISO, subMonths, format } from "date-fns";
 import ApprovalModal from "@/components/assistant/ApprovalModal";
 import { adjustLinkedBalance, txEffect, balanceApplies } from "@/lib/accounts";
 
@@ -80,6 +81,10 @@ PERSONALITY:
 - Open EVERY response with a short, friendly greeting that introduces yourself, e.g. "Hey, Adam here —" or "This is Adam. ". Keep it brief and natural; vary the phrasing so it doesn't feel scripted.
 - You do NOT give legal or individual tax-filing advice or guarantees about investment returns — frame those as general educational guidance and suggest a licensed professional when it crosses that line.
 
+ANALYTICS:
+When the user asks for a review, insights, a "read" on their situation, or any open-ended question about their finances, synthesize across ALL provided data — net worth, cash balances, debts (balances, APRs, minimums), income, spending, portfolio holdings, recurring items, and payment history.
+Produce concrete, numbers-grounded conclusions: cite the actual figures, point out trends and ratios (savings rate, debt-to-income, weighted APR, spending concentration), surface risks and opportunities, and end with a prioritized, specific action plan. Prefer depth and specificity over generic advice.
+
 CAPABILITIES:
 You are action-capable: you can propose operations to add, remove, or change the user's Transaction, Debt, and Account records.
 Only propose operations the user actually requested. For purely informational questions or advice, return operations: [] and answer in "message".
@@ -104,17 +109,126 @@ function cleanData(data) {
   return out;
 }
 
-function buildContext({ accounts, debts, transactions, summary }) {
-  const a = (accounts || []).map((x) => `- ${x.id} | "${x.name}" | balance ${x.balance ?? 0} | ${x.type || "chequing"}`).join("\n");
-  const d = (debts || []).map((x) => `- ${x.id} | "${x.name}" | balance ${x.current_balance ?? 0} | apr ${x.interest_rate ?? 0} | min ${x.minimum_payment ?? 0} | due ${x.due_date || ""} | ${x.status || "active"}`).join("\n");
-  const t = (transactions || [])
-    .slice(0, 40)
-    .map((x) => `- ${x.id} | ${x.date} | ${x.type} | ${x.category || ""} | ${x.amount} | acct ${x.account_id || "—"} | "${x.description || ""}"${x.is_scheduled ? ` | recurring ${x.frequency}` : ""}`)
+function buildContext({ accounts, debts, transactions, debtPayments, stocks, categories }) {
+  const money = (v) =>
+    (v || 0).toLocaleString(undefined, {
+      style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 0,
+    });
+  const inMonth = (dateStr, ref) => {
+    try {
+      return isWithinInterval(parseISO(dateStr), { start: startOfMonth(ref), end: endOfMonth(ref) });
+    } catch (_) {
+      return false;
+    }
+  };
+
+  const now = new Date();
+  const accs = accounts || [];
+  const dbs = debts || [];
+  const txns = transactions || [];
+  const pays = (debtPayments || []).slice().sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+  const stks = stocks || [];
+  const cats = categories || [];
+
+  const totalCash = accs.reduce((s, a) => s + (a.balance || 0), 0);
+  const totalDebt = dbs.reduce((s, d) => s + (d.current_balance || 0), 0);
+  const portfolioCost = stks.reduce((s, x) => s + (x.shares || 0) * (x.avg_buy_price || 0), 0);
+  const netWorth = totalCash + portfolioCost - totalDebt;
+  const totalMinPayments = dbs.reduce((s, d) => s + (d.minimum_payment || 0), 0);
+  const aprSum = dbs.reduce((s, d) => s + (d.current_balance || 0) * (d.interest_rate || 0), 0);
+  const weightedApr = totalDebt > 0 ? aprSum / totalDebt : 0;
+  const paidDebt = dbs.filter((d) => d.status === "paid_off").length;
+
+  const monthIncome = (ref) => txns.filter((t) => t.type === "income" && inMonth(t.date, ref)).reduce((s, t) => s + (t.amount || 0), 0);
+  const monthExpense = (ref) => txns.filter((t) => t.type === "expense" && inMonth(t.date, ref)).reduce((s, t) => s + (t.amount || 0), 0);
+  const mIncome = monthIncome(now);
+  const mExpense = monthExpense(now);
+  const prev = subMonths(now, 1);
+  const pIncome = monthIncome(prev);
+  const pExpense = monthExpense(prev);
+  const savingsRate = mIncome > 0 ? (mIncome - mExpense) / mIncome : null;
+  const debtToIncome = mIncome > 0 ? totalMinPayments / mIncome : null;
+
+  const series = [];
+  for (let i = 2; i >= 0; i--) {
+    const r = subMonths(now, i);
+    const inc = monthIncome(r);
+    const exp = monthExpense(r);
+    series.push(`- ${format(r, "MMM")} · in ${money(inc)} / out ${money(exp)} / net ${money(inc - exp)}`);
+  }
+
+  const catMap = {};
+  txns.filter((t) => t.type === "expense" && inMonth(t.date, now)).forEach((t) => {
+    const c = t.category || "uncategorized";
+    catMap[c] = (catMap[c] || 0) + (t.amount || 0);
+  });
+  const topCats = Object.entries(catMap).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([c, v]) => `- ${c}: ${money(v)}`).join("\n");
+
+  const topExp = txns
+    .filter((t) => t.type === "expense" && inMonth(t.date, now))
+    .sort((a, b) => (b.amount || 0) - (a.amount || 0))
+    .slice(0, 5)
+    .map((t) => `- ${money(t.amount)} · ${t.description || ""}${t.category ? ` (${t.category})` : ""}`)
     .join("\n");
-  return `PROVIDED DATA (ids are real — use them for update/delete targetId):\nMONTHLY SUMMARY:\n${summary || "(unavailable)"}\nACCOUNTS:\n${a || "(none)"}\nDEBTS:\n${d || "(none)"}\nRECENT TRANSACTIONS:\n${t || "(none)"}`;
+
+  const recurring = txns.filter((t) => t.is_scheduled);
+  const recentPayments = pays.slice(0, 10).map((x) => `- ${x.date} | ${money(x.amount)} | debt ${x.debt_id}${x.note ? ` | "${x.note}"` : ""}`).join("\n");
+  const lifetimePayments = pays.reduce((s, p) => s + (p.amount || 0), 0);
+
+  const a = accs.map((x) => `- ${x.id} | "${x.name}" | balance ${x.balance ?? 0} | ${x.type || "chequing"}${x.show_in_summary === false ? " | hidden" : ""}`).join("\n");
+  const d = dbs.map((x) => `- ${x.id} | "${x.name}" | balance ${x.current_balance ?? 0} | apr ${x.interest_rate ?? 0} | min ${x.minimum_payment ?? 0} | due ${x.due_date || ""} | ${x.status || "active"}`).join("\n");
+  const pf = stks.map((x) => `- ${x.symbol} | "${x.name || ""}" | ${x.shares || 0} sh @ ${x.avg_buy_price || 0} | acct ${x.account || "Non-Registered"} | cost ${money((x.shares || 0) * (x.avg_buy_price || 0))}`).join("\n");
+  const t = txns.slice(0, 40).map((x) => `- ${x.id} | ${x.date} | ${x.type} | ${x.category || ""} | ${x.amount} | acct ${x.account_id || "—"} | "${x.description || ""}"${x.is_scheduled ? ` | recurring ${x.frequency}` : ""}`).join("\n");
+  const catList = cats.map((c) => `- ${c.name}`).join("\n");
+
+  return [
+    "PROVIDED DATA (ids are real — use them for update/delete targetId):",
+    "",
+    "=== ANALYTICS SNAPSHOT ===",
+    `- Net worth: ${money(netWorth)}`,
+    `- Total cash: ${money(totalCash)}`,
+    `- Total debt / liabilities: ${money(totalDebt)}`,
+    `- Portfolio cost basis: ${money(portfolioCost)}`,
+    `- Active debts: ${dbs.length - paidDebt} · paid off: ${paidDebt}`,
+    `- This month: income ${money(mIncome)} · expense ${money(mExpense)} · net ${money(mIncome - mExpense)}`,
+    `- Last month: income ${money(pIncome)} · expense ${money(pExpense)}`,
+    savingsRate !== null ? `- Savings rate (this month): ${(savingsRate * 100).toFixed(0)}%` : "- Savings rate: n/a",
+    debtToIncome !== null ? `- Debt-to-income (min payments / income): ${(debtToIncome * 100).toFixed(0)}%` : "- Debt-to-income: n/a",
+    `- Total monthly minimum debt payments: ${money(totalMinPayments)}`,
+    `- Weighted avg APR: ${weightedApr.toFixed(2)}%`,
+    `- Lifetime debt payments logged: ${money(lifetimePayments)}`,
+    `- Recurring / scheduled items: ${recurring.length}`,
+    "",
+    "=== 3-MONTH CASH FLOW ===",
+    ...series,
+    "",
+    "=== SPENDING BY CATEGORY (this month, top) ===",
+    topCats || "- (none)",
+    "",
+    "=== TOP EXPENSES (this month) ===",
+    topExp || "- (none)",
+    "",
+    "=== ACCOUNTS ===",
+    a || "(none)",
+    "",
+    "=== DEBTS ===",
+    d || "(none)",
+    "",
+    "=== PORTFOLIO ===",
+    pf || "(none)",
+    "",
+    "=== RECENT DEBT PAYMENTS ===",
+    recentPayments || "(none)",
+    "",
+    "=== CUSTOM CATEGORIES ===",
+    catList || "(none)",
+    "",
+    "=== RECENT TRANSACTIONS (latest 40) ===",
+    t || "(none)",
+  ].join("\n");
 }
 
-export default function AssistantChat({ accounts, debts, transactions, summary }) {
+export default function AssistantChat({ accounts, debts, transactions, debtPayments, stocks, categories, summary }) {
   const [messages, setMessages] = React.useState(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -143,7 +257,7 @@ export default function AssistantChat({ accounts, debts, transactions, summary }
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(messages)); } catch (_) {}
   }, [messages]);
 
-  const ctxData = { accounts, debts, transactions, summary };
+  const ctxData = { accounts, debts, transactions, debtPayments, stocks, categories, summary };
 
   function addMsg(m) { setMessages((s) => [...s, { id: uid(), ...m }]); }
   function opsFromResponse(obj) {

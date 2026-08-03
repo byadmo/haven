@@ -4,49 +4,29 @@ import DashboardHeader from "@/components/finance/DashboardHeader";
 import AssistantChat from "@/components/assistant/AssistantChat";
 import { Sparkles } from "lucide-react";
 
-const fmt = (v) =>
-  (v || 0).toLocaleString(undefined, {
-    style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 0,
-  });
-
 export default function Assistant() {
-  const [accounts, setAccounts] = React.useState([]);
-  const [debts, setDebts] = React.useState([]);
-  const [transactions, setTransactions] = React.useState([]);
-  const [summary, setSummary] = React.useState("");
+  const [data, setData] = React.useState({
+    accounts: [],
+    debts: [],
+    transactions: [],
+    debtPayments: [],
+    stocks: [],
+    categories: [],
+  });
   const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
     Promise.all([
       base44.entities.Account.list("-created_date"),
       base44.entities.Debt.list("-created_date"),
-      base44.entities.Transaction.list("-date", 60),
+      base44.entities.Transaction.list("-date", 500),
+      base44.entities.DebtPayment.list("-date", 200),
+      base44.entities.Stock.list("-created_date"),
+      base44.entities.Category.list("-created_date"),
     ])
-      .then(([a, d, t]) => {
-        setAccounts(a);
-        setDebts(d);
-        setTransactions(t);
-        const cash = a.reduce((s, x) => s + (x.balance || 0), 0);
-        const debt = d.reduce((s, x) => s + (x.current_balance || 0), 0);
-        const now = new Date();
-        const month = now.getMonth();
-        const year = now.getFullYear();
-        let income = 0, expense = 0;
-        (t || []).forEach((x) => {
-          const dt = new Date(x.date);
-          if (dt.getMonth() === month && dt.getFullYear() === year) {
-            if (x.type === "income") income += x.amount || 0;
-            else expense += x.amount || 0;
-          }
-        });
-        setSummary(
-          `- Total cash (accounts): ${fmt(cash)}\n` +
-          `- Total debt: ${fmt(debt)}\n` +
-          `- This month income: ${fmt(income)}\n` +
-          `- This month expenses: ${fmt(expense)}\n` +
-          `- Net this month: ${fmt(income - expense)}`
-        );
-      })
+      .then(([accounts, debts, transactions, debtPayments, stocks, categories]) =>
+        setData({ accounts, debts, transactions, debtPayments, stocks, categories })
+      )
       .finally(() => setLoading(false));
   }, []);
 
@@ -72,10 +52,12 @@ export default function Assistant() {
           </div>
         </div>
         <AssistantChat
-          accounts={accounts}
-          debts={debts}
-          transactions={transactions}
-          summary={summary}
+          accounts={data.accounts}
+          debts={data.debts}
+          transactions={data.transactions}
+          debtPayments={data.debtPayments}
+          stocks={data.stocks}
+          categories={data.categories}
         />
       </main>
     </div>
