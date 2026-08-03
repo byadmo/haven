@@ -22,19 +22,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { adjustAccountBalance, txEffect } from "@/lib/accounts";
 
 const CATEGORIES = [
   "Income", "Transit (GO/TTC)", "E39/Civic Maintenance", "Christ Like! Inventory",
   "Food/Groceries", "Rent", "Utilities", "Dining", "Other",
 ];
 
-function FlowRow({ t, onChanged }) {
+function FlowRow({ t, onChanged, accountsMap }) {
   const isIncome = t.type === "income";
   const [edit, setEdit] = React.useState(null);
   const [saving, setSaving] = React.useState(false);
 
   async function remove(e) {
     e.stopPropagation();
+    if (t.account_id) await adjustAccountBalance(t.account_id, -txEffect(t));
     await base44.entities.Transaction.delete(t.id);
     onChanged?.();
   }
@@ -43,12 +45,23 @@ function FlowRow({ t, onChanged }) {
     e.preventDefault();
     setSaving(true);
     try {
+      const oldEffect = txEffect(t);
+      const newType = payload.type ?? t.type;
+      const newAmount = parseFloat(payload.amount) || t.amount;
+      const newEffect = txEffect({ type: newType, amount: newAmount });
+      const oldAcct = t.account_id;
+      const newAcct = payload.account_id !== undefined ? (payload.account_id || "") : t.account_id;
+
+      if (oldAcct) await adjustAccountBalance(oldAcct, -oldEffect);
+      if (newAcct) await adjustAccountBalance(newAcct, newEffect);
+
       await base44.entities.Transaction.update(t.id, {
         description: payload.description ?? t.description,
-        amount: parseFloat(payload.amount) || t.amount,
-        type: payload.type ?? t.type,
+        amount: newAmount,
+        type: newType,
         category: payload.category ?? t.category,
         date: payload.date ?? format(parseISO(t.date), "yyyy-MM-dd"),
+        account_id: newAcct || undefined,
       });
       setEdit(null);
       onChanged?.();
@@ -67,6 +80,7 @@ function FlowRow({ t, onChanged }) {
           <p className="text-sm font-medium text-zinc-200 truncate">{t.description}</p>
           <p className="text-[11px] text-zinc-500 flex items-center gap-1.5">
             {t.category}
+            {accountsMap[t.account_id] && <span>· {accountsMap[t.account_id].name}</span>}
             {t.is_scheduled && (
               <span className="inline-flex items-center gap-0.5">
                 · <CalendarClock className="h-2.5 w-2.5" /> {t.frequency}
@@ -98,6 +112,7 @@ function FlowRow({ t, onChanged }) {
                   type: ev.type ?? t.type,
                   category: ev.category ?? t.category,
                   date: ev.date ?? format(parseISO(t.date), "yyyy-MM-dd"),
+                  account_id: ev.account_id ?? t.account_id ?? "",
                 });
               }}
               className="space-y-3"
@@ -141,6 +156,16 @@ function FlowRow({ t, onChanged }) {
                   </Select>
                 </div>
               </div>
+              <div className="space-y-1.5">
+                <Label className="text-zinc-400">Account</Label>
+                <Select defaultValue={t.account_id || ""} onValueChange={(v) => setEdit((p) => ({ ...p, account_id: v }))}>
+                  <SelectTrigger className="bg-zinc-950 border-zinc-800 text-zinc-100"><SelectValue placeholder="No account" /></SelectTrigger>
+                  <SelectContent className="bg-zinc-900 border-zinc-800">
+                    <SelectItem value={null}>No account</SelectItem>
+                    {Object.values(accountsMap).map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
               <DialogFooter className="pt-2">
                 <DialogClose asChild>
                   <Button type="button" variant="outline" className="border-zinc-800 text-zinc-400 hover:bg-zinc-800">Cancel</Button>
@@ -165,7 +190,11 @@ function FlowRow({ t, onChanged }) {
   );
 }
 
-export default function FundFlows({ transactions, onChanged }) {
+export default function FundFlows({ transactions, onChanged, accounts = [] }) {
+  const accountsMap = React.useMemo(
+    () => Object.fromEntries(accounts.map((a) => [a.id, a])),
+    [accounts]
+  );
   const inflows = transactions.filter((t) => t.type === "income");
   const outflows = transactions.filter((t) => t.type === "expense").sort((a, b) => (a.is_scheduled === b.is_scheduled ? 0 : a.is_scheduled ? -1 : 1));
 
@@ -179,7 +208,7 @@ export default function FundFlows({ transactions, onChanged }) {
         {inflows.length === 0 ? (
           <p className="text-sm text-zinc-500 text-center py-8">No inflows logged.</p>
         ) : (
-          <div>{inflows.slice(0, 12).map((t) => <FlowRow key={t.id} t={t} onChanged={onChanged} />)}</div>
+          <div>{inflows.slice(0, 12).map((t) => <FlowRow key={t.id} t={t} onChanged={onChanged} accountsMap={accountsMap} />)}</div>
         )}
       </div>
 
@@ -191,7 +220,7 @@ export default function FundFlows({ transactions, onChanged }) {
         {outflows.length === 0 ? (
           <p className="text-sm text-zinc-500 text-center py-8">No outflows logged.</p>
         ) : (
-          <div>{outflows.slice(0, 12).map((t) => <FlowRow key={t.id} t={t} onChanged={onChanged} />)}</div>
+          <div>{outflows.slice(0, 12).map((t) => <FlowRow key={t.id} t={t} onChanged={onChanged} accountsMap={accountsMap} />)}</div>
         )}
       </div>
     </div>

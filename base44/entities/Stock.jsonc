@@ -17,6 +17,19 @@
     "avg_buy_price": {
       "type": "number",
       "description": "Average purchase price per share"
+    },
+    "account": {
+      "type": "string",
+      "enum": [
+        "TFSA",
+        "RRSP",
+        "RESP",
+        "FHSA",
+        "Non-Registered",
+        "Cash",
+        "Other"
+      ],
+      "default": "Non-Registered"
     }
   },
   "required": [

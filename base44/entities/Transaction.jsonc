@@ -39,6 +39,10 @@
     "next_date": {
       "type": "string",
       "format": "date"
+    },
+    "account_id": {
+      "type": "string",
+      "description": "The Account this transaction pays into (income) or out of (expense)"
     }
   },
   "required": [

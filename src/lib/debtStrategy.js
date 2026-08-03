@@ -104,3 +104,67 @@ export function interestBreakdown(debt) {
   const principal = Math.max(0, min - interest);
   return { interest, principal, min };
 }
+
+/**
+ * Simulate the month-by-month total balance trajectory to zero.
+ * Returns { months, totalInterest, series: [{ month, balance }] }.
+ */
+export function simulateTimeline(debts, monthlySurplus, method = "avalanche") {
+  const active = debts.filter((d) => (d.current_balance || 0) > 0.005);
+  const totalDebt = active.reduce((s, d) => s + (d.current_balance || 0), 0);
+
+  if (!active.length || monthlySurplus <= 0) {
+    return { months: 0, totalInterest: 0, series: [{ month: 0, balance: totalDebt }] };
+  }
+
+  const order = [...active].sort((a, b) =>
+    method === "avalanche"
+      ? (b.interest_rate || 0) - (a.interest_rate || 0) || (a.current_balance || 0) - (b.current_balance || 0)
+      : (a.current_balance || 0) - (b.current_balance || 0) || (b.interest_rate || 0) - (a.interest_rate || 0)
+  );
+
+  const balances = order.map((d) => ({
+    name: d.name,
+    balance: d.current_balance,
+    apr: d.interest_rate || 0,
+    min: d.minimum_payment || 0,
+  }));
+
+  const minTotal = balances.reduce((s, d) => s + d.min, 0);
+  const monthly = Math.max(monthlySurplus, minTotal);
+
+  let months = 0;
+  let totalInterest = 0;
+  const series = [{ month: 0, balance: totalDebt }];
+  const cap = 600;
+
+  while (balances.some((d) => d.balance > 0.005) && months < cap) {
+    months++;
+    balances.forEach((d) => {
+      if (d.balance > 0) {
+        const interest = d.balance * (d.apr / 100 / 12);
+        totalInterest += interest;
+        d.balance += interest;
+      }
+    });
+    let budget = monthly;
+    balances.forEach((d) => {
+      if (d.balance > 0) {
+        const pay = Math.min(d.min, d.balance);
+        d.balance -= pay;
+        budget -= pay;
+      }
+    });
+    for (let i = 0; i < balances.length && budget > 0; i++) {
+      if (balances[i].balance > 0) {
+        const pay = Math.min(budget, balances[i].balance);
+        balances[i].balance -= pay;
+        budget -= pay;
+      }
+    }
+    const total = balances.reduce((s, d) => s + Math.max(0, d.balance), 0);
+    series.push({ month: months, balance: total });
+  }
+
+  return { months, totalInterest, series };
+}

@@ -8,6 +8,8 @@ import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import ScrollToTop from './components/ScrollToTop';
 // Add page imports here
 import Home from '@/pages/Home';
+import Strategy from '@/pages/Strategy';
+import Portfolio from '@/pages/Portfolio';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { Navigate } from 'react-router-dom';
 import Login from '@/pages/Login';
@@ -48,6 +50,8 @@ const AuthenticatedApp = () => {
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
         {/* Add your page Route elements here */}
         <Route path="/" element={<Home />} />
+        <Route path="/strategy" element={<Strategy />} />
+        <Route path="/portfolio" element={<Portfolio />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
