@@ -23,6 +23,22 @@ function getReportRange(schedule, bodyMonth) {
   return { start, end, name };
 }
 
+function buildOverviewCard(label, value, color) {
+  return `<td width="50%" style="padding:0 4px 8px 0;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#111;border:1px solid rgba(255,255,255,0.1);border-radius:10px;"><tr><td style="padding:16px;">
+      <p style="margin:0 0 4px 0;font-size:10px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px;">${label}</p>
+      <p style="margin:0;font-size:18px;color:${color};font-weight:600;">${fmtMoney(value)}</p>
+    </td></tr></table></td>`;
+}
+
+function buildPctBar(pct, color) {
+  const p = Math.max(0, Math.min(100, pct));
+  return `<table width="100%" cellpadding="0" cellspacing="0" style="background:rgba(255,255,255,0.06);border-radius:4px;height:4px;"><tr>
+    <td width="${p}%" style="background:${color};border-radius:4px;height:4px;font-size:0;line-height:0;">&nbsp;</td>
+    <td width="${100 - p}%" style="font-size:0;line-height:0;">&nbsp;</td>
+  </tr></table>`;
+}
+
 export default async function(req) {
   try {
     const base44 = createClientFromRequest(req);
@@ -108,70 +124,153 @@ export default async function(req) {
         .sort((a, b) => b[1] - a[1])
         .slice(0, 5);
 
-      const lines = [
-        `Hi ${user.full_name || 'there'},`,
-        '',
-        `Here's your financial summary for ${monthName}:`,
-        '',
-        '========================================',
-        '  OVERVIEW',
-        '========================================',
-        `  Total Income:     ${fmtMoney(income)}`,
-        `  Total Expenses:   ${fmtMoney(expenses)}`,
-        `  Net Savings:      ${fmtMoney(savings)}`,
-        `  Transactions:     ${txnCount}`,
-        `  Net Worth:        ${fmtMoney(netWorth)}`,
-        '',
-        '========================================',
-        '  TOP SPENDING CATEGORIES',
-        '========================================',
-      ];
+      const paidByDebt = {};
+      monthPayments.forEach((p) => { paidByDebt[p.debt_id] = (paidByDebt[p.debt_id] || 0) + (p.amount || 0); });
 
+      // --- HTML email sections ---
+
+      const savingsColor = savings >= 0 ? '#10b981' : '#f43f5e';
+
+      let catsHtml;
       if (topCats.length) {
-        topCats.forEach(([cat, amt]) => { lines.push(`  ${cat}: ${fmtMoney(amt)}`); });
+        catsHtml = topCats.map(([cat, amt]) => {
+          const pct = expenses > 0 ? Math.round((amt / expenses) * 100) : 0;
+          return `<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:10px;">
+            <tr>
+              <td style="padding:0;font-size:13px;color:rgba(255,255,255,0.8);">${cat}</td>
+              <td align="right" style="padding:0;font-size:13px;color:#f43f5e;font-weight:500;">${fmtMoney(amt)}</td>
+            </tr>
+            <tr><td colspan="2" style="padding:4px 0 0 0;">${buildPctBar(pct, '#f43f5e')}</td></tr>
+          </table>`;
+        }).join('');
       } else {
-        lines.push('  No expenses logged this period.');
+        catsHtml = '<p style="margin:0;font-size:13px;color:rgba(255,255,255,0.4);">No expenses logged this period.</p>';
       }
 
-      lines.push('', '========================================', '  DEBT REPAYMENT PROGRESS', '========================================');
-      lines.push(`  Total Paid This Period: ${fmtMoney(totalPaid)}`);
-      lines.push(`  Current Total Debt:     ${fmtMoney(totalDebt)}`);
-
+      let debtsHtml = '';
       if (userDebts.length) {
-        lines.push('');
-        const paidByDebt = {};
-        monthPayments.forEach((p) => { paidByDebt[p.debt_id] = (paidByDebt[p.debt_id] || 0) + (p.amount || 0); });
-        userDebts.forEach((d) => {
-          const bal = d.current_balance || 0;
-          const orig = d.original_balance || bal;
-          const pct = orig > 0 ? Math.max(0, Math.min(100, Math.round((1 - bal / orig) * 100))) : 0;
-          const interest = d.interest_rate ? ` @ ${d.interest_rate}%` : '';
-          lines.push(`  ${d.name}: ${fmtMoney(bal)} (${pct}% paid${interest})`);
-          if (paidByDebt[d.id] > 0) {
-            lines.push(`    -> paid this period: ${fmtMoney(paidByDebt[d.id])}`);
-          }
-        });
+        debtsHtml = '<table width="100%" cellpadding="0" cellspacing="0" style="margin-top:8px;">' +
+          userDebts.map((d) => {
+            const bal = d.current_balance || 0;
+            const orig = d.original_balance || bal;
+            const pct = orig > 0 ? Math.max(0, Math.min(100, Math.round((1 - bal / orig) * 100))) : 0;
+            const paid = paidByDebt[d.id] || 0;
+            const meta = `${pct}% paid` + (d.interest_rate ? ` &middot; ${d.interest_rate}% rate` : '');
+            const paidLine = paid > 0
+              ? `<td align="right" style="padding:4px 0 0 0;font-size:11px;color:#10b981;">+${fmtMoney(paid)} this period</td>`
+              : '<td></td>';
+            return `<tr><td style="padding:10px 0;border-top:1px solid rgba(255,255,255,0.08);">
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="padding:0;font-size:13px;color:#fff;font-weight:500;">${d.name}</td>
+                  <td align="right" style="padding:0;font-size:13px;color:rgba(255,255,255,0.6);">${fmtMoney(bal)}</td>
+                </tr>
+                <tr><td colspan="2" style="padding:6px 0 0 0;">${buildPctBar(pct, '#10b981')}</td></tr>
+                <tr>
+                  <td style="padding:4px 0 0 0;font-size:11px;color:rgba(255,255,255,0.4);">${meta}</td>
+                  ${paidLine}
+                </tr>
+              </table>
+            </td></tr>`;
+          }).join('') + '</table>';
       }
 
-      lines.push('', '========================================', '  ACCOUNT BALANCES', '========================================');
+      let accountsHtml;
       if (userAccounts.length) {
-        userAccounts.forEach((a) => { lines.push(`  ${a.name}: ${fmtMoney(a.balance || 0)}`); });
+        accountsHtml = '<table width="100%" cellpadding="0" cellspacing="0">' +
+          userAccounts.map((a) => `<tr>
+            <td style="padding:6px 0;font-size:13px;color:rgba(255,255,255,0.7);border-bottom:1px solid rgba(255,255,255,0.06);">${a.name}</td>
+            <td align="right" style="padding:6px 0;font-size:13px;color:#fff;font-weight:500;border-bottom:1px solid rgba(255,255,255,0.06);">${fmtMoney(a.balance || 0)}</td>
+          </tr>`).join('') + '</table>';
       } else {
-        lines.push('  No accounts configured.');
+        accountsHtml = '<p style="margin:0;font-size:13px;color:rgba(255,255,255,0.4);">No accounts configured.</p>';
       }
 
-      lines.push('', 'Log in to DebtFlow to review your full dashboard.', '', '— DebtFlow');
+      const dateStr = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+      const htmlBody = `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#000;font-family:'SF Mono','Menlo','Monaco','Consolas',monospace;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#000;"><tr><td style="padding:24px 12px;">
+<table width="600" cellpadding="0" cellspacing="0" style="margin:0 auto;">
+
+<tr><td style="padding:0 0 24px 0;">
+  <p style="margin:0 0 4px 0;font-size:11px;color:rgba(255,255,255,0.4);letter-spacing:2px;text-transform:uppercase;">DebtFlow</p>
+  <p style="margin:0;font-size:22px;color:#fff;font-weight:600;">Financial Summary</p>
+  <p style="margin:4px 0 0 0;font-size:13px;color:rgba(255,255,255,0.5);">${monthName}</p>
+</td></tr>
+
+<tr><td style="padding:0 0 12px 0;">
+  <table width="100%" cellpadding="0" cellspacing="0">
+    <tr>
+      ${buildOverviewCard('Income', income, '#10b981')}
+      <td width="50%" style="padding:0 0 8px 4px;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#111;border:1px solid rgba(255,255,255,0.1);border-radius:10px;"><tr><td style="padding:16px;">
+          <p style="margin:0 0 4px 0;font-size:10px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px;">Expenses</p>
+          <p style="margin:0;font-size:18px;color:#f43f5e;font-weight:600;">${fmtMoney(expenses)}</p>
+        </td></tr></table></td>
+    </tr>
+    <tr>
+      <td width="50%" style="padding:0 4px 0 0;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#111;border:1px solid rgba(255,255,255,0.1);border-radius:10px;"><tr><td style="padding:16px;">
+          <p style="margin:0 0 4px 0;font-size:10px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px;">Net Savings</p>
+          <p style="margin:0;font-size:18px;color:${savingsColor};font-weight:600;">${fmtMoney(savings)}</p>
+        </td></tr></table></td>
+      <td width="50%" style="padding:0 0 0 4px;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#111;border:1px solid rgba(255,255,255,0.1);border-radius:10px;"><tr><td style="padding:16px;">
+          <p style="margin:0 0 4px 0;font-size:10px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px;">Net Worth</p>
+          <p style="margin:0;font-size:18px;color:#fff;font-weight:600;">${fmtMoney(netWorth)}</p>
+        </td></tr></table></td>
+    </tr>
+  </table>
+</td></tr>
+
+<tr><td style="padding:16px 20px;background:#111;border:1px solid rgba(255,255,255,0.1);border-radius:10px;">
+  <p style="margin:0 0 12px 0;font-size:11px;color:rgba(255,255,255,0.5);letter-spacing:1px;text-transform:uppercase;">Top Spending Categories</p>
+  ${catsHtml}
+</td></tr>
+
+<tr><td style="height:12px;line-height:12px;font-size:0;">&nbsp;</td></tr>
+
+<tr><td style="padding:16px 20px;background:#111;border:1px solid rgba(255,255,255,0.1);border-radius:10px;">
+  <p style="margin:0 0 12px 0;font-size:11px;color:rgba(255,255,255,0.5);letter-spacing:1px;text-transform:uppercase;">Debt Repayment Progress</p>
+  <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:12px;">
+    <tr>
+      <td style="padding:0;font-size:13px;color:rgba(255,255,255,0.7);">Total Paid This Period</td>
+      <td align="right" style="padding:0;font-size:15px;color:#10b981;font-weight:600;">${fmtMoney(totalPaid)}</td>
+    </tr>
+    <tr>
+      <td style="padding:6px 0 0 0;font-size:13px;color:rgba(255,255,255,0.7);">Current Total Debt</td>
+      <td align="right" style="padding:6px 0 0 0;font-size:15px;color:#f59e0b;font-weight:600;">${fmtMoney(totalDebt)}</td>
+    </tr>
+  </table>
+  ${debtsHtml}
+</td></tr>
+
+<tr><td style="height:12px;line-height:12px;font-size:0;">&nbsp;</td></tr>
+
+<tr><td style="padding:16px 20px;background:#111;border:1px solid rgba(255,255,255,0.1);border-radius:10px;">
+  <p style="margin:0 0 12px 0;font-size:11px;color:rgba(255,255,255,0.5);letter-spacing:1px;text-transform:uppercase;">Account Balances</p>
+  ${accountsHtml}
+</td></tr>
+
+<tr><td style="padding:32px 0 0 0;text-align:center;">
+  <p style="margin:0 0 8px 0;font-size:13px;color:rgba(255,255,255,0.5);">Log in to DebtFlow to review your full dashboard.</p>
+  <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.2);">DebtFlow &middot; ${dateStr}</p>
+</td></tr>
+
+</table></td></tr></table>
+</body></html>`;
 
       const subject = `Your ${monthName} Financial Summary`;
-      const emailBody = lines.join('\n');
 
       try {
         const rawMessage = [
           `To: ${user.email}`,
           `Subject: ${subject}`,
-          'Content-Type: text/plain; charset=UTF-8',
+          'Content-Type: text/html; charset=UTF-8',
           '',
-          emailBody,
+          htmlBody,
         ].join('\r\n');
         const bytes = new TextEncoder().encode(rawMessage);
         let binary = '';
