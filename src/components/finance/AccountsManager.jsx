@@ -53,10 +53,13 @@ export default function AccountsManager({ onChanged }) {
 
   React.useEffect(() => {
     load();
-    const unsub = base44.entities.Debt.subscribe(() => {
+    const unsubDebt = base44.entities.Debt.subscribe(() => {
       base44.entities.Debt.list("-created_date").then(setDebts).catch(() => {});
     });
-    return unsub;
+    const unsubAcct = base44.entities.Account.subscribe(() => {
+      base44.entities.Account.list("-created_date").then(setAccounts).catch(() => {});
+    });
+    return () => { unsubDebt(); unsubAcct(); };
   }, [load]);
 
   function toggleInvestments() {

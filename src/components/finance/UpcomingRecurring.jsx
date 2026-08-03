@@ -1,5 +1,5 @@
 import React from "react";
-import { parseISO, format, isFuture, isToday } from "date-fns";
+import { parseISO, format, isFuture } from "date-fns";
 import { CalendarClock, Repeat, Pencil, X } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
@@ -237,7 +237,7 @@ export default function UpcomingRecurring({ transactions, accounts = [], onChang
   const accountsMap = React.useMemo(() => Object.fromEntries(accounts.map((a) => [a.id, a])), [accounts]);
 
   const upcoming = transactions
-    .filter((t) => t.is_scheduled || isFuture(parseISO(t.date)) || isToday(parseISO(t.date)))
+    .filter((t) => isFuture(parseISO(t.date)))
     .sort((a, b) => new Date(a.date) - new Date(b.date))
     .slice(0, 8);
 
