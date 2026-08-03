@@ -9,8 +9,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Trash2, Pencil, Check, X, Landmark, Eye, EyeOff, Briefcase, CreditCard } from "lucide-react";
+import { Plus, Trash2, Pencil, Check, X, Landmark, Eye, EyeOff, Briefcase, CreditCard, ScanLine } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import AccountBalanceImportModal from "@/components/finance/AccountBalanceImportModal";
 import { useForecast } from "@/lib/forecast-context";
 
 const fmt = (v) =>
@@ -39,6 +40,7 @@ export default function AccountsManager({ onChanged }) {
   const [showInvestments, setShowInvestments] = React.useState(
     () => localStorage.getItem(SHOW_INVEST_KEY) === "1"
   );
+  const [scanOpen, setScanOpen] = React.useState(false);
 
   const load = React.useCallback(async () => {
     const [a, s, d] = await Promise.all([
@@ -160,6 +162,14 @@ export default function AccountsManager({ onChanged }) {
           <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
+              onClick={() => setScanOpen(true)}
+              title="Scan balance from a photo"
+              className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest border px-2.5 py-1.5 rounded-md transition-colors border-emerald-500/40 text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20"
+            >
+              <ScanLine className="h-3.5 w-3.5" /> Scan
+            </button>
+            <button
+              type="button"
               onClick={toggleInvestments}
               title="Toggle investment accounts"
               className={`flex items-center gap-1.5 text-[10px] uppercase tracking-widest border px-2.5 py-1.5 rounded-md transition-colors ${
@@ -169,7 +179,7 @@ export default function AccountsManager({ onChanged }) {
               }`}
             >
               <Briefcase className="h-3.5 w-3.5" /> {showInvestments ? "Investments on" : "Investments"}
-              </button>
+            </button>
               <span className={`text-sm font-bold font-mono tabular-nums tracking-tight ${dispTotal < 0 ? "text-rose-400" : "text-emerald-400"}`}>
               {fmt(dispTotal)}
               </span>
@@ -373,6 +383,13 @@ export default function AccountsManager({ onChanged }) {
           </Button>
         </form>
       </div>
+
+      <AccountBalanceImportModal
+        open={scanOpen}
+        onOpenChange={setScanOpen}
+        accounts={accounts}
+        onSaved={load}
+      />
     </div>
   );
 }
