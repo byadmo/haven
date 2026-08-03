@@ -54,7 +54,7 @@ export default function Strategy() {
         </button>
       } />
 
-      <main className="relative max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+      <main className="relative max-w-6xl mx-auto px-6 sm:px-6 py-10 sm:py-6 space-y-10 sm:space-y-6">
         <Reveal>
           <DebtProjectionChart debts={debts} surplus={surplus} />
         </Reveal>
