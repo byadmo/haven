@@ -21,6 +21,15 @@ export default async function(req) {
     const userById = {};
     users.forEach((u) => { userById[u.id] = u; });
 
+    // Get Gmail OAuth token for sending
+    let gmailToken = null;
+    try {
+      const conn = await base44.asServiceRole.connectors.getConnection('gmail');
+      gmailToken = conn.accessToken;
+    } catch (e) {
+      return Response.json({ error: 'Gmail connector not connected. Authorize Gmail in the builder chat.' }, { status: 500 });
+    }
+
     const upcoming = [];
     debts.forEach((d) => {
       if (d.status === 'paid_off' || !d.due_date) return;
@@ -67,17 +76,34 @@ export default async function(req) {
         '',
         `Total upcoming minimum payments: ${fmtMoney(totalMin)}.`,
         '',
-        'Log in to DebtFlow to review your payoff strategy.',
+        'Log in to Haven to review your payoff strategy.',
         '',
-        '— DebtFlow',
+        '— Haven',
       ].join('\n');
       try {
-        await base44.asServiceRole.integrations.Core.SendEmail({
-          to: owner.email,
-          subject,
-          body: emailBody,
-          from_name: 'DebtFlow',
+        const rawMessage = [
+          `To: ${owner.email}`,
+          `Subject: ${subject}`,
+          `Content-Type: text/plain; charset=UTF-8`,
+          ``,
+          emailBody,
+        ].join('\r\n');
+        const bytes = new TextEncoder().encode(rawMessage);
+        let binary = '';
+        for (const b of bytes) binary += String.fromCharCode(b);
+        const encoded = btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        const gmailRes = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${gmailToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ raw: encoded }),
         });
+        if (!gmailRes.ok) {
+          const errTxt = await gmailRes.text();
+          throw new Error(errTxt);
+        }
         sent++;
         recipients.push(owner.email);
       } catch (e) {
