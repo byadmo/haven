@@ -7,6 +7,8 @@ import { base44 } from "@/api/base44Client";
 import { Calendar, RefreshCw, Check, AlertCircle, Trash2, Link2, Link2Off, ChevronDown, ChevronUp } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
+const CONNECTOR_ID = "6a70ef7e9f47c094588c220b";
+
 const REMINDER_OPTIONS = [
   { label: "1 hour before", value: "60" },
   { label: "1 day before", value: "1440" },
@@ -22,33 +24,91 @@ export default function CalendarSyncSettings() {
   const [events, setEvents] = React.useState([]);
   const [loadingEvents, setLoadingEvents] = React.useState(false);
   const [expanded, setExpanded] = React.useState(false);
-  const [showReconnect, setShowReconnect] = React.useState(false);
   const [removeAllOpen, setRemoveAllOpen] = React.useState(false);
   const [deletingAll, setDeletingAll] = React.useState(false);
   const [deletingId, setDeletingId] = React.useState(null);
+  const [connected, setConnected] = React.useState(false);
+  const [connecting, setConnecting] = React.useState(false);
+  const [disconnecting, setDisconnecting] = React.useState(false);
+  const [user, setUser] = React.useState(null);
 
   // Persisted preferences
   const [includeExpenses, setIncludeExpenses] = React.useState(() => localStorage.getItem("cal_sync_expenses") !== "false");
   const [includeDebts, setIncludeDebts] = React.useState(() => localStorage.getItem("cal_sync_debts") !== "false");
   const [reminderMinutes, setReminderMinutes] = React.useState(() => localStorage.getItem("cal_sync_reminder") || "1440");
 
-  React.useEffect(() => { localStorage.setItem("cal_sync_expenses", String(includeExpenses)); }, [includeExpenses]);
-  React.useEffect(() => { localStorage.setItem("cal_sync_debts", String(includeDebts)); }, [includeDebts]);
-  React.useEffect(() => { localStorage.setItem("cal_sync_reminder", reminderMinutes); }, [reminderMinutes]);
+  React.useEffect(() => {
+    localStorage.setItem("cal_sync_expenses", String(includeExpenses));
+  }, [includeExpenses]);
 
-  async function loadEvents() {
+  React.useEffect(() => {
+    localStorage.setItem("cal_sync_debts", String(includeDebts));
+  }, [includeDebts]);
+
+  React.useEffect(() => {
+    localStorage.setItem("cal_sync_reminder", reminderMinutes);
+  }, [reminderMinutes]);
+
+  // Rule 2: reusable fetch — doubles as connection check AND data loader
+  const loadEvents = async () => {
     setLoadingEvents(true);
     try {
       const res = await base44.functions.invoke("SyncCalendarEvents", { action: "list" });
       setEvents(res.data?.events || []);
+      setConnected(true);
+      setError(null);
     } catch (e) {
-      // silent fail
+      setConnected(false);
+      setEvents([]);
     } finally {
       setLoadingEvents(false);
     }
-  }
+  };
 
-  React.useEffect(() => { loadEvents(); }, []);
+  // Rule 1+2: check auth first, then fetch to detect connection status
+  React.useEffect(() => {
+    base44.auth.isAuthenticated().then(async (authed) => {
+      if (authed) {
+        const me = await base44.auth.me();
+        setUser(me);
+        await loadEvents();
+      }
+    });
+  }, []);
+
+  // Rule 3: open OAuth popup, poll for close, then re-fetch
+  const handleConnect = async () => {
+    setConnecting(true);
+    setError(null);
+    try {
+      const url = await base44.connectors.connectAppUser(CONNECTOR_ID);
+      const popup = window.open(url, "_blank");
+      const timer = setInterval(() => {
+        if (!popup || popup.closed) {
+          clearInterval(timer);
+          setConnecting(false);
+          loadEvents();
+        }
+      }, 500);
+    } catch (e) {
+      setError("Failed to start Google sign-in.");
+      setConnecting(false);
+    }
+  };
+
+  const handleDisconnect = async () => {
+    setDisconnecting(true);
+    try {
+      await base44.connectors.disconnectAppUser(CONNECTOR_ID);
+      setConnected(false);
+      setEvents([]);
+      setResult(null);
+    } catch (e) {
+      setError("Failed to disconnect calendar.");
+    } finally {
+      setDisconnecting(false);
+    }
+  };
 
   async function handleSync() {
     setSyncing(true);
@@ -108,55 +168,90 @@ export default function CalendarSyncSettings() {
         <div>
           <h3 className="text-xs uppercase tracking-widest text-white/50">Google Calendar</h3>
           <p className="text-lg font-semibold font-mono tracking-tight text-zinc-100 mt-1">Sync Reminders</p>
-          <p className="text-xs text-white/40 mt-1">Push upcoming expenses and debt payments to Google Calendar with email reminders before each due date.</p>
+          <p className="text-xs text-white/40 mt-1">Connect your own Google Calendar to sync expenses and debt payments with email reminders.</p>
         </div>
         <Calendar className="h-5 w-5 text-indigo-400 shrink-0 mt-1" />
       </div>
 
-      {/* Connected account row */}
+      {/* Connection status row */}
       <div className="flex items-center justify-between rounded-md border border-white/10 bg-black px-3 py-2.5 mb-4">
         <div className="flex items-center gap-2">
-          <span className="h-2 w-2 rounded-full bg-emerald-500" />
-          <span className="text-xs text-zinc-300">Calendar account connected</span>
+          <span className={`h-2 w-2 rounded-full ${connected ? "bg-emerald-500" : "bg-red-500"}`} />
+          <span className="text-xs text-zinc-300">
+            {connected ? "Your Google Calendar is connected" : "Not connected"}
+          </span>
         </div>
-        <button
-          onClick={() => setShowReconnect(true)}
-          className="flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
-        >
-          <Link2Off className="h-3.5 w-3.5" /> Change Account
-        </button>
+        <div className="flex items-center gap-2">
+          {connected ? (
+            <>
+              <button
+                onClick={handleConnect}
+                disabled={connecting}
+                className="flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 transition-colors disabled:opacity-50"
+              >
+                {connecting ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Link2 className="h-3.5 w-3.5" />}
+                {connecting ? "Connecting…" : "Change Account"}
+              </button>
+              <button
+                onClick={handleDisconnect}
+                disabled={disconnecting}
+                className="flex items-center gap-1.5 text-xs text-rose-400/70 hover:text-rose-400 transition-colors disabled:opacity-50"
+              >
+                {disconnecting ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Link2Off className="h-3.5 w-3.5" />}
+                {disconnecting ? "Disconnecting…" : "Disconnect"}
+              </button>
+            </>
+          ) : (
+            <Button
+              onClick={handleConnect}
+              disabled={connecting}
+              size="sm"
+              className="h-8 bg-indigo-600 hover:bg-indigo-500 text-white text-xs"
+            >
+              {connecting ? (
+                <><RefreshCw className="h-3.5 w-3.5 mr-1.5 animate-spin" /> Connecting…</>
+              ) : (
+                <><Link2 className="h-3.5 w-3.5 mr-1.5" /> Connect Google Calendar</>
+              )}
+            </Button>
+          )}
+        </div>
       </div>
 
-      {/* Sync preferences */}
-      <div className="space-y-2.5 mb-4">
-        <label className="flex items-center justify-between rounded-md border border-white/10 bg-black px-3 py-2.5">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-zinc-200">💸 Scheduled Expenses</span>
+      {/* Sync preferences — only show when connected */}
+      {connected && (
+        <>
+          <div className="space-y-2.5 mb-4">
+            <label className="flex items-center justify-between rounded-md border border-white/10 bg-black px-3 py-2.5">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-zinc-200">💸 Scheduled Expenses</span>
+              </div>
+              <Switch checked={includeExpenses} onCheckedChange={setIncludeExpenses} />
+            </label>
+            <label className="flex items-center justify-between rounded-md border border-white/10 bg-black px-3 py-2.5">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-zinc-200">💳 Debt Payments</span>
+              </div>
+              <Switch checked={includeDebts} onCheckedChange={setIncludeDebts} />
+            </label>
           </div>
-          <Switch checked={includeExpenses} onCheckedChange={setIncludeExpenses} />
-        </label>
-        <label className="flex items-center justify-between rounded-md border border-white/10 bg-black px-3 py-2.5">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-zinc-200">💳 Debt Payments</span>
-          </div>
-          <Switch checked={includeDebts} onCheckedChange={setIncludeDebts} />
-        </label>
-      </div>
 
-      {/* Reminder timing */}
-      <div className="mb-4">
-        <label className="text-xs uppercase tracking-widest text-white/50 mb-1.5 block">Reminder Timing</label>
-        <Select value={reminderMinutes} onValueChange={setReminderMinutes}>
-          <SelectTrigger className="bg-black border-white/10 text-zinc-200 h-10">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {REMINDER_OPTIONS.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+          {/* Reminder timing */}
+          <div className="mb-4">
+            <label className="text-xs uppercase tracking-widest text-white/50 mb-1.5 block">Reminder Timing</label>
+            <Select value={reminderMinutes} onValueChange={setReminderMinutes}>
+              <SelectTrigger className="bg-black border-white/10 text-zinc-200 h-10">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {REMINDER_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </>
+      )}
 
       {/* Status messages */}
       {error && (
@@ -178,7 +273,7 @@ export default function CalendarSyncSettings() {
       )}
 
       {/* Synced events list */}
-      {!syncing && events.length > 0 && (
+      {connected && !syncing && events.length > 0 && (
         <div className="mb-4">
           <button
             onClick={() => setExpanded(!expanded)}
@@ -226,43 +321,21 @@ export default function CalendarSyncSettings() {
       )}
 
       {/* Action buttons */}
-      <div className="flex gap-2">
-        <Button
-          onClick={handleSync}
-          disabled={syncing || (!includeExpenses && !includeDebts)}
-          className="flex-1 h-10 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold"
-        >
-          {syncing ? (
-            <><RefreshCw className="h-4 w-4 mr-1.5 animate-spin" /> Syncing…</>
-          ) : (
-            <><Calendar className="h-4 w-4 mr-1.5" /> Sync Now</>
-          )}
-        </Button>
-      </div>
-
-      {/* Reconnect dialog */}
-      <Dialog open={showReconnect} onOpenChange={setShowReconnect}>
-        <DialogContent className="bg-black border-white/10 text-zinc-100">
-          <DialogHeader>
-            <DialogTitle className="text-zinc-100">Change Calendar Account</DialogTitle>
-            <DialogDescription className="text-zinc-500">
-              The connected Google Calendar account is managed at the platform level via a shared OAuth connection. To reconnect with a different Google account:
-            </DialogDescription>
-          </DialogHeader>
-          <div className="rounded-md border border-white/10 bg-black px-3 py-3 mt-2">
-            <ol className="space-y-2 text-xs text-zinc-400 list-decimal list-inside">
-              <li>Open the app builder chat where you manage this app.</li>
-              <li>Ask the assistant to <span className="text-indigo-400">reconnect Google Calendar</span> with a different account.</li>
-              <li>This will disconnect the current account and prompt a new Google sign-in.</li>
-            </ol>
-          </div>
-          <DialogFooter className="pt-3">
-            <DialogClose asChild>
-              <Button variant="outline" className="border-white/10 text-zinc-300 hover:bg-white/5">Got it</Button>
-            </DialogClose>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {connected && (
+        <div className="flex gap-2">
+          <Button
+            onClick={handleSync}
+            disabled={syncing || (!includeExpenses && !includeDebts)}
+            className="flex-1 h-10 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold"
+          >
+            {syncing ? (
+              <><RefreshCw className="h-4 w-4 mr-1.5 animate-spin" /> Syncing…</>
+            ) : (
+              <><Calendar className="h-4 w-4 mr-1.5" /> Sync Now</>
+            )}
+          </Button>
+        </div>
+      )}
 
       {/* Remove all dialog */}
       <Dialog open={removeAllOpen} onOpenChange={setRemoveAllOpen}>

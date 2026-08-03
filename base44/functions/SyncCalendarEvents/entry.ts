@@ -13,10 +13,10 @@ export default async function(req) {
     try { body = await req.json(); } catch { body = {}; }
     const action = body.action || 'sync';
 
-    // Get Google Calendar OAuth token (shared connector)
+    // Get Google Calendar OAuth token (per-user connector)
     let calendarToken;
     try {
-      const conn = await base44.asServiceRole.connectors.getConnection('googlecalendar');
+      const conn = await base44.asServiceRole.connectors.getCurrentAppUserConnection('6a70ef7e9f47c094588c220b');
       calendarToken = conn.accessToken;
     } catch (e) {
       return Response.json({ error: 'Google Calendar not connected.' }, { status: 500 });
