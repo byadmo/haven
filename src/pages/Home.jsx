@@ -12,8 +12,6 @@ import CashFlowAnalytics from "@/components/finance/CashFlowAnalytics";
 import RecentTransactions from "@/components/finance/RecentTransactions";
 import UpcomingRecurring from "@/components/finance/UpcomingRecurring";
 import CashBuffer from "@/components/finance/CashBuffer";
-import TelemetryReadout from "@/components/finance/TelemetryReadout";
-import ScrubbableTimeline from "@/components/finance/ScrubbableTimeline";
 import { computeTrajectory } from "@/lib/trajectory";
 import { ForecastProvider } from "@/lib/forecast-context";
 import LiabilityLedger from "@/components/finance/LiabilityLedger";
@@ -119,13 +117,6 @@ export default function Home() {
 
       <ForecastProvider forecastData={forecastData}>
       <main className="relative max-w-6xl mx-auto px-6 sm:px-6 py-10 sm:py-6 space-y-10 sm:space-y-6">
-        <Reveal>
-          <div className="rounded-lg border border-white/10 bg-black">
-            <TelemetryReadout />
-            <ScrubbableTimeline />
-          </div>
-        </Reveal>
-
         <Reveal>
           <MetricsRow
             netWorth={netWorth}

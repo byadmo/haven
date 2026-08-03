@@ -14,7 +14,10 @@ const WEEK_TO_MONTH = 52 / 12;
  * @param {"avalanche"|"snowball"} input.method
  * @returns {{ series: Array, keyframes: number[], order: Array }}
  */
-export function computeTrajectory({ debts = [], accounts = [], transactions = [], months = 60, method = "avalanche" } = {}) {
+export function computeTrajectory({
+  debts = [], accounts = [], transactions = [],
+  months = 60, method = "avalanche", extraPayment = 0,
+} = {}) {
   const now = new Date();
   const startingCash = Math.max(0, accounts.reduce((s, a) => s + (a.balance || 0), 0));
 
@@ -75,7 +78,7 @@ export function computeTrajectory({ debts = [], accounts = [], transactions = []
 
     // budget: pay minimums at least; roll surplus forward; never exceed available cash
     const minTotal = balances.reduce((s, d) => s + (d.balance > 0 ? d.min : 0), 0);
-    let budget = Math.max(monthlyNet, minTotal);
+    let budget = Math.max(monthlyNet + (extraPayment || 0), minTotal);
     if (budget < 0) budget = 0;
     if (budget > cash) budget = Math.max(0, cash);
 
