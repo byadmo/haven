@@ -99,7 +99,7 @@ export default function Home() {
       <DashboardHeader actions={headerActions} />
 
       <ForecastProvider forecastData={forecastData}>
-      <main className="relative max-w-6xl mx-auto px-6 sm:px-6 py-10 sm:py-6 space-y-10 sm:space-y-6">
+      <main className="relative max-w-6xl mx-auto px-5 sm:px-6 py-8 sm:py-6 space-y-8 sm:space-y-6">
         <Reveal>
           <MetricsRow
             netWorth={netWorth}

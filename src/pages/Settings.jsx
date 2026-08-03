@@ -61,13 +61,13 @@ export default function Settings() {
     <div className="dd-page-enter dark min-h-screen bg-black text-zinc-100 selection:bg-emerald-500/30">
       <DashboardHeader />
 
-      <div className="sm:hidden px-6 pt-4">
+      <div className="sm:hidden px-5 pt-4">
         <button onClick={() => navigate("/")} className="flex items-center gap-1 text-xs uppercase tracking-widest text-white/50 hover:text-white transition-colors">
           <ChevronLeft className="h-4 w-4" /> Back to Overview
         </button>
       </div>
 
-      <main className="relative max-w-3xl mx-auto px-6 sm:px-6 py-10 sm:py-6 space-y-10 sm:space-y-6">
+      <main className="relative max-w-3xl mx-auto px-5 sm:px-6 py-8 sm:py-6 space-y-8 sm:space-y-6">
         <div>
           <h2 className="text-xs uppercase tracking-widest text-white/50">Settings</h2>
           <p className="text-lg font-semibold font-mono tracking-tight text-zinc-100 mt-1">Transaction Categories</p>

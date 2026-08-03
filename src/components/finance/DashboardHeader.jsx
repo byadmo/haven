@@ -21,7 +21,7 @@ export default function DashboardHeader({ actions }) {
   return (
     <>
     <header className="sticky top-0 z-30 bg-black/90 backdrop-blur-md border-b border-white/10 select-none" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-3">
+      <div className="max-w-6xl mx-auto px-5 sm:px-6 h-14 flex items-center gap-3">
         <Link to="/" className="flex items-center gap-2.5 shrink-0">
           <div className="h-7 w-7 rounded-md flex items-center justify-center bg-emerald-500 text-black">
             <Wallet className="h-4 w-4" />

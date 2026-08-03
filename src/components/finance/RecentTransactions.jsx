@@ -84,8 +84,8 @@ function Row({ t, accountsMap, onChanged, categories }) {
 
   return (
     <div className="group flex items-center gap-2.5 py-2 border-b border-zinc-800/60 last:border-0">
-      <div className={`h-7 w-7 rounded-full flex items-center justify-center shrink-0 ${isIncome ? "bg-emerald-500/15" : "bg-rose-500/15"}`}>
-        {isIncome ? <ArrowDownLeft className="h-3.5 w-3.5 text-emerald-400" /> : <ArrowUpRight className="h-3.5 w-3.5 text-rose-400" />}
+      <div className={`h-8 w-8 sm:h-7 sm:w-7 rounded-full flex items-center justify-center shrink-0 ${isIncome ? "bg-emerald-500/15" : "bg-rose-500/15"}`}>
+        {isIncome ? <ArrowDownLeft className="h-4 w-4 sm:h-3.5 sm:w-3.5 text-emerald-400" /> : <ArrowUpRight className="h-4 w-4 sm:h-3.5 sm:w-3.5 text-rose-400" />}
       </div>
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium text-zinc-200 truncate">{t.description}</p>
@@ -284,8 +284,8 @@ export default function RecentTransactions({ transactions, accounts = [], onChan
   ];
 
   return (
-    <div className="rounded-2xl bg-zinc-900/60 backdrop-blur-xl border border-zinc-800 p-5 shadow-xl shadow-black/30">
-      <div className="flex items-center justify-between gap-2 mb-3">
+    <div className="rounded-2xl bg-zinc-900/60 backdrop-blur-xl border border-zinc-800 p-5 sm:p-5 shadow-xl shadow-black/30">
+      <div className="flex items-center justify-between gap-2 mb-4">
         <h2 className="font-semibold text-sm text-zinc-100">Recent Transactions</h2>
         <div className="flex items-center gap-1 rounded-lg bg-zinc-950/60 border border-zinc-800 p-0.5">
           {tabs.map((tb) => (
@@ -312,7 +312,7 @@ export default function RecentTransactions({ transactions, accounts = [], onChan
         />
       </div>
 
-      <div className="max-h-80 overflow-y-auto">
+      <div className="max-h-80 overflow-y-auto -mr-2 pr-2">
         <AnimatePresence initial={false}>
           {filtered.length === 0 ? (
             <p className="text-sm text-zinc-500 text-center py-8">No transactions match.</p>
@@ -348,9 +348,9 @@ export default function RecentTransactions({ transactions, accounts = [], onChan
 
 function DebtPaymentRow({ t }) {
   return (
-    <div className="group flex items-center gap-2.5 py-2 border-b border-zinc-800/60 last:border-0">
-      <div className="h-7 w-7 rounded-full flex items-center justify-center shrink-0 bg-emerald-500/15">
-        <CreditCard className="h-3.5 w-3.5 text-emerald-400" />
+    <div className="group flex items-center gap-3 py-3 sm:py-2 border-b border-zinc-800/60 last:border-0">
+      <div className="h-8 w-8 sm:h-7 sm:w-7 rounded-full flex items-center justify-center shrink-0 bg-emerald-500/15">
+        <CreditCard className="h-4 w-4 sm:h-3.5 sm:w-3.5 text-emerald-400" />
       </div>
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium text-zinc-200 truncate">{t.description}</p>

@@ -147,7 +147,7 @@ export default function AccountsManager({ onChanged }) {
   return (
     <div>
       <div className="rounded-lg bg-black border border-white/10 p-5 hover:border-white/30 transition-colors duration-150">
-        <div className="flex items-center justify-between mb-4 gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-5 gap-3">
           <div className="flex items-center gap-2 min-w-0">
             <div className="h-8 w-8 flex items-center justify-center bg-emerald-500/10 text-emerald-400 shrink-0">
               <Landmark className="h-4 w-4" />
@@ -159,7 +159,7 @@ export default function AccountsManager({ onChanged }) {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 shrink-0 flex-wrap">
             <button
               type="button"
               onClick={() => setScanOpen(true)}
@@ -178,7 +178,7 @@ export default function AccountsManager({ onChanged }) {
                   : "border-white/10 text-white/50 hover:text-white"
               }`}
             >
-              <Briefcase className="h-3.5 w-3.5" /> {showInvestments ? "Investments on" : "Investments"}
+              <Briefcase className="h-3.5 w-3.5" /> <span className="hidden sm:inline">{showInvestments ? "Investments on" : "Investments"}</span>
             </button>
               <span className={`text-sm font-bold font-mono tabular-nums tracking-tight ${dispTotal < 0 ? "text-rose-400" : "text-emerald-400"}`}>
               {fmt(dispTotal)}
@@ -186,7 +186,7 @@ export default function AccountsManager({ onChanged }) {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-3 mb-5">
           <AnimatePresence mode="popLayout">
             {visibleAccounts.length === 0 && !loading && (!showInvestments || investmentGroups.length === 0) && activeDebts.length === 0 && (
               <motion.p
@@ -210,11 +210,11 @@ export default function AccountsManager({ onChanged }) {
                   <span className="text-[10px] uppercase tracking-widest text-white/50 font-medium">
                     {a.type || "chequing"}
                   </span>
-                  <div className="flex items-center gap-0.5">
+                  <div className="flex items-center gap-0.5 sm:gap-0">
                     <button
-                      onClick={() => toggleVisibility(a)}
-                      title={a.show_in_summary === false ? "Show in summary" : "Hide from summary"}
-                      className="h-11 w-11 rounded-md flex items-center justify-center text-white/50 hover:text-zinc-200 hover:bg-zinc-800"
+                           onClick={() => toggleVisibility(a)}
+                           title={a.show_in_summary === false ? "Show in summary" : "Hide from summary"}
+                           className="h-10 w-10 rounded-md flex items-center justify-center text-white/50 hover:text-zinc-200 hover:bg-zinc-800"
                     >
                       {a.show_in_summary === false ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                     </button>
@@ -222,13 +222,13 @@ export default function AccountsManager({ onChanged }) {
                       <>
                         <button
                           onClick={() => commitRename(a.id)}
-                          className="h-11 w-11 rounded-md flex items-center justify-center text-emerald-400 hover:bg-emerald-500/10"
+                          className="h-10 w-10 rounded-md flex items-center justify-center text-emerald-400 hover:bg-emerald-500/10"
                         >
                           <Check className="h-3.5 w-3.5" />
                         </button>
                         <button
                           onClick={() => setEditId(null)}
-                          className="h-11 w-11 rounded-md flex items-center justify-center text-zinc-500 hover:bg-zinc-800"
+                          className="h-10 w-10 rounded-md flex items-center justify-center text-zinc-500 hover:bg-zinc-800"
                         >
                           <X className="h-3.5 w-3.5" />
                         </button>
@@ -241,13 +241,13 @@ export default function AccountsManager({ onChanged }) {
                             setEditName(a.name);
                             setEditBal(String(a.balance ?? 0));
                           }}
-                          className="h-11 w-11 rounded-md flex items-center justify-center text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800"
+                          className="h-10 w-10 rounded-md flex items-center justify-center text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800"
                         >
                           <Pencil className="h-3.5 w-3.5" />
                         </button>
                         <button
                           onClick={() => remove(a.id)}
-                          className="h-11 w-11 rounded-md flex items-center justify-center text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10"
+                          className="h-10 w-10 rounded-md flex items-center justify-center text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>

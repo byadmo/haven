@@ -59,7 +59,7 @@ export default function MetricsRow({ netWorth, income, expense, incomePct, expen
   ];
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-3">
       {cards.map((c, i) => {
         const accents = {
           indigo: "text-indigo-300 bg-indigo-500/15",
@@ -77,7 +77,7 @@ export default function MetricsRow({ netWorth, income, expense, incomePct, expen
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.04 }}
-            className="relative rounded-lg bg-black border border-white/10 p-4 hover:border-white/30 transition-colors duration-150 overflow-hidden"
+            className="relative rounded-lg bg-black border border-white/10 p-5 sm:p-4 hover:border-white/30 transition-colors duration-150 overflow-hidden"
           >
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
@@ -86,7 +86,7 @@ export default function MetricsRow({ netWorth, income, expense, incomePct, expen
               </div>
               {c.chip}
             </div>
-            <p className={`text-xl sm:text-2xl font-bold font-mono tabular-nums tracking-tight ${c.valueColor}`}>{c.value}</p>
+            <p className={`text-2xl sm:text-2xl font-bold font-mono tabular-nums tracking-tight ${c.valueColor}`}>{c.value}</p>
             {c.bar !== null && (
               <div className="mt-3 h-1.5 bg-white/10 overflow-hidden">
                 <motion.div

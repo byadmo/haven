@@ -9,7 +9,7 @@ export default function Portfolio() {
     <div className="dd-page-enter dark min-h-screen bg-black text-zinc-100 selection:bg-emerald-500/30">
       <DashboardHeader />
 
-      <main className="relative max-w-6xl mx-auto px-6 sm:px-6 py-10 sm:py-6">
+      <main className="relative max-w-6xl mx-auto px-5 sm:px-6 py-8 sm:py-6">
         <StockTracker onChanged={() => setRefreshKey((k) => k + 1)} />
       </main>
     </div>

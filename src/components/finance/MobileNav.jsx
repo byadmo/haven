@@ -25,8 +25,8 @@ export default function MobileNav() {
       <div className="grid grid-cols-6">
         {items.map(({ to, label, icon: Icon, end }) => (
           <NavLink key={to} to={to} end={end} className={cls}>
-            <Icon className="h-5 w-5" />
-            <span className="text-[9px] uppercase tracking-widest font-mono">{label}</span>
+            <Icon className="h-[18px] w-[18px]" />
+            <span className="text-[9px] uppercase tracking-[0.15em] font-mono">{label}</span>
           </NavLink>
         ))}
       </div>
