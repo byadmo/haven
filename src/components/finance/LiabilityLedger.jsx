@@ -159,7 +159,6 @@ export default function LiabilityLedger({ debts, onChanged }) {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setCardOpen((prev) => ({ ...prev, [d.id]: !prev[d.id] }))}
-                  className="sm:hidden"
                   aria-label="Toggle details"
                 >
                   <ChevronDown className={`h-4 w-4 text-white/40 transition-transform ${isCardOpen ? "rotate-180" : ""}`} />
@@ -197,7 +196,7 @@ export default function LiabilityLedger({ debts, onChanged }) {
 
             <p className="text-xl sm:text-2xl font-bold font-mono tabular-nums tracking-tight text-zinc-50 mb-2">{fmt(balance)}</p>
 
-            <div className={`${isCardOpen ? "block" : "hidden"} sm:block`}>
+            <div className={isCardOpen ? "block" : "hidden"}>
               <div className="mb-3">
                 <div className="h-1.5 bg-white/10 overflow-hidden">
                   {isCleared ? (
