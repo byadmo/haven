@@ -11,6 +11,9 @@ import { format, parseISO } from "date-fns";
 import { motion } from "framer-motion";
 import confetti from "canvas-confetti";
 import { useForecast } from "@/lib/forecast-context";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 
 const fmt = (v) =>
   (v || 0).toLocaleString(undefined, {
@@ -50,6 +53,7 @@ export default function LiabilityLedger({ debts, onChanged }) {
       await base44.entities.Debt.update(editing.id, {
         current_balance: Math.max(0, parseFloat(editing.current_balance) || 0),
         interest_rate: parseFloat(editing.interest_rate) || 0,
+        interest_type: editing.interest_type || "APR",
         minimum_payment: parseFloat(editing.minimum_payment) || 0,
         status: parseFloat(editing.current_balance) <= 0 ? "paid_off" : "active",
       });
@@ -171,7 +175,7 @@ export default function LiabilityLedger({ debts, onChanged }) {
                   <div className="px-2 py-1 bg-emerald-500/20 text-emerald-400 font-mono text-xs uppercase border border-emerald-500/50">Cleared</div>
                 ) : (
                   d.interest_rate > 0 ? (
-                    <span className="text-[10px] px-2 py-0.5 font-mono tabular-nums uppercase border border-white/10 text-white/50">{d.interest_rate}%</span>
+                    <span className="text-[10px] px-2 py-0.5 font-mono tabular-nums uppercase border border-white/10 text-white/50">{d.interest_rate}%{d.interest_type && d.interest_type !== "None" ? ` ${d.interest_type}` : ""}</span>
                   ) : null
                 )}
               </div>
@@ -268,6 +272,25 @@ export default function LiabilityLedger({ debts, onChanged }) {
                           <Label className="text-white/50">Min. Payment ($)</Label>
                           <Input type="number" step="0.01" defaultValue={d.minimum_payment} onChange={(e) => setEditing((prev) => ({ ...prev, minimum_payment: e.target.value }))} className="bg-black border-white/10 text-zinc-100" />
                         </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-white/50">Interest Type</Label>
+                        <Select
+                          value={editing.interest_type || "APR"}
+                          onValueChange={(v) => setEditing((prev) => ({ ...prev, interest_type: v }))}
+                        >
+                          <SelectTrigger className="bg-black border-white/10 text-zinc-100">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-black border-white/10">
+                            <SelectItem value="APR">APR</SelectItem>
+                            <SelectItem value="Fixed">Fixed Rate</SelectItem>
+                            <SelectItem value="Variable">Variable Rate</SelectItem>
+                            <SelectItem value="Simple">Simple Interest</SelectItem>
+                            <SelectItem value="Compound">Compound Interest</SelectItem>
+                            <SelectItem value="None">Interest-Free</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                       <DialogFooter className="pt-2">
                         <DialogClose asChild><Button type="button" variant="outline" className="border-white/10 text-white/50 hover:bg-white/5">Cancel</Button></DialogClose>

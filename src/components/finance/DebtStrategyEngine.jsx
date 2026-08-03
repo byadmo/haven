@@ -179,7 +179,7 @@ export default function DebtStrategyEngine({ debts, monthlySurplus }) {
                 </span>
                 {d.interest_rate > 0 && (
                   <span className="text-[10px] px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-300 tabular-nums">
-                    {d.interest_rate}% APR
+                    {d.interest_rate}%{d.interest_type && d.interest_type !== "None" ? ` ${d.interest_type}` : ""}
                   </span>
                 )}
                 {i < projection.order.length - 1 && <ArrowRight className="h-3 w-3 text-zinc-700 hidden sm:block" />}

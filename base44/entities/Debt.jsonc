@@ -14,6 +14,19 @@
     "interest_rate": {
       "type": "number"
     },
+    "interest_type": {
+      "type": "string",
+      "enum": [
+        "APR",
+        "Fixed",
+        "Variable",
+        "Simple",
+        "Compound",
+        "None"
+      ],
+      "default": "APR",
+      "description": "The type of interest rate for this liability"
+    },
     "minimum_payment": {
       "type": "number"
     },
