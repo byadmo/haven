@@ -34,6 +34,11 @@
       "type": "string",
       "format": "date"
     },
+    "target_payoff_date": {
+      "type": "string",
+      "format": "date",
+      "description": "User-defined goal date to pay off this debt entirely"
+    },
     "status": {
       "type": "string",
       "enum": [

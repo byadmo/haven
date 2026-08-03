@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Plus, CreditCard, Trash2, ChevronDown, Eye } from "lucide-react";
+import PayoffTarget from "@/components/finance/PayoffTarget";
 import { format, parseISO } from "date-fns";
 import { motion } from "framer-motion";
 import confetti from "canvas-confetti";
@@ -56,8 +57,9 @@ export default function LiabilityLedger({ debts, onChanged }) {
         interest_rate: parseFloat(editing.interest_rate) || 0,
         interest_type: editing.interest_type || "APR",
         minimum_payment: parseFloat(editing.minimum_payment) || 0,
+        target_payoff_date: editing.target_payoff_date || null,
         status: parseFloat(editing.current_balance) <= 0 ? "paid_off" : "active",
-      });
+        });
       setEditing(null);
       onChanged?.();
     } finally {
@@ -214,6 +216,8 @@ export default function LiabilityLedger({ debts, onChanged }) {
               </div>
             )}
 
+            {!isFuture && <PayoffTarget debt={d} balance={balance} />}
+
             {!isFuture && (
               <div className="flex gap-2 mb-3">
                 <Dialog>
@@ -273,6 +277,10 @@ export default function LiabilityLedger({ debts, onChanged }) {
                           <Label className="text-white/50">Min. Payment ($)</Label>
                           <Input type="number" step="0.01" defaultValue={d.minimum_payment} onChange={(e) => setEditing((prev) => ({ ...prev, minimum_payment: e.target.value }))} className="bg-black border-white/10 text-zinc-100" />
                         </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-white/50">Target Payoff Date</Label>
+                        <Input type="date" defaultValue={d.target_payoff_date || ""} onChange={(e) => setEditing((prev) => ({ ...prev, target_payoff_date: e.target.value }))} className="bg-black border-white/10 text-zinc-100" />
                       </div>
                       <div className="space-y-1.5">
                         <Label className="text-white/50">Interest Type</Label>
