@@ -140,9 +140,11 @@ export default function LiabilityLedger({ debts, onChanged }) {
               </div>
               <div className="flex items-center gap-1.5">
                 {!isCleared && (
-                  <button
+                  <motion.button
+                    type="button"
                     onClick={() => toggleShowOnAccounts(d)}
                     title="Toggle show on Accounts"
+                    whileTap={{ scale: 0.94 }}
                     className={`flex items-center gap-1 text-[10px] uppercase tracking-widest border px-2 py-0.5 transition-colors ${
                       d.show_in_accounts
                         ? "border-emerald-500/40 text-emerald-300 bg-emerald-500/10"
@@ -150,7 +152,7 @@ export default function LiabilityLedger({ debts, onChanged }) {
                     }`}
                   >
                     <Eye className="h-3 w-3" /> {d.show_in_accounts ? "On accounts" : "Show on accounts"}
-                  </button>
+                  </motion.button>
                 )}
                 {isCleared ? (
                   <div className="px-2 py-1 bg-emerald-500/20 text-emerald-400 font-mono text-xs uppercase border border-emerald-500/50">Cleared</div>
