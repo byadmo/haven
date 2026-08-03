@@ -20,20 +20,21 @@ import {
 import { adjustAccountBalance, txEffect } from "@/lib/accounts";
 import { format } from "date-fns";
 import { TrendingDown, TrendingUp } from "lucide-react";
-
-const CATEGORIES = [
-  "Salary", "Rent", "Utilities", "Groceries", "Transport", "Dining",
-  "Entertainment", "Healthcare", "Insurance", "Loan Payment", "Credit Card",
-  "Other Income", "Other Expense",
-];
+import RecurringFields from "@/components/finance/RecurringFields";
+import { useCategories, categoryOptions } from "@/lib/categories";
 
 export default function QuickAddModal({ open, onOpenChange, accounts = [], onSaved }) {
+  const { categories } = useCategories();
+  const options = categoryOptions(categories);
   const [description, setDescription] = React.useState("");
   const [amount, setAmount] = React.useState("");
   const [type, setType] = React.useState("expense");
-  const [category, setCategory] = React.useState("Other Expense");
+  const [category, setCategory] = React.useState("Other");
   const [date, setDate] = React.useState(format(new Date(), "yyyy-MM-dd"));
   const [accountId, setAccountId] = React.useState("");
+  const [recurring, setRecurring] = React.useState(false);
+  const [frequency, setFrequency] = React.useState("monthly");
+  const [nextDate, setNextDate] = React.useState(format(new Date(), "yyyy-MM-dd"));
   const [saving, setSaving] = React.useState(false);
   const amountRef = React.useRef(null);
 
@@ -42,9 +43,12 @@ export default function QuickAddModal({ open, onOpenChange, accounts = [], onSav
       setDescription("");
       setAmount("");
       setType("expense");
-      setCategory("Other Expense");
+      setCategory("Other");
       setDate(format(new Date(), "yyyy-MM-dd"));
       setAccountId("");
+      setRecurring(false);
+      setFrequency("monthly");
+      setNextDate(format(new Date(), "yyyy-MM-dd"));
       const t = setTimeout(() => amountRef.current?.focus(), 60);
       return () => clearTimeout(t);
     }
@@ -62,6 +66,9 @@ export default function QuickAddModal({ open, onOpenChange, accounts = [], onSav
         category,
         date,
         account_id: accountId || undefined,
+        is_scheduled: recurring,
+        frequency: recurring ? frequency : "one_time",
+        next_date: recurring ? (nextDate || date) : undefined,
       });
       if (accountId) await adjustAccountBalance(accountId, txEffect({ type, amount: parseFloat(amount) }));
       onOpenChange?.(false);
@@ -138,7 +145,7 @@ export default function QuickAddModal({ open, onOpenChange, accounts = [], onSav
               <Select value={category} onValueChange={setCategory}>
                 <SelectTrigger className="mt-1 bg-zinc-950 border-zinc-800 text-zinc-100 h-10"><SelectValue /></SelectTrigger>
                 <SelectContent className="bg-zinc-900 border-zinc-800">
-                  {CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  {options.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -163,6 +170,15 @@ export default function QuickAddModal({ open, onOpenChange, accounts = [], onSav
               className="mt-1 bg-zinc-950 border-zinc-800 text-zinc-100 h-10"
             />
           </div>
+
+          <RecurringFields
+            scheduled={recurring}
+            onScheduledChange={setRecurring}
+            frequency={frequency}
+            onFrequencyChange={setFrequency}
+            nextDate={nextDate}
+            onNextDateChange={setNextDate}
+          />
 
           <Button
             type="submit"

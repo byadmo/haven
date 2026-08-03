@@ -13,13 +13,11 @@ import {
 } from "@/components/ui/select";
 import { adjustAccountBalance, txEffect } from "@/lib/accounts";
 import { AnimatePresence, motion } from "framer-motion";
+import RecurringFields from "@/components/finance/RecurringFields";
+import { useCategories, categoryOptions } from "@/lib/categories";
 
-const CATEGORIES = [
-  "Income", "Transit (GO/TTC)", "E39/Civic Maintenance", "Christ Like! Inventory",
-  "Food/Groceries", "Rent", "Utilities", "Dining", "Other",
-];
 
-function Row({ t, accountsMap, onChanged }) {
+function Row({ t, accountsMap, onChanged, categories }) {
   const isIncome = t.type === "income";
   const [edit, setEdit] = React.useState(null);
   const [saving, setSaving] = React.useState(false);
@@ -50,6 +48,9 @@ function Row({ t, accountsMap, onChanged }) {
         category: payload.category ?? t.category,
         date: payload.date ?? format(parseISO(t.date), "yyyy-MM-dd"),
         account_id: newAcct || undefined,
+        is_scheduled: payload.is_scheduled ?? false,
+        frequency: payload.frequency ?? "one_time",
+        next_date: payload.is_scheduled ? payload.next_date : undefined,
       });
       setEdit(null);
       onChanged?.();
@@ -88,6 +89,7 @@ function Row({ t, accountsMap, onChanged }) {
           <form
             onSubmit={(e) => {
               const ev = edit || {};
+              const sched = ev.is_scheduled ?? t.is_scheduled ?? false;
               save(e, {
                 description: ev.description ?? t.description,
                 amount: ev.amount ?? t.amount,
@@ -95,6 +97,11 @@ function Row({ t, accountsMap, onChanged }) {
                 category: ev.category ?? t.category,
                 date: ev.date ?? format(parseISO(t.date), "yyyy-MM-dd"),
                 account_id: ev.account_id ?? t.account_id ?? "",
+                is_scheduled: sched,
+                frequency: sched ? (ev.frequency ?? t.frequency ?? "monthly") : "one_time",
+                next_date: sched
+                  ? (ev.next_date ?? (t.next_date ? format(parseISO(t.next_date), "yyyy-MM-dd") : format(parseISO(t.date), "yyyy-MM-dd")))
+                  : undefined,
               });
             }}
             className="space-y-3"
@@ -129,7 +136,7 @@ function Row({ t, accountsMap, onChanged }) {
                 <Select defaultValue={t.category} onValueChange={(v)=>setEdit(p=>({...p,category:v}))}>
                   <SelectTrigger className="bg-zinc-950 border-zinc-800 text-zinc-100"><SelectValue /></SelectTrigger>
                   <SelectContent className="bg-zinc-900 border-zinc-800">
-                    {CATEGORIES.map((c)=><SelectItem key={c} value={c}>{c}</SelectItem>)}
+                    {categories.map((c)=><SelectItem key={c} value={c}>{c}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -144,6 +151,14 @@ function Row({ t, accountsMap, onChanged }) {
                 </SelectContent>
               </Select>
             </div>
+            <RecurringFields
+              scheduled={edit?.is_scheduled ?? t.is_scheduled ?? false}
+              onScheduledChange={(v) => setEdit((p) => ({ ...p, is_scheduled: v }))}
+              frequency={edit?.frequency ?? t.frequency ?? "monthly"}
+              onFrequencyChange={(v) => setEdit((p) => ({ ...p, frequency: v }))}
+              nextDate={edit?.next_date ?? (t.next_date ? format(parseISO(t.next_date), "yyyy-MM-dd") : format(parseISO(t.date), "yyyy-MM-dd"))}
+              onNextDateChange={(v) => setEdit((p) => ({ ...p, next_date: v }))}
+            />
             <DialogFooter className="pt-2">
               <DialogClose asChild><Button type="button" variant="outline" className="border-zinc-800 text-zinc-400 hover:bg-zinc-800">Cancel</Button></DialogClose>
               <Button type="submit" disabled={saving} className="bg-indigo-600 hover:bg-indigo-500 text-white">{saving?"Saving…":"Save Changes"}</Button>
@@ -161,6 +176,8 @@ function Row({ t, accountsMap, onChanged }) {
 export default function RecentTransactions({ transactions, accounts = [], onChanged }) {
   const [filter, setFilter] = React.useState("all");
   const [query, setQuery] = React.useState("");
+  const { categories: cats } = useCategories();
+  const options = categoryOptions(cats);
 
   const accountsMap = React.useMemo(() => Object.fromEntries(accounts.map((a) => [a.id, a])), [accounts]);
 
@@ -214,7 +231,7 @@ export default function RecentTransactions({ transactions, accounts = [], onChan
           {filtered.length === 0 ? (
             <p className="text-sm text-zinc-500 text-center py-8">No transactions match.</p>
           ) : (
-            filtered.map((t) => <Row key={t.id} t={t} accountsMap={accountsMap} onChanged={onChanged} />)
+            filtered.map((t) => <Row key={t.id} t={t} accountsMap={accountsMap} onChanged={onChanged} categories={options} />)
           )}
         </AnimatePresence>
       </div>

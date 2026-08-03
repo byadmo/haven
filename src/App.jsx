@@ -11,6 +11,7 @@ import Home from '@/pages/Home';
 import Strategy from '@/pages/Strategy';
 import Portfolio from '@/pages/Portfolio';
 import Insights from '@/pages/Insights';
+import Settings from '@/pages/Settings';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { Navigate } from 'react-router-dom';
 import Login from '@/pages/Login';
@@ -54,6 +55,7 @@ const AuthenticatedApp = () => {
         <Route path="/strategy" element={<Strategy />} />
         <Route path="/portfolio" element={<Portfolio />} />
         <Route path="/insights" element={<Insights />} />
+        <Route path="/settings" element={<Settings />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>

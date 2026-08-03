@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, NavLink } from "react-router-dom";
-import { Wallet } from "lucide-react";
+import { Wallet, Settings as SettingsIcon } from "lucide-react";
 import { format } from "date-fns";
 import CommandPalette from "@/components/finance/CommandPalette";
 import BackupModal from "@/components/finance/BackupModal";
@@ -35,6 +35,9 @@ export default function DashboardHeader({ actions }) {
           </nav>
         </div>
         <div className="flex items-center gap-2">
+          <Link to="/settings" className="h-8 w-8 rounded-lg border border-white/10 bg-black flex items-center justify-center text-zinc-300 hover:border-white/30 hover:text-white transition-colors" aria-label="Settings">
+            <SettingsIcon className="h-4 w-4" />
+          </Link>
           <div className="hidden sm:block"><CommandPalette /></div>
           <BackupModal />
           {actions && <div className="flex gap-2">{actions}</div>}
