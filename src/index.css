@@ -90,6 +90,12 @@
   body {
     @apply bg-background text-foreground font-body;
   }
+
+  html {
+    background-color: #000;
+    color-scheme: dark;
+    overscroll-behavior-y: none;
+  }
 }
 
 @layer utilities {
@@ -114,6 +120,10 @@
 
   /* mono + tabular nums for numerals */
   .tnum { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+  @keyframes dd-page-enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  .dd-page-enter { animation: dd-page-enter 0.35s cubic-bezier(0.22, 1, 0.36, 1); will-change: opacity, transform; }
+  @media (prefers-reduced-motion: reduce) { .dd-page-enter { animation: none; will-change: auto; } }
 }
 
 /* Mobile: reserve space so the fixed bottom tab bar never covers content. */

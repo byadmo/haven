@@ -69,7 +69,7 @@ export default function Insights() {
   }
 
   return (
-    <div className="dark min-h-screen bg-black text-zinc-100 selection:bg-emerald-500/30">
+    <div className="dd-page-enter dark min-h-screen bg-black text-zinc-100 selection:bg-emerald-500/30">
       <DashboardHeader />
       <main className="relative max-w-6xl mx-auto px-6 sm:px-6 py-10 sm:py-6 space-y-10 sm:space-y-6">
         <div className="flex items-center justify-between">

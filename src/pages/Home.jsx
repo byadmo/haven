@@ -112,7 +112,7 @@ export default function Home() {
   );
 
   return (
-    <div className="dark min-h-screen bg-black text-zinc-100 selection:bg-emerald-500/30">
+    <div className="dd-page-enter dark min-h-screen bg-black text-zinc-100 selection:bg-emerald-500/30">
 
       <DashboardHeader actions={headerActions} />
 

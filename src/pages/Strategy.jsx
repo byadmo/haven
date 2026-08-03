@@ -44,7 +44,7 @@ export default function Strategy() {
   }
 
   return (
-    <div className="dark min-h-screen bg-black text-zinc-100 selection:bg-emerald-500/30">
+    <div className="dd-page-enter dark min-h-screen bg-black text-zinc-100 selection:bg-emerald-500/30">
       <DashboardHeader actions={
         <button
           onClick={() => setRefreshKey((k) => k + 1)}

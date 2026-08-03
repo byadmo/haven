@@ -60,7 +60,7 @@ export default function ScrubbableTimeline() {
           max={max}
           value={index}
           onChange={(e) => onIndex(snap(Number(e.target.value)))}
-          className="absolute inset-0 w-full h-full opacity-0 cursor-ew-resize m-0"
+          className="absolute inset-0 w-full h-full opacity-0 cursor-ew-resize touch-pan-x m-0"
           aria-label="Forecast timeline playhead"
         />
       </div>
