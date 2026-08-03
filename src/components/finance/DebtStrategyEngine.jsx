@@ -2,7 +2,7 @@ import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Card } from "@/components/ui/card";
-import { simulatePayoff, computeSavings, simulateTimeline } from "@/lib/debtStrategy";
+import { simulateFlatRun } from "@/lib/trajectory";
 import { format } from "date-fns";
 import { Sparkles, TrendingDown, CalendarCheck, ArrowRight, Wand2, PiggyBank } from "lucide-react";
 import { ResponsiveContainer, ComposedChart, Line, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
@@ -24,36 +24,36 @@ export default function DebtStrategyEngine({ debts, monthlySurplus }) {
     if (monthlySurplus) setSurplus(monthlySurplus);
   }, [monthlySurplus]);
 
-  const projection = React.useMemo(
-    () => simulatePayoff(debts, surplus, method),
+  // Single unified run per scenario — replaces 5 separate simulations.
+  const baseRun = React.useMemo(
+    () => simulateFlatRun(debts, surplus, method),
     [debts, surplus, method]
   );
-
-  const savings = React.useMemo(
-    () => computeSavings(debts, surplus, boost, method),
+  const optRun = React.useMemo(
+    () => simulateFlatRun(debts, surplus + boost, method),
     [debts, surplus, boost, method]
   );
-
-  const baseTimeline = React.useMemo(
-    () => simulateTimeline(debts, surplus, method),
-    [debts, surplus, method]
-  );
-  const optTimeline = React.useMemo(
-    () => simulateTimeline(debts, Math.max(0, surplus) + boost, method),
-    [debts, surplus, boost, method]
-  );
+  const projection = baseRun;
+  const savings = {
+    baseMonths: baseRun.months,
+    baseInterest: baseRun.totalInterest,
+    optMonths: optRun.months,
+    optInterest: optRun.totalInterest,
+    monthsFaster: Math.max(0, baseRun.months - optRun.months),
+    interestSaved: Math.max(0, baseRun.totalInterest - optRun.totalInterest),
+  };
   const chartData = React.useMemo(() => {
-    const maxM = Math.max(baseTimeline.series.length, optTimeline.series.length, 1);
+    const maxM = Math.max(baseRun.series.length, optRun.series.length, 1);
     const out = [];
     for (let i = 0; i <= maxM; i++) {
       out.push({
         month: i,
-        base: baseTimeline.series[i] ? Math.max(0, baseTimeline.series[i].balance) : 0,
-        accelerated: optTimeline.series[i] ? Math.max(0, optTimeline.series[i].balance) : 0,
+        base: baseRun.series[i] ? Math.max(0, baseRun.series[i].balance) : 0,
+        accelerated: optRun.series[i] ? Math.max(0, optRun.series[i].balance) : 0,
       });
     }
     return out;
-  }, [baseTimeline, optTimeline]);
+  }, [baseRun, optRun]);
 
   const years = Math.floor(projection.months / 12);
   const remainMonths = projection.months % 12;

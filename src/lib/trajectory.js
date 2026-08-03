@@ -69,14 +69,21 @@ export function computeTrajectory({
   }];
 
   let cash = startingCash;
+  let cumInterest = 0;
 
   for (let m = 1; m <= months; m++) {
     cash += monthlyNet; // net living cash flow
 
     // accrue interest
+    let monthInterest = 0;
     balances.forEach((d) => {
-      if (d.balance > 0) d.balance *= 1 + d.apr / 100 / 12;
+      if (d.balance > 0) {
+        const interest = d.balance * d.apr / 100 / 12;
+        d.balance += interest;
+        monthInterest += interest;
+      }
     });
+    cumInterest += monthInterest;
 
     // budget: pay minimums at least; roll surplus forward; never exceed available cash
     const minTotal = balances.reduce((s, d) => s + (d.balance > 0 ? d.min : 0), 0);
@@ -123,6 +130,7 @@ export function computeTrajectory({
       date: addMonths(now, m),
       netWorth: cash - debtRemaining,
       debtRemaining,
+      cumInterest,
       income: recIn,
       expenses: recOut,
       monthlyNet,
@@ -162,4 +170,91 @@ export function solveExtraForTarget({
     else lo = mid + 1;
   }
   return { extra: ans, reached: ans != null };
+}
+
+/**
+ * Sort active debts by the given strategy. Returns the original debt objects
+ * (with all their fields) in payoff-priority order.
+ */
+export function sortDebts(debts, method = "avalanche") {
+  return debts
+    .filter((d) => (d.current_balance || 0) > 0.005)
+    .sort((a, b) =>
+      method === "avalanche"
+        ? (b.interest_rate || 0) - (a.interest_rate || 0) || (a.current_balance || 0) - (b.current_balance || 0)
+        : (a.current_balance || 0) - (b.current_balance || 0) || (b.interest_rate || 0) - (a.interest_rate || 0)
+    );
+}
+
+/**
+ * Unified flat-surplus simulation — runs computeTrajectory once with a virtual
+ * unlimited-cash account so the cash constraint never interferes, then extracts
+ * the payoff summary *and* the month-by-month series from a single pass.
+ *
+ * Replaces the old simulatePayoff + simulateTimeline combo.
+ */
+export function simulateFlatRun(debts, surplus, method = "avalanche", maxMonths = 600) {
+  const order = sortDebts(debts, method);
+  const totalDebt = order.reduce((s, d) => s + (d.current_balance || 0), 0);
+
+  if (!order.length || surplus <= 0) {
+    return {
+      months: 0,
+      debtFreeDate: null,
+      totalDebt,
+      totalInterest: 0,
+      order,
+      series: [{ month: 0, balance: totalDebt }],
+    };
+  }
+
+  const { series: traj } = computeTrajectory({
+    debts,
+    accounts: [{ balance: 1e15 }],
+    transactions: [],
+    months: maxMonths,
+    method,
+    extraPayment: surplus,
+  });
+
+  const debtFreeMonth = traj.findIndex((p) => p.debtRemaining <= 0.005);
+  const totalInterest = debtFreeMonth > 0
+    ? traj[debtFreeMonth].cumInterest
+    : traj[traj.length - 1]?.cumInterest || 0;
+  const flatSeries = traj.map((p) => ({ month: p.month, balance: Math.max(0, p.debtRemaining) }));
+
+  return {
+    months: debtFreeMonth > 0 ? debtFreeMonth : 0,
+    debtFreeDate: debtFreeMonth > 0 ? traj[debtFreeMonth].date : null,
+    totalDebt,
+    totalInterest,
+    order,
+    series: flatSeries,
+  };
+}
+
+/** Thin wrappers preserving the old debtStrategy.js API shapes. */
+export function simulatePayoff(debts, surplus, method = "avalanche") {
+  const { months, debtFreeDate, totalDebt, totalInterest, order } = simulateFlatRun(debts, surplus, method);
+  return { months, debtFreeDate, totalDebt, totalInterest, order };
+}
+
+export function simulateTimeline(debts, surplus, method = "avalanche") {
+  const { months, totalInterest, series } = simulateFlatRun(debts, surplus, method);
+  return { months, totalInterest, series };
+}
+
+export function computeSavings(debts, baseSurplus, extra, method = "avalanche") {
+  const base = simulateFlatRun(debts, baseSurplus || 0, method);
+  const optimal = simulateFlatRun(debts, (baseSurplus || 0) + (extra || 0), method);
+  return {
+    baseMonths: base.months,
+    baseInterest: base.totalInterest,
+    optMonths: optimal.months,
+    optInterest: optimal.totalInterest,
+    monthsFaster: Math.max(0, base.months - optimal.months),
+    interestSaved: Math.max(0, base.totalInterest - optimal.totalInterest),
+    baseDate: base.debtFreeDate,
+    optDate: optimal.debtFreeDate,
+  };
 }
