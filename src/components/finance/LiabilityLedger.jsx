@@ -6,7 +6,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, CreditCard, Trash2, ChevronDown } from "lucide-react";
+import { Plus, CreditCard, Trash2, ChevronDown, Eye } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { motion } from "framer-motion";
 import confetti from "canvas-confetti";
@@ -58,6 +58,12 @@ export default function LiabilityLedger({ debts, onChanged }) {
 
   async function remove(id) {
     await base44.entities.Debt.delete(id);
+    onChanged?.();
+  }
+
+  async function toggleShowOnAccounts(d) {
+    const next = d.show_in_accounts ? false : true;
+    await base44.entities.Debt.update(d.id, { show_in_accounts: next });
     onChanged?.();
   }
 
@@ -133,6 +139,19 @@ export default function LiabilityLedger({ debts, onChanged }) {
                 <p className="text-[10px] uppercase tracking-widest text-white/50 mt-0.5">{isCleared ? "Cleared" : "Active liability"}</p>
               </div>
               <div className="flex items-center gap-1.5">
+                {!isCleared && (
+                  <button
+                    onClick={() => toggleShowOnAccounts(d)}
+                    title="Toggle show on Accounts"
+                    className={`flex items-center gap-1 text-[10px] uppercase tracking-widest border px-2 py-0.5 transition-colors ${
+                      d.show_in_accounts
+                        ? "border-emerald-500/40 text-emerald-300 bg-emerald-500/10"
+                        : "border-white/10 text-white/40 hover:text-white"
+                    }`}
+                  >
+                    <Eye className="h-3 w-3" /> {d.show_in_accounts ? "On accounts" : "Show on accounts"}
+                  </button>
+                )}
                 {isCleared ? (
                   <div className="px-2 py-1 bg-emerald-500/20 text-emerald-400 font-mono text-xs uppercase border border-emerald-500/50">Cleared</div>
                 ) : (

@@ -130,7 +130,9 @@ export default function AccountsManager({ onChanged }) {
   }, [stocks]);
   const investTotal = investmentGroups.reduce((s, g) => s + g.value, 0);
 
-  const activeDebts = debts.filter((d) => (d.status || "active") !== "paid_off");
+  const activeDebts = debts.filter(
+    (d) => (d.status || "active") !== "paid_off" && d.show_in_accounts === true
+  );
   const debtsTotal = activeDebts.reduce((s, d) => s + (d.current_balance || 0), 0);
 
   const fc = useForecast();

@@ -28,6 +28,11 @@
         "paid_off"
       ],
       "default": "active"
+    },
+    "show_in_accounts": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether this debt is surfaced in the Accounts section"
     }
   },
   "required": [

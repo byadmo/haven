@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { base44 } from "@/api/base44Client";
+import { Switch } from "@/components/ui/switch";
 import { format } from "date-fns";
 
 export default function DebtForm({ onSaved }) {
@@ -12,6 +13,7 @@ export default function DebtForm({ onSaved }) {
   const [interestRate, setInterestRate] = React.useState("");
   const [minimumPayment, setMinimumPayment] = React.useState("");
   const [dueDate, setDueDate] = React.useState(format(new Date(), "yyyy-MM-dd"));
+  const [showInAccounts, setShowInAccounts] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
 
   async function handleSubmit(e) {
@@ -27,12 +29,14 @@ export default function DebtForm({ onSaved }) {
         minimum_payment: parseFloat(minimumPayment) || 0,
         due_date: dueDate,
         status: "active",
+        show_in_accounts: showInAccounts,
       });
       setName("");
       setCurrentBalance("");
       setOriginalBalance("");
       setInterestRate("");
       setMinimumPayment("");
+      setShowInAccounts(false);
       onSaved?.();
     } finally {
       setSaving(false);
@@ -68,6 +72,13 @@ export default function DebtForm({ onSaved }) {
       <div>
         <Label htmlFor="ddue" className="text-[11px] text-zinc-500 uppercase tracking-wider">Due Date</Label>
         <Input id="ddue" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="mt-1 bg-zinc-950 border-zinc-800 text-zinc-100 h-10" />
+      </div>
+      <div className="flex items-center justify-between rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2.5">
+        <div>
+          <Label className="text-[11px] text-zinc-500 uppercase tracking-wider">Show on Accounts</Label>
+          <p className="text-[10px] text-zinc-600 mt-0.5">Surface this debt in the Accounts section</p>
+        </div>
+        <Switch checked={showInAccounts} onCheckedChange={setShowInAccounts} />
       </div>
       <Button type="submit" disabled={saving} className="w-full h-11 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold transition-colors">
         {saving ? "Saving…" : "Add Debt"}
