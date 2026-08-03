@@ -49,6 +49,22 @@ function buildPctBar(pct, color) {
   </tr></table>`;
 }
 
+const fmtShort = (n) => {
+  const v = Number(n || 0);
+  if (Math.abs(v) >= 1000000) return `$${(v / 1000000).toFixed(1)}M`;
+  if (Math.abs(v) >= 1000) return `$${(v / 1000).toFixed(1)}k`;
+  return `$${v.toFixed(0)}`;
+};
+
+function trendBar(pct, color) {
+  const p = Math.max(0, Math.min(100, pct));
+  const w = Math.max(p, 2);
+  return `<table width="100%" cellpadding="0" cellspacing="0" style="background:rgba(255,255,255,0.04);border-radius:3px;height:7px;"><tr>
+    <td width="${w}%" style="background:${color};border-radius:3px;height:7px;font-size:0;line-height:0;">&nbsp;</td>
+    <td width="${100 - w}%" style="font-size:0;line-height:0;">&nbsp;</td>
+  </tr></table>`;
+}
+
 export default async function(req) {
   try {
     const base44 = createClientFromRequest(req);
@@ -137,6 +153,77 @@ export default async function(req) {
       const paidByDebt = {};
       monthPayments.forEach((p) => { paidByDebt[p.debt_id] = (paidByDebt[p.debt_id] || 0) + (p.amount || 0); });
 
+      // --- 6-month trend data ---
+      const trendMonths = [];
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date(monthStart.getFullYear(), monthStart.getMonth() - i, 1);
+        trendMonths.push({ year: d.getFullYear(), month: d.getMonth(), label: d.toLocaleDateString('en-US', { month: 'short' }), income: 0, expenses: 0, debtPaid: 0 });
+      }
+      userTxns.forEach((t) => {
+        try {
+          const d = new Date(t.date + 'T00:00:00');
+          const idx = trendMonths.findIndex(m => m.year === d.getFullYear() && m.month === d.getMonth());
+          if (idx === -1) return;
+          if (t.type === 'income') trendMonths[idx].income += t.amount || 0;
+          else trendMonths[idx].expenses += t.amount || 0;
+        } catch {}
+      });
+      userPayments.forEach((p) => {
+        try {
+          const d = new Date(p.date + 'T00:00:00');
+          const idx = trendMonths.findIndex(m => m.year === d.getFullYear() && m.month === d.getMonth());
+          if (idx === -1) return;
+          trendMonths[idx].debtPaid += p.amount || 0;
+        } catch {}
+      });
+
+      const hasTrendData = trendMonths.some(m => m.income > 0 || m.expenses > 0 || m.debtPaid > 0);
+      const maxTrend = Math.max(...trendMonths.map(m => Math.max(m.income, m.expenses)), 1);
+      const maxDebtPaid = Math.max(...trendMonths.map(m => m.debtPaid), 1);
+
+      const trendHtml = trendMonths.map(m => {
+        const incPct = Math.round((m.income / maxTrend) * 100);
+        const expPct = Math.round((m.expenses / maxTrend) * 100);
+        const debtPct = maxDebtPaid > 0 ? Math.round((m.debtPaid / maxDebtPaid) * 100) : 0;
+        const debtRow = m.debtPaid > 0
+          ? `<table cellpadding="0" cellspacing="0" style="height:3px;"><tr><td>&nbsp;</td></tr></table>${trendBar(debtPct, '#f59e0b')}`
+          : '';
+        const debtVal = m.debtPaid > 0
+          ? `<span style="font-size:10px;color:#f59e0b;font-family:${SANS};">${fmtShort(m.debtPaid)}</span>`
+          : '';
+        return `<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:8px;">
+          <tr>
+            <td style="padding:0;font-size:11px;color:rgba(255,255,255,0.5);font-family:${SANS};width:38px;vertical-align:top;padding-top:1px;">${m.label}</td>
+            <td style="padding:0 0 0 10px;vertical-align:top;">
+              ${trendBar(incPct, '#10b981')}
+              <table cellpadding="0" cellspacing="0" style="height:3px;"><tr><td>&nbsp;</td></tr></table>
+              ${trendBar(expPct, '#f43f5e')}
+              ${debtRow}
+            </td>
+            <td style="padding:0 0 0 10px;width:50px;text-align:right;vertical-align:top;line-height:1.4;">
+              <span style="font-size:10px;color:#10b981;font-family:${SANS};">${fmtShort(m.income)}</span><br>
+              <span style="font-size:10px;color:#f43f5e;font-family:${SANS};">${fmtShort(m.expenses)}</span><br>
+              ${debtVal}
+            </td>
+          </tr>
+        </table>`;
+      }).join('');
+
+      let trendSection = '';
+      if (hasTrendData) {
+        trendSection = `<tr><td style="padding:24px 18px 0 18px;">
+  ${sectionHeading('6-Month Trend', '#10b981')}
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#1a1a1a;border:1px solid rgba(255,255,255,0.08);border-radius:10px;"><tr><td style="padding:14px 16px;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:10px;"><tr>
+      <td style="padding:0;font-size:10px;color:#10b981;font-family:${SANS};">&#9679; Income</td>
+      <td style="padding:0 8px;font-size:10px;color:#f43f5e;font-family:${SANS};">&#9679; Expenses</td>
+      <td style="padding:0;font-size:10px;color:#f59e0b;font-family:${SANS};">&#9679; Debt Paid</td>
+    </tr></table>
+    ${trendHtml}
+  </td></tr></table>
+</td></tr>`;
+      }
+
       // --- HTML email sections ---
 
       const savingsColor = savings >= 0 ? '#10b981' : '#f43f5e';
@@ -217,6 +304,7 @@ export default async function(req) {
   ${metricCard('Net Worth', netWorth, '#6366f1')}
 </td></tr>
 
+${trendSection}
 <tr><td style="padding:24px 18px 0 18px;">
   ${sectionHeading('Spending Breakdown', '#f43f5e')}
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#1a1a1a;border:1px solid rgba(255,255,255,0.08);border-radius:10px;"><tr><td style="padding:16px 18px;">${catsHtml}</td></tr></table>
