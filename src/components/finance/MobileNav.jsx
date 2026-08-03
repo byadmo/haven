@@ -12,25 +12,24 @@ const items = [
 ];
 
 export default function MobileNav() {
-  const cls = ({ isActive }) =>
-    `flex flex-col items-center justify-center gap-0.5 py-2 transition-colors duration-150 ${
-      isActive ? "text-emerald-400" : "text-white/40"
-    }`;
   return (
-    <nav
-      className="sm:hidden fixed bottom-0 inset-x-0 z-30 border-t border-white/10 bg-black select-none rounded-t-3xl overflow-hidden"
-      style={{
-        paddingBottom: "calc(env(safe-area-inset-bottom) + 10px)",
-        paddingLeft: "max(env(safe-area-inset-left), 18px)",
-        paddingRight: "max(env(safe-area-inset-right), 18px)",
-      }}
+    <nav className="sm:hidden fixed inset-x-0 z-30 flex justify-center pointer-events-none"
+      style={{ bottom: "calc(env(safe-area-inset-bottom) + 12px)" }}
       aria-label="Primary"
     >
-      <div className="grid grid-cols-6">
+      <div className="pointer-events-auto flex items-center gap-1 rounded-full border border-white/10 bg-zinc-900/95 backdrop-blur-md px-2.5 py-1.5 shadow-lg">
         {items.map(({ to, label, icon: Icon, end }) => (
-          <NavLink key={to} to={to} end={end} className={cls}>
-            <Icon className="h-[18px] w-[18px]" />
-            <span className="text-[9px] uppercase tracking-[0.15em] font-mono">{label}</span>
+          <NavLink key={to} to={to} end={end} className="flex-col items-center justify-center rounded-full transition-all duration-150 px-2.5 py-1.5">
+            {({ isActive }) => (
+              <div className={`flex flex-col items-center justify-center gap-0.5 rounded-full px-1.5 py-1 transition-all duration-150 ${
+                isActive ? "bg-white/10" : ""
+              }`}>
+                <Icon className={`h-[16px] w-[16px] transition-colors ${isActive ? "text-white" : "text-white/40"}`} />
+                <span className={`text-[8px] uppercase tracking-[0.1em] font-mono transition-colors ${isActive ? "text-white" : "text-white/40"}`}>
+                  {label}
+                </span>
+              </div>
+            )}
           </NavLink>
         ))}
       </div>
