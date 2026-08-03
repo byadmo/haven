@@ -15,6 +15,7 @@ import { adjustLinkedBalance, txEffect, balanceApplies } from "@/lib/accounts";
 import { AnimatePresence, motion } from "framer-motion";
 import RecurringFields from "@/components/finance/RecurringFields";
 import { useCategories, categoryOptions } from "@/lib/categories";
+import TransactionExplorerModal from "@/components/finance/TransactionExplorerModal";
 
 
 function Row({ t, accountsMap, onChanged, categories }) {
@@ -242,6 +243,7 @@ function Row({ t, accountsMap, onChanged, categories }) {
 export default function RecentTransactions({ transactions, accounts = [], onChanged, debts = [], refreshKey = 0 }) {
   const [filter, setFilter] = React.useState("all");
   const [query, setQuery] = React.useState("");
+  const [explorerOpen, setExplorerOpen] = React.useState(false);
   const [payments, setPayments] = React.useState([]);
   const { categories: cats } = useCategories();
   const options = categoryOptions(cats);
@@ -264,15 +266,16 @@ export default function RecentTransactions({ transactions, accounts = [], onChan
     note: p.note,
   }));
 
-  const filtered = [...transactions, ...debtRows]
+  const allFiltered = [...transactions, ...debtRows]
     .filter((t) => (filter === "all" ? true : t.type === filter))
     .filter((t) =>
       query.trim()
         ? (t.description + " " + (t.category || "")).toLowerCase().includes(query.toLowerCase().trim())
         : true
     )
-    .sort((a, b) => new Date(b.date) - new Date(a.date))
-    .slice(0, 30);
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
+  const filtered = allFiltered.slice(0, 8);
+  const totalCount = allFiltered.length;
 
   const tabs = [
     { id: "all", label: "All" },
@@ -322,6 +325,23 @@ export default function RecentTransactions({ transactions, accounts = [], onChan
           )}
         </AnimatePresence>
       </div>
+
+      {totalCount > filtered.length && (
+        <button
+          onClick={() => setExplorerOpen(true)}
+          className="w-full mt-3 py-2 text-xs uppercase tracking-widest text-zinc-500 hover:text-zinc-200 border border-zinc-800 rounded-lg hover:border-zinc-700 transition-colors"
+        >
+          Show All ({totalCount})
+        </button>
+      )}
+
+      <TransactionExplorerModal
+        open={explorerOpen}
+        onOpenChange={setExplorerOpen}
+        transactions={transactions}
+        debtRows={debtRows}
+        accountsMap={accountsMap}
+      />
     </div>
   );
 }
