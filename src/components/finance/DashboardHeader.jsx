@@ -2,6 +2,7 @@ import React from "react";
 import { Link, NavLink } from "react-router-dom";
 import { Wallet } from "lucide-react";
 import { format } from "date-fns";
+import CommandPalette from "@/components/finance/CommandPalette";
 
 export default function DashboardHeader({ actions }) {
   const now = new Date();
@@ -15,7 +16,7 @@ export default function DashboardHeader({ actions }) {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between gap-3">
         <div className="flex items-center gap-4">
           <Link to="/" className="flex items-center gap-2.5">
-            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center shadow-lg shadow-violet-500/30">
+            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-indigo-500 to-blue-500 flex items-center justify-center shadow-lg shadow-indigo-500/30">
               <Wallet className="h-4 w-4 text-white" />
             </div>
             <div>
@@ -29,7 +30,10 @@ export default function DashboardHeader({ actions }) {
             <NavLink to="/portfolio" className={linkClass}>Portfolio</NavLink>
           </nav>
         </div>
-        {actions && <div className="flex gap-2">{actions}</div>}
+        <div className="flex items-center gap-2">
+          <CommandPalette />
+          {actions && <div className="flex gap-2">{actions}</div>}
+        </div>
       </div>
     </header>
   );
