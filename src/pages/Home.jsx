@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import {
   startOfMonth, endOfMonth, isWithinInterval, parseISO, subMonths,
 } from "date-fns";
-import { Plus, X, ArrowRight } from "lucide-react";
+import { Plus, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import DashboardHeader from "@/components/finance/DashboardHeader";
 import QuickAddModal from "@/components/finance/QuickAddModal";
@@ -18,6 +18,7 @@ import { computeTrajectory } from "@/lib/trajectory";
 import { ForecastProvider } from "@/lib/forecast-context";
 import LiabilityLedger from "@/components/finance/LiabilityLedger";
 import DebtForm from "@/components/finance/DebtForm";
+import DebtModal from "@/components/finance/DebtModal";
 import AccountsManager from "@/components/finance/AccountsManager";
 import Reveal from "@/components/finance/Reveal";
 import { Link } from "react-router-dom";
@@ -188,21 +189,11 @@ export default function Home() {
         onSaved={() => setRefreshKey((k) => k + 1)}
       />
 
-      {showDebtForm && (
-        <div className="fixed inset-0 z-50 flex justify-end">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowDebtForm(false)} />
-          <div className="relative w-full max-w-md bg-zinc-900 border-l border-zinc-800 shadow-2xl overflow-y-auto p-6">
-            <div className="mb-5">
-              <div className="flex items-center justify-between">
-                <h2 className="font-semibold text-lg text-zinc-50">Add Liability</h2>
-                <Button variant="ghost" size="icon" onClick={() => setShowDebtForm(false)} className="text-zinc-400 hover:text-zinc-100"><X className="h-5 w-5" /></Button>
-              </div>
-              <p className="text-sm text-zinc-500 mt-1">Add a debt to your ledger — Tab to move, Enter to save.</p>
-            </div>
-            <DebtForm onSaved={() => { setShowDebtForm(false); setRefreshKey((k) => k + 1); }} />
-          </div>
-        </div>
-      )}
+      <DebtModal
+        open={showDebtForm}
+        onOpenChange={setShowDebtForm}
+        onSaved={() => setRefreshKey((k) => k + 1)}
+      />
     </div>
   );
 }
