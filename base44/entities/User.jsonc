@@ -7,6 +7,20 @@
         "admin",
         "user"
       ]
+    },
+    "report_enabled": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether the user wants automated email reports"
+    },
+    "report_frequency": {
+      "type": "string",
+      "enum": [
+        "monthly",
+        "weekly"
+      ],
+      "default": "monthly",
+      "description": "How often to receive automated reports"
     }
   },
   "required": [

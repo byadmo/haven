@@ -1,0 +1,47 @@
+{
+  "name": "Weekly Summary Report",
+  "description": "Sends a month-to-date spending and debt progress summary email to each opted-in weekly-frequency user every Monday at 9 AM.",
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "recurring",
+      "cron_expression": "0 9 * * 1",
+      "timezone": "America/Toronto",
+      "one_time_date": null,
+      "interval_value": null,
+      "interval_unit": null,
+      "interval_anchor": null,
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "weekly_summary_report",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "send_report": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "GenerateMonthlyReport",
+            "args": {
+              "schedule": "weekly"
+            }
+          },
+          "then": "end",
+          "x-base44": {
+            "title": "Send weekly report",
+            "description": "Email month-to-date summary to weekly users"
+          }
+        }
+      }
+    ]
+  }
+}

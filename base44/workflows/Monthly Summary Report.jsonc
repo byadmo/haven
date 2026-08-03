@@ -1,0 +1,47 @@
+{
+  "name": "Monthly Summary Report",
+  "description": "Sends a spending and debt progress summary email to each opted-in monthly-frequency user on the 1st of every month at 9 AM.",
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "recurring",
+      "cron_expression": "0 9 1 * *",
+      "timezone": "America/Toronto",
+      "one_time_date": null,
+      "interval_value": null,
+      "interval_unit": null,
+      "interval_anchor": null,
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "monthly_summary_report",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "send_report": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "GenerateMonthlyReport",
+            "args": {
+              "schedule": "monthly"
+            }
+          },
+          "then": "end",
+          "x-base44": {
+            "title": "Send monthly report",
+            "description": "Email spending & debt summary to monthly users"
+          }
+        }
+      }
+    ]
+  }
+}
