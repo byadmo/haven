@@ -17,6 +17,7 @@ import ScrubbableTimeline from "@/components/finance/ScrubbableTimeline";
 import { computeTrajectory } from "@/lib/trajectory";
 import { ForecastProvider } from "@/lib/forecast-context";
 import LiabilityLedger from "@/components/finance/LiabilityLedger";
+import DebtRepaymentGraph from "@/components/finance/DebtRepaymentGraph";
 import DebtForm from "@/components/finance/DebtForm";
 import DebtModal from "@/components/finance/DebtModal";
 import AccountsManager from "@/components/finance/AccountsManager";
@@ -177,7 +178,10 @@ export default function Home() {
             <h2 className="font-semibold text-sm text-zinc-100">Liability Ledger</h2>
             <p className="text-xs text-zinc-500">Manage your active debts</p>
           </div>
-          <Reveal><LiabilityLedger debts={debts} onChanged={() => setRefreshKey((k) => k + 1)} /></Reveal>
+          <div className="space-y-4">
+            <Reveal><DebtRepaymentGraph debts={debts} /></Reveal>
+            <Reveal><LiabilityLedger debts={debts} onChanged={() => setRefreshKey((k) => k + 1)} /></Reveal>
+          </div>
         </section>
       </main>
       </ForecastProvider>

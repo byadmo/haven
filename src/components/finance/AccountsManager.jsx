@@ -161,7 +161,7 @@ export default function AccountsManager({ onChanged }) {
             >
               <Briefcase className="h-3.5 w-3.5" /> {showInvestments ? "Investments on" : "Investments"}
               </button>
-              <span className="text-sm font-bold font-mono tabular-nums tracking-tight text-emerald-400">
+              <span className={`text-sm font-bold font-mono tabular-nums tracking-tight ${dispTotal < 0 ? "text-rose-400" : "text-emerald-400"}`}>
               {fmt(dispTotal)}
               </span>
           </div>
