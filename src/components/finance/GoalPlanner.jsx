@@ -28,6 +28,15 @@ export default function GoalPlanner({ debts, accounts, transactions, method, mon
   const goalFreeMonth = goalSeries?.find((p) => p.debtRemaining <= 0.005)?.month;
   const goalFreeDate = goalFreeMonth != null ? format(goalSeries[goalFreeMonth].date, "MMM yyyy") : null;
 
+  // Earliest possible debt-free date: pay nothing extra, just minimums + monthly surplus from recurring income/expenses
+  const earliestTraj = React.useMemo(
+    () => computeTrajectory({ debts, accounts, transactions, months: 120, method, extraPayment: 0 }),
+    [debts, accounts, transactions, method]
+  );
+  const earliestFreeMonth = earliestTraj.series.findIndex((p) => p.debtRemaining <= 0.005);
+  const earliestDate = earliestFreeMonth >= 0 ? format(earliestTraj.series[earliestFreeMonth].date, "MMM yyyy") : null;
+  const monthlySurplus = earliestTraj.series[0]?.monthlyNet || 0;
+
   return (
     <div>
       <div className="flex items-center gap-2 mb-2">
@@ -40,7 +49,24 @@ export default function GoalPlanner({ debts, accounts, transactions, method, mon
         </div>
       </div>
 
-      <div className="mt-3">
+      {/* Earliest possible date */}
+      <div className="mt-3 p-3 rounded-md border border-emerald-500/20 bg-emerald-500/5 flex flex-wrap items-center gap-x-6 gap-y-2">
+        <div>
+          <p className="text-[10px] tracking-[0.2em] uppercase text-white/50 font-mono">Earliest Possible · Paying Just Minimums + Surplus</p>
+          <p className="text-xl font-mono tabular-nums text-emerald-400">{earliestDate || "10+ years"}</p>
+        </div>
+        <div className="flex gap-4 text-sm">
+          <div>
+            <span className="text-[10px] uppercase tracking-widest text-white/50 font-mono">Surplus</span>
+            <p className="font-mono tabular-nums text-zinc-200">{fmt(monthlySurplus)}<span className="text-xs text-white/40">/mo</span></p>
+          </div>
+        </div>
+        <p className="text-[10px] text-white/40 leading-relaxed flex-1 min-w-[200px]">
+          This is the fastest you'd be debt-free with your current recurring income and expenses — no extra payments needed. Pick a date below to see if you can beat it.
+        </p>
+      </div>
+
+      <div className="mt-4">
         <Label className="text-[10px] tracking-[0.2em] uppercase text-white/50 font-mono">When do you want to be debt-free?</Label>
         <div className="flex flex-col sm:flex-row sm:items-end gap-4 mt-2">
           <div className="flex items-center gap-2 flex-1">
