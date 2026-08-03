@@ -12,6 +12,9 @@ import CashFlowAnalytics from "@/components/finance/CashFlowAnalytics";
 import RecentTransactions from "@/components/finance/RecentTransactions";
 import UpcomingRecurring from "@/components/finance/UpcomingRecurring";
 import CashBuffer from "@/components/finance/CashBuffer";
+import TelemetryReadout from "@/components/finance/TelemetryReadout";
+import ScrubbableTimeline from "@/components/finance/ScrubbableTimeline";
+import { computeTrajectory } from "@/lib/trajectory";
 import LiabilityLedger from "@/components/finance/LiabilityLedger";
 import DebtForm from "@/components/finance/DebtForm";
 import AccountsManager from "@/components/finance/AccountsManager";
@@ -26,6 +29,18 @@ export default function Home() {
   const [refreshKey, setRefreshKey] = React.useState(0);
   const [quickAdd, setQuickAdd] = React.useState(false);
   const [showDebtForm, setShowDebtForm] = React.useState(false);
+  const [playhead, setPlayhead] = React.useState(0);
+
+  const trajectory = React.useMemo(
+    () => computeTrajectory({ debts, accounts, transactions: txns }),
+    [debts, accounts, txns]
+  );
+
+  React.useEffect(() => {
+    if (playhead > trajectory.series.length - 1) setPlayhead(0);
+  }, [trajectory.series.length, playhead]);
+
+  const point = trajectory.series[Math.min(playhead, trajectory.series.length - 1)] || trajectory.series[0];
 
   const loadData = React.useCallback(async () => {
     const [t, d, a] = await Promise.all([
@@ -76,7 +91,7 @@ export default function Home() {
 
   if (loading) {
     return (
-      <div className="dark min-h-screen bg-zinc-950 flex items-center justify-center">
+      <div className="dark min-h-screen bg-black flex items-center justify-center">
         <div className="w-8 h-8 border-4 border-zinc-800 border-t-zinc-400 rounded-full animate-spin" />
       </div>
     );
@@ -103,15 +118,23 @@ export default function Home() {
   );
 
   return (
-    <div className="dark min-h-screen bg-zinc-950 text-zinc-100 selection:bg-indigo-500/30">
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute -top-40 -right-40 h-96 w-96 rounded-full bg-indigo-600/10 blur-[120px]" />
-        <div className="absolute -bottom-40 -left-40 h-96 w-96 rounded-full bg-emerald-600/10 blur-[120px]" />
-      </div>
+    <div className="dark min-h-screen bg-black text-zinc-100 selection:bg-emerald-500/30">
 
       <DashboardHeader actions={headerActions} />
 
       <main className="relative max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+        <Reveal>
+          <div className="border border-white/10 bg-black">
+            <TelemetryReadout point={point} />
+            <ScrubbableTimeline
+              series={trajectory.series}
+              keyframes={trajectory.keyframes}
+              index={playhead}
+              onIndex={setPlayhead}
+            />
+          </div>
+        </Reveal>
+
         <Reveal>
           <MetricsRow
             netWorth={netWorth}
