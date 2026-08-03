@@ -340,6 +340,7 @@ export default function AccountsManager({ onChanged }) {
         open={scanOpen}
         onOpenChange={setScanOpen}
         accounts={accounts}
+        debts={debts}
         onSaved={load}
       />
     </div>

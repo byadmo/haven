@@ -9,7 +9,7 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
-import { UploadCloud, Loader2, Check, Camera, ScanLine, Building2, Plus, X } from "lucide-react";
+import { UploadCloud, Loader2, Check, Camera, ScanLine, Building2, Plus, X, CreditCard } from "lucide-react";
 
 const EXTRACT_SCHEMA = {
   type: "object",
@@ -19,21 +19,29 @@ const EXTRACT_SCHEMA = {
       items: {
         type: "object",
         properties: {
-          account_name: { type: "string", description: "The name of the bank account shown (e.g. 'RBC Chequing', 'TD Savings', 'Scotia Momentum')" },
-          balance: { type: "number", description: "The current balance amount shown in the image" },
+          account_name: { type: "string", description: "The name of the financial account or card shown (e.g. 'RBC Chequing', 'TD Savings', 'Scotia Momentum Visa', 'PC Mastercard', 'CIBC Line of Credit', 'BMO Mortgage')" },
+          balance: { type: "number", description: "The current balance amount shown. For credit cards and loans, this is the outstanding balance owed (positive number)." },
+          account_type: {
+            type: "string",
+            enum: ["chequing", "savings", "credit_card", "line_of_credit", "loan", "mortgage", "investment", "other"],
+            description: "Account type. Use 'credit_card' for any credit card (Visa, Mastercard, Amex), 'line_of_credit' for lines of credit, 'loan' for personal/auto loans, 'mortgage' for mortgages."
+          },
         },
-        required: ["account_name", "balance"],
+        required: ["account_name", "balance", "account_type"],
       },
     },
   },
   required: ["accounts"],
 };
 
+const LIABILITY_TYPES = new Set(["credit_card", "line_of_credit", "loan", "mortgage"]);
+const isLiabilityType = (t) => LIABILITY_TYPES.has(t);
+
 const fmt = (v) => (v || 0).toLocaleString(undefined, {
   style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2,
 });
 
-export default function AccountBalanceImportModal({ open, onOpenChange, accounts = [], onSaved }) {
+export default function AccountBalanceImportModal({ open, onOpenChange, accounts = [], debts = [], onSaved }) {
   const [file, setFile] = React.useState(null);
   const [preview, setPreview] = React.useState(null);
   const [parsing, setParsing] = React.useState(false);
@@ -99,19 +107,22 @@ export default function AccountBalanceImportModal({ open, onOpenChange, accounts
       if (items.length === 1) {
         const accountName = items[0].account_name || "";
         const bal = Number(items[0].balance) || 0;
-        setParsed({ account_name: accountName, balance: bal });
+        const atype = items[0].account_type || "other";
+        const liability = isLiabilityType(atype);
+        setParsed({ account_name: accountName, balance: bal, account_type: atype, isLiability: liability });
         setBalance(String(bal));
         setNewAccountName(accountName);
-        const match = accounts.find(
+        const pool = liability ? debts : accounts;
+        const match = pool.find(
           (a) => a.name.toLowerCase().includes(accountName.toLowerCase()) ||
                  accountName.toLowerCase().includes(a.name.toLowerCase())
         );
         if (match) {
           setMode("existing");
           setSelectedAccountId(match.id);
-        } else if (accounts.length > 0) {
+        } else if (pool.length > 0) {
           setMode("existing");
-          setSelectedAccountId(accounts[0].id);
+          setSelectedAccountId(pool[0].id);
         } else {
           setMode("new");
         }
@@ -119,15 +130,20 @@ export default function AccountBalanceImportModal({ open, onOpenChange, accounts
         setParsed({ account_name: "", balance: 0 });
         setMultiParsed(items.map((item) => {
           const name = item.account_name || "";
-          const match = accounts.find(
+          const atype = item.account_type || "other";
+          const liability = isLiabilityType(atype);
+          const pool = liability ? debts : accounts;
+          const match = pool.find(
             (a) => a.name.toLowerCase().includes(name.toLowerCase()) ||
                    name.toLowerCase().includes(a.name.toLowerCase())
           );
           return {
             account_name: name,
             balance: Number(item.balance) || 0,
+            account_type: atype,
+            isLiability: liability,
             editedBalance: String(Number(item.balance) || 0),
-            matchedAccountId: match?.id || (accounts.length > 0 ? accounts[0].id : ""),
+            matchedAccountId: match?.id || (pool.length > 0 ? pool[0].id : ""),
             dismissed: false,
           };
         }));
@@ -148,7 +164,15 @@ export default function AccountBalanceImportModal({ open, onOpenChange, accounts
     setSaving(true);
     setError("");
     try {
-      if (mode === "existing") {
+      if (parsed?.isLiability) {
+        if (mode === "existing") {
+          if (!selectedAccountId) { setError("Select a liability to update."); setSaving(false); return; }
+          await base44.entities.Debt.update(selectedAccountId, { current_balance: bal });
+        } else {
+          if (!newAccountName.trim()) { setError("Enter a name."); setSaving(false); return; }
+          await base44.entities.Debt.create({ name: newAccountName.trim(), current_balance: bal });
+        }
+      } else if (mode === "existing") {
         if (!selectedAccountId) { setError("Select an account to update."); setSaving(false); return; }
         await base44.entities.Account.update(selectedAccountId, { balance: bal });
       } else {
@@ -192,10 +216,18 @@ export default function AccountBalanceImportModal({ open, onOpenChange, accounts
     try {
       for (const it of active) {
         const bal = parseFloat(it.editedBalance);
-        if (it.matchedAccountId) {
-          await base44.entities.Account.update(it.matchedAccountId, { balance: bal });
+        if (it.isLiability) {
+          if (it.matchedAccountId) {
+            await base44.entities.Debt.update(it.matchedAccountId, { current_balance: bal });
+          } else {
+            await base44.entities.Debt.create({ name: it.account_name.trim() || "Scanned Card", current_balance: bal });
+          }
         } else {
-          await base44.entities.Account.create({ name: it.account_name.trim() || "Scanned Account", type: "chequing", balance: bal });
+          if (it.matchedAccountId) {
+            await base44.entities.Account.update(it.matchedAccountId, { balance: bal });
+          } else {
+            await base44.entities.Account.create({ name: it.account_name.trim() || "Scanned Account", type: "chequing", balance: bal });
+          }
         }
       }
       onSaved?.();
@@ -267,20 +299,20 @@ export default function AccountBalanceImportModal({ open, onOpenChange, accounts
 
           {parsed && !multiParsed && (
             <>
-              <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3.5 flex items-center gap-3">
-                <div className="h-10 w-10 rounded-lg bg-emerald-500/15 flex items-center justify-center shrink-0">
-                  <Building2 className="h-5 w-5 text-emerald-400" />
+              <div className={`rounded-lg border p-3.5 flex items-center gap-3 ${parsed.isLiability ? "border-rose-500/20 bg-rose-500/5" : "border-emerald-500/20 bg-emerald-500/5"}`}>
+                <div className={`h-10 w-10 rounded-lg flex items-center justify-center shrink-0 ${parsed.isLiability ? "bg-rose-500/15" : "bg-emerald-500/15"}`}>
+                  {parsed.isLiability ? <CreditCard className="h-5 w-5 text-rose-400" /> : <Building2 className="h-5 w-5 text-emerald-400" />}
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[10px] uppercase tracking-widest text-emerald-400/60">Detected</p>
+                  <p className={`text-[10px] uppercase tracking-widest ${parsed.isLiability ? "text-rose-400/60" : "text-emerald-400/60"}`}>{parsed.isLiability ? "Detected · Liability" : "Detected"}</p>
                   <p className="text-sm font-medium text-zinc-100 truncate">{parsed.account_name || "Unknown account"}</p>
-                  <p className="text-lg font-bold font-mono tabular-nums text-emerald-400">{fmt(parsed.balance)}</p>
+                  <p className={`text-lg font-bold font-mono tabular-nums ${parsed.isLiability ? "text-rose-400" : "text-emerald-400"}`}>{fmt(parsed.balance)}</p>
                 </div>
               </div>
 
               <div>
                 <Label className="text-[10px] uppercase tracking-widest text-white/50 mb-2 block">
-                  Is this an existing account or a new one?
+                  Is this an existing {parsed.isLiability ? "liability" : "account"} or a new one?
                 </Label>
                 <div className="grid grid-cols-2 gap-2">
                   <button
@@ -310,16 +342,16 @@ export default function AccountBalanceImportModal({ open, onOpenChange, accounts
               {mode === "existing" && (
                 <div>
                   <Label className="text-[10px] uppercase tracking-widest text-white/50 mb-1.5 block">
-                    Select account
+                    Select {parsed.isLiability ? "liability" : "account"}
                   </Label>
                   <Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
                     <SelectTrigger className="bg-black border-white/10 text-zinc-100">
-                      <SelectValue placeholder="Choose an account…" />
+                      <SelectValue placeholder={`Choose a ${parsed.isLiability ? "liability" : "account"}…`} />
                     </SelectTrigger>
                     <SelectContent className="bg-black border-white/10">
-                      {accounts.map((a) => (
+                      {(parsed.isLiability ? debts : accounts).map((a) => (
                         <SelectItem key={a.id} value={a.id}>
-                          {a.name} <span className="text-white/40 ml-1">({fmt(a.balance || 0)})</span>
+                          {a.name} <span className="text-white/40 ml-1">({fmt((parsed.isLiability ? a.current_balance : a.balance) || 0)})</span>
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -331,29 +363,31 @@ export default function AccountBalanceImportModal({ open, onOpenChange, accounts
                 <div className="space-y-3">
                   <div>
                     <Label className="text-[10px] uppercase tracking-widest text-white/50 mb-1.5 block">
-                      Account name
+                      {parsed.isLiability ? "Liability name" : "Account name"}
                     </Label>
                     <Input
                       value={newAccountName}
                       onChange={(e) => setNewAccountName(e.target.value)}
-                      placeholder="Account name"
+                      placeholder={parsed.isLiability ? "e.g. Scotia Momentum Visa" : "Account name"}
                       className="bg-black border-white/10 text-zinc-100"
                     />
                   </div>
-                  <div>
-                    <Label className="text-[10px] uppercase tracking-widest text-white/50 mb-1.5 block">
-                      Account type
-                    </Label>
-                    <Select value={newAccountType} onValueChange={setNewAccountType}>
-                      <SelectTrigger className="bg-black border-white/10 text-zinc-100">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-black border-white/10">
-                        <SelectItem value="chequing">Chequing</SelectItem>
-                        <SelectItem value="savings">Savings</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  {!parsed.isLiability && (
+                    <div>
+                      <Label className="text-[10px] uppercase tracking-widest text-white/50 mb-1.5 block">
+                        Account type
+                      </Label>
+                      <Select value={newAccountType} onValueChange={setNewAccountType}>
+                        <SelectTrigger className="bg-black border-white/10 text-zinc-100">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-black border-white/10">
+                          <SelectItem value="chequing">Chequing</SelectItem>
+                          <SelectItem value="savings">Savings</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -389,7 +423,7 @@ export default function AccountBalanceImportModal({ open, onOpenChange, accounts
                   {saving ? (
                     <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> Saving…</>
                   ) : (
-                    <><Check className="h-4 w-4 mr-1.5" /> {mode === "existing" ? "Update Balance" : "Create Account"}</>
+                    <><Check className="h-4 w-4 mr-1.5" /> {mode === "existing" ? "Update Balance" : parsed.isLiability ? "Create Liability" : "Create Account"}</>
                   )}
                 </Button>
               </div>
@@ -413,12 +447,12 @@ export default function AccountBalanceImportModal({ open, onOpenChange, accounts
                 >
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex items-center gap-2 min-w-0">
-                      <div className="h-8 w-8 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
-                        <Building2 className="h-4 w-4 text-emerald-400" />
+                      <div className={`h-8 w-8 rounded-lg flex items-center justify-center shrink-0 ${item.isLiability ? "bg-rose-500/10" : "bg-emerald-500/10"}`}>
+                        {item.isLiability ? <CreditCard className="h-4 w-4 text-rose-400" /> : <Building2 className="h-4 w-4 text-emerald-400" />}
                       </div>
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-zinc-100 truncate">{item.account_name || "Unknown account"}</p>
-                        <p className="text-[10px] font-mono tabular-nums text-white/40">Detected: {fmt(item.balance)}</p>
+                        <p className="text-[10px] font-mono tabular-nums text-white/40">{item.isLiability ? "Liability" : "Detected"}: {fmt(item.balance)}</p>
                       </div>
                     </div>
                     <button
@@ -437,18 +471,18 @@ export default function AccountBalanceImportModal({ open, onOpenChange, accounts
                         onChange={(e) => updateMultiBalance(idx, e.target.value)}
                         className="bg-black border-white/10 text-zinc-100 text-base font-mono tabular-nums mb-2"
                       />
-                      {accounts.length > 0 && (
+                      {(item.isLiability ? debts : accounts).length > 0 && (
                         <Select
                           value={item.matchedAccountId}
                           onValueChange={(v) => updateMultiAccount(idx, v)}
                         >
                           <SelectTrigger className="bg-black border-white/10 text-zinc-100 h-8">
-                            <SelectValue placeholder="Match to account…" />
+                            <SelectValue placeholder={`Match to ${item.isLiability ? "liability" : "account"}…`} />
                           </SelectTrigger>
                           <SelectContent className="bg-black border-white/10">
-                            {accounts.map((a) => (
+                            {(item.isLiability ? debts : accounts).map((a) => (
                               <SelectItem key={a.id} value={a.id}>
-                                {a.name} <span className="text-white/40 ml-1">({fmt(a.balance || 0)})</span>
+                                {a.name} <span className="text-white/40 ml-1">({fmt((item.isLiability ? a.current_balance : a.balance) || 0)})</span>
                               </SelectItem>
                             ))}
                           </SelectContent>
