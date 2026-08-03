@@ -20,9 +20,9 @@ export default function MobileNav() {
     <nav
       className="sm:hidden fixed bottom-0 inset-x-0 z-30 border-t border-white/10 bg-black select-none rounded-t-3xl overflow-hidden"
       style={{
-        paddingBottom: "env(safe-area-inset-bottom)",
-        paddingLeft: "max(env(safe-area-inset-left), 12px)",
-        paddingRight: "max(env(safe-area-inset-right), 12px)",
+        paddingBottom: "calc(env(safe-area-inset-bottom) + 10px)",
+        paddingLeft: "max(env(safe-area-inset-left), 18px)",
+        paddingRight: "max(env(safe-area-inset-right), 18px)",
       }}
       aria-label="Primary"
     >
