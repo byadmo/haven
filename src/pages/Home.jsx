@@ -102,9 +102,8 @@ export default function Home() {
       </Button>
       <Button
         size="sm"
-        variant="outline"
         onClick={() => setShowDebtForm(true)}
-        className="bg-zinc-900/60 border-zinc-800 text-zinc-300 hover:bg-zinc-800 hover:text-zinc-50"
+        className="bg-indigo-600 text-white hover:bg-indigo-500"
       >
         <Plus className="h-4 w-4 mr-1" /> <span className="hidden sm:inline">Liability</span><span className="sm:hidden">Debt</span>
       </Button>
@@ -193,9 +192,12 @@ export default function Home() {
         <div className="fixed inset-0 z-50 flex justify-end">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowDebtForm(false)} />
           <div className="relative w-full max-w-md bg-zinc-900 border-l border-zinc-800 shadow-2xl overflow-y-auto p-6">
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="font-semibold text-lg text-zinc-50">Add Liability</h2>
-              <Button variant="ghost" size="icon" onClick={() => setShowDebtForm(false)} className="text-zinc-400 hover:text-zinc-100"><X className="h-5 w-5" /></Button>
+            <div className="mb-5">
+              <div className="flex items-center justify-between">
+                <h2 className="font-semibold text-lg text-zinc-50">Add Liability</h2>
+                <Button variant="ghost" size="icon" onClick={() => setShowDebtForm(false)} className="text-zinc-400 hover:text-zinc-100"><X className="h-5 w-5" /></Button>
+              </div>
+              <p className="text-sm text-zinc-500 mt-1">Add a debt to your ledger — Tab to move, Enter to save.</p>
             </div>
             <DebtForm onSaved={() => { setShowDebtForm(false); setRefreshKey((k) => k + 1); }} />
           </div>
