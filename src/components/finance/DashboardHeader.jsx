@@ -9,7 +9,7 @@ import MobileNav from "@/components/finance/MobileNav";
 export default function DashboardHeader({ actions }) {
   const now = new Date();
   const linkClass = ({ isActive }) =>
-    `px-3 py-1.5 text-xs font-mono uppercase tracking-widest transition-colors duration-150 ${
+    `px-2.5 py-1.5 text-xs font-mono uppercase tracking-widest transition-colors duration-150 ${
       isActive ? "text-emerald-400 border-b-2 border-emerald-400" : "text-white/50 hover:text-white border-b-2 border-transparent"
     }`;
 
@@ -29,7 +29,7 @@ export default function DashboardHeader({ actions }) {
 
         <div className="hidden sm:block h-5 w-px bg-white/10" />
 
-        <nav className="hidden sm:flex items-center min-w-0 flex-1 overflow-visible">
+        <nav className="hidden sm:flex items-center shrink-0 mr-auto">
           <NavLink to="/" className={linkClass} end>Overview</NavLink>
           <NavLink to="/forecast" className={linkClass}>Forecast</NavLink>
           <NavLink to="/assistant" className={linkClass}>Ask Adam</NavLink>
@@ -38,7 +38,7 @@ export default function DashboardHeader({ actions }) {
           <NavLink to="/insights" className={linkClass}>Insights</NavLink>
         </nav>
 
-        <div className="flex items-center gap-1.5 ml-auto">
+        <div className="flex items-center gap-1.5 ml-auto shrink-0">
           <BackupModal />
           <div className="hidden sm:block"><CommandPalette /></div>
           <Link to="/settings" className="h-8 w-8 rounded-md flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/5 transition-colors" aria-label="Settings">

@@ -59,7 +59,7 @@ export default function CommandPalette() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="hidden sm:flex items-center gap-2 h-8 min-w-[11rem] rounded-md border border-white/10 bg-transparent px-2.5 text-xs text-zinc-500 hover:text-zinc-200 hover:border-white/25 transition-colors"
+        className="hidden sm:flex items-center gap-2 h-8 w-32 rounded-md border border-white/10 bg-transparent px-2.5 text-xs text-zinc-500 hover:text-zinc-200 hover:border-white/25 transition-colors"
       >
         <Search className="h-3.5 w-3.5" />
         <span className="flex-1 text-left">Search</span>
