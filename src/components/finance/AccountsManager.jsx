@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Trash2, Pencil, Check, X, Landmark, Eye, EyeOff, Briefcase } from "lucide-react";
+import { Plus, Trash2, Pencil, Check, X, Landmark, Eye, EyeOff, Briefcase, CreditCard } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useForecast } from "@/lib/forecast-context";
 
@@ -22,10 +22,12 @@ const fmt = (v) =>
   });
 
 const SHOW_INVEST_KEY = "dd.accounts.showInvestments";
+const SHOW_DEBTS_KEY = "dd.accounts.showDebts";
 
 export default function AccountsManager({ onChanged }) {
   const [accounts, setAccounts] = React.useState([]);
   const [stocks, setStocks] = React.useState([]);
+  const [debts, setDebts] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
   const [name, setName] = React.useState("");
   const [type, setType] = React.useState("chequing");
@@ -37,14 +39,19 @@ export default function AccountsManager({ onChanged }) {
   const [showInvestments, setShowInvestments] = React.useState(
     () => localStorage.getItem(SHOW_INVEST_KEY) === "1"
   );
+  const [showDebts, setShowDebts] = React.useState(
+    () => localStorage.getItem(SHOW_DEBTS_KEY) === "1"
+  );
 
   const load = React.useCallback(async () => {
-    const [a, s] = await Promise.all([
+    const [a, s, d] = await Promise.all([
       base44.entities.Account.list("-created_date"),
       base44.entities.Stock.list("-created_date").catch(() => []),
+      base44.entities.Debt.list("-created_date").catch(() => []),
     ]);
     setAccounts(a);
     setStocks(s);
+    setDebts(d);
     setLoading(false);
   }, []);
 
@@ -56,6 +63,14 @@ export default function AccountsManager({ onChanged }) {
     setShowInvestments((prev) => {
       const next = !prev;
       localStorage.setItem(SHOW_INVEST_KEY, next ? "1" : "0");
+      return next;
+    });
+  }
+
+  function toggleDebts() {
+    setShowDebts((prev) => {
+      const next = !prev;
+      localStorage.setItem(SHOW_DEBTS_KEY, next ? "1" : "0");
       return next;
     });
   }
@@ -115,11 +130,14 @@ export default function AccountsManager({ onChanged }) {
   }, [stocks]);
   const investTotal = investmentGroups.reduce((s, g) => s + g.value, 0);
 
+  const activeDebts = debts.filter((d) => (d.status || "active") !== "paid_off");
+  const debtsTotal = activeDebts.reduce((s, d) => s + (d.current_balance || 0), 0);
+
   const fc = useForecast();
   const isFuture = !!fc?.isFuture;
   const dispTotal = isFuture
     ? fc.point?.cashBalance ?? bankTotal
-    : bankTotal + (showInvestments ? investTotal : 0);
+    : bankTotal + (showInvestments ? investTotal : 0) - (showDebts ? debtsTotal : 0);
 
   return (
     <div>
@@ -148,16 +166,28 @@ export default function AccountsManager({ onChanged }) {
               }`}
             >
               <Briefcase className="h-3.5 w-3.5" /> {showInvestments ? "Investments on" : "Investments"}
-            </button>
-            <span className="text-sm font-bold font-mono tabular-nums tracking-tight text-emerald-400">
+              </button>
+              <button
+              type="button"
+              onClick={toggleDebts}
+              title="Toggle liability ledger debts"
+              className={`flex items-center gap-1.5 text-[10px] uppercase tracking-widest border px-2.5 py-1.5 rounded-md transition-colors ${
+                showDebts
+                  ? "border-rose-500/40 text-rose-300 bg-rose-500/10"
+                  : "border-white/10 text-white/50 hover:text-white"
+              }`}
+              >
+              <CreditCard className="h-3.5 w-3.5" /> {showDebts ? "Debts on" : "Debts"}
+              </button>
+              <span className="text-sm font-bold font-mono tabular-nums tracking-tight text-emerald-400">
               {fmt(dispTotal)}
-            </span>
+              </span>
           </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
           <AnimatePresence mode="popLayout">
-            {visibleAccounts.length === 0 && !loading && (!showInvestments || investmentGroups.length === 0) && (
+            {visibleAccounts.length === 0 && !loading && (!showInvestments || investmentGroups.length === 0) && (!showDebts || activeDebts.length === 0) && (
               <motion.p
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -259,6 +289,27 @@ export default function AccountsManager({ onChanged }) {
                     {fmt(g.value)}
                   </p>
                   <p className="text-[9px] uppercase tracking-widest text-white/30 mt-1">Cost basis</p>
+                </motion.div>
+              ))}
+
+            {showDebts &&
+              activeDebts.map((d) => (
+                <motion.div
+                  key={`debt-${d.id}`}
+                  layout
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  className="rounded-lg border border-white/10 bg-black p-3.5 hover:border-rose-500/30 transition-colors"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] uppercase tracking-widest text-white/50 font-medium">Liability</span>
+                    <CreditCard className="h-3.5 w-3.5 text-rose-300" />
+                  </div>
+                  <p className="text-sm font-semibold text-zinc-100 mb-1 truncate">{d.name}</p>
+                  <p className="text-lg sm:text-xl font-bold font-mono tabular-nums tracking-tight text-rose-300">
+                    -{fmt(d.current_balance || 0)}
+                  </p>
                 </motion.div>
               ))}
           </AnimatePresence>
