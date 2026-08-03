@@ -9,6 +9,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  SelectSeparator,
+  SelectLabel,
 } from "@/components/ui/select";
 import {
   Dialog,
@@ -17,13 +19,13 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { adjustAccountBalance, txEffect, balanceApplies } from "@/lib/accounts";
+import { adjustLinkedBalance, txEffect, balanceApplies } from "@/lib/accounts";
 import { format } from "date-fns";
 import { TrendingDown, TrendingUp } from "lucide-react";
 import RecurringFields from "@/components/finance/RecurringFields";
 import { useCategories, categoryOptions } from "@/lib/categories";
 
-export default function QuickAddModal({ open, onOpenChange, accounts = [], onSaved }) {
+export default function QuickAddModal({ open, onOpenChange, accounts = [], debts = [], onSaved }) {
   const { categories } = useCategories();
   const options = categoryOptions(categories);
   const [description, setDescription] = React.useState("");
@@ -76,7 +78,7 @@ export default function QuickAddModal({ open, onOpenChange, accounts = [], onSav
         custom_interval: recurring && frequency === "custom" ? (parseInt(customInterval) || 1) : undefined,
         custom_unit: recurring && frequency === "custom" ? customUnit : undefined,
       });
-      if (accountId && balanceApplies(date)) await adjustAccountBalance(accountId, txEffect({ type, amount: parseFloat(amount) }));
+      if (accountId && balanceApplies(date)) await adjustLinkedBalance(accountId, txEffect({ type, amount: parseFloat(amount) }));
       onOpenChange?.(false);
       onSaved?.();
     } finally {
@@ -162,6 +164,15 @@ export default function QuickAddModal({ open, onOpenChange, accounts = [], onSav
                 <SelectContent className="bg-zinc-900 border-zinc-800">
                   <SelectItem value={null}>No account</SelectItem>
                   {accounts.map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
+                  {debts.length > 0 && (
+                    <>
+                      <SelectSeparator />
+                      <SelectLabel className="text-[10px] uppercase tracking-wider text-zinc-500">Liabilities</SelectLabel>
+                      {debts.map((d) => (
+                        <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                      ))}
+                    </>
+                  )}
                 </SelectContent>
               </Select>
             </div>

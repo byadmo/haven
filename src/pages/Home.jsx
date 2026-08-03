@@ -181,6 +181,7 @@ export default function Home() {
         open={quickAdd}
         onOpenChange={setQuickAdd}
         accounts={accounts}
+        debts={debts}
         onSaved={() => setRefreshKey((k) => k + 1)}
       />
 

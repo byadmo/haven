@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { adjustAccountBalance, txEffect, balanceApplies } from "@/lib/accounts";
+import { adjustLinkedBalance, txEffect, balanceApplies } from "@/lib/accounts";
 import { AnimatePresence, motion } from "framer-motion";
 import RecurringFields from "@/components/finance/RecurringFields";
 import { useCategories, categoryOptions } from "@/lib/categories";
@@ -27,7 +27,7 @@ function Row({ t, accountsMap, onChanged, categories }) {
   async function fullDelete() {
     setRemoving(true);
     try {
-      if (t.account_id) await adjustAccountBalance(t.account_id, -txEffect(t));
+      if (t.account_id && balanceApplies(t.date)) await adjustLinkedBalance(t.account_id, -txEffect(t));
       await base44.entities.Transaction.delete(t.id);
       setDelOpen(false);
       onChanged?.();
@@ -59,8 +59,8 @@ function Row({ t, accountsMap, onChanged, categories }) {
       const newAcct = payload.account_id !== undefined ? (payload.account_id || "") : t.account_id;
       const oldApplied = balanceApplies(t.date);
       const newApplied = balanceApplies(payload.date ?? t.date);
-      if (oldAcct && oldApplied) await adjustAccountBalance(oldAcct, -oldEffect);
-      if (newAcct && newApplied) await adjustAccountBalance(newAcct, newEffect);
+      if (oldAcct && oldApplied) await adjustLinkedBalance(oldAcct, -oldEffect);
+      if (newAcct && newApplied) await adjustLinkedBalance(newAcct, newEffect);
       await base44.entities.Transaction.update(t.id, {
         description: payload.description ?? t.description,
         amount: newAmount,

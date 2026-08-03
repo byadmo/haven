@@ -33,3 +33,33 @@ export async function adjustAccountBalance(accountId, delta) {
   await base44.entities.Account.update(accountId, { balance: next });
   return next;
 }
+
+/**
+ * Adjust the balance of whatever a transaction's `account_id` points at —
+ * a bank Account (balance) or a liability Debt (current_balance). Used so the
+ * Quick Add / edit flows can target liability accounts the same way as banks.
+ */
+export async function adjustLinkedBalance(id, delta) {
+  if (!id) return null;
+  let rec = null;
+  let kind = null;
+  try {
+    rec = await base44.entities.Account.get(id);
+    if (rec && rec.id) kind = "account";
+  } catch { /* not an account */ }
+  if (!kind) {
+    try {
+      rec = await base44.entities.Debt.get(id);
+      if (rec && rec.id) kind = "debt";
+    } catch { /* not a debt either */ }
+  }
+  if (!kind) return null;
+  if (kind === "account") {
+    const next = (rec.balance || 0) + delta;
+    await base44.entities.Account.update(id, { balance: next });
+    return next;
+  }
+  const next = (rec.current_balance || 0) + delta;
+  await base44.entities.Debt.update(id, { current_balance: next });
+  return next;
+}
