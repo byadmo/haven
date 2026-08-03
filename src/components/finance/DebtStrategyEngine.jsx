@@ -1,0 +1,162 @@
+import React from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Card } from "@/components/ui/card";
+import { simulatePayoff } from "@/lib/debtStrategy";
+import { format } from "date-fns";
+import { Sparkles, TrendingDown, CalendarCheck, ArrowRight } from "lucide-react";
+
+export default function DebtStrategyEngine({ debts, monthlySurplus }) {
+  const [method, setMethod] = React.useState("avalanche");
+  const [surplus, setSurplus] = React.useState(monthlySurplus || 0);
+
+  React.useEffect(() => {
+    if (monthlySurplus) setSurplus(monthlySurplus);
+  }, [monthlySurplus]);
+
+  const projection = React.useMemo(
+    () => simulatePayoff(debts, surplus, method),
+    [debts, surplus, method]
+  );
+
+  const years = Math.floor(projection.months / 12);
+  const remainMonths = projection.months % 12;
+  const payoffLabel = projection.months
+    ? `${years > 0 ? `${years}y ` : ""}${remainMonths}mo`
+    : "—";
+
+  const totalDebt = projection.totalDebt || 0;
+  // progress toward paid: based on a 10-year horizon reference
+  const horizonMonths = 120;
+  const progress = projection.months
+    ? Math.min(100, Math.round(((horizonMonths - projection.months) / horizonMonths) * 100))
+    : 0;
+
+  const startDate = new Date();
+
+  return (
+    <Card className="p-5 bg-zinc-900/60 backdrop-blur-xl border-zinc-800 shadow-2xl shadow-black/40">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+        <div className="flex items-center gap-2">
+          <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-violet-500/30 to-fuchsia-500/20 flex items-center justify-center">
+            <Sparkles className="h-4.5 w-4.5 text-violet-300" />
+          </div>
+          <div>
+            <h2 className="font-semibold text-sm text-zinc-100">Debt Strategy Engine</h2>
+            <p className="text-xs text-zinc-500">Simulate your path to debt-free</p>
+          </div>
+        </div>
+        <ToggleGroup type="single" value={method} onValueChange={(v) => v && setMethod(v)} className="bg-zinc-950/60 border border-zinc-800 rounded-lg p-1 self-start">
+          <ToggleGroupItem
+            value="avalanche"
+            className="data-[state=on]:bg-zinc-700 data-[state=on]:text-zinc-50 text-zinc-400 px-3 py-1.5 text-xs rounded-md transition-all"
+          >
+            Avalanche
+          </ToggleGroupItem>
+          <ToggleGroupItem
+            value="snowball"
+            className="data-[state=on]:bg-zinc-700 data-[state=on]:text-zinc-50 text-zinc-400 px-3 py-1.5 text-xs rounded-md transition-all"
+          >
+            Snowball
+          </ToggleGroupItem>
+        </ToggleGroup>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+        <div className="rounded-xl bg-zinc-950/60 border border-zinc-800 p-3.5">
+          <p className="text-[11px] uppercase tracking-wider text-zinc-500 mb-1">Months Until Free</p>
+          <p className="text-2xl font-bold text-zinc-50 tabular-nums">{payoffLabel}</p>
+        </div>
+        <div className="rounded-xl bg-zinc-950/60 border border-zinc-800 p-3.5">
+          <div className="flex items-center gap-1.5 mb-1 text-zinc-500">
+            <CalendarCheck className="h-3 w-3" />
+            <p className="text-[11px] uppercase tracking-wider">Debt-Free Date</p>
+          </div>
+          <p className="text-lg font-bold text-emerald-400 tabular-nums">
+            {projection.debtFreeDate ? format(projection.debtFreeDate, "MMM yyyy") : "—"}
+          </p>
+        </div>
+        <div className="rounded-xl bg-zinc-950/60 border border-zinc-800 p-3.5">
+          <div className="flex items-center gap-1.5 mb-1 text-zinc-500">
+            <TrendingDown className="h-3 w-3" />
+            <p className="text-[11px] uppercase tracking-wider">Active Debt</p>
+          </div>
+          <p className="text-lg font-bold text-rose-400 tabular-nums">${totalDebt.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</p>
+        </div>
+      </div>
+
+      {/* Monthly surplus input */}
+      <div className="mb-4">
+        <div className="flex items-center justify-between mb-1.5">
+          <label className="text-xs text-zinc-400">Monthly surplus available</label>
+          <span className="text-sm font-semibold text-zinc-100 tabular-nums">
+            ${surplus.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}
+          </span>
+        </div>
+        <input
+          type="range"
+          min={0}
+          max={Math.max(2000, Math.ceil((surplus || 1000) * 1.6))}
+          step={10}
+          value={surplus}
+          onChange={(e) => setSurplus(Number(e.target.value))}
+          className="w-full h-1.5 rounded-full accent-violet-500 bg-zinc-800 cursor-pointer"
+        />
+      </div>
+
+      {/* Animated progress bar */}
+      <div className="mb-5">
+        <div className="flex justify-between text-[11px] text-zinc-500 mb-1.5">
+          <span>10 yrs (reference)</span>
+          <span>{progress}% faster</span>
+        </div>
+        <div className="h-2.5 rounded-full bg-zinc-800 overflow-hidden">
+          <motion.div
+            initial={{ width: 0 }}
+            animate={{ width: `${progress}%` }}
+            transition={{ duration: 0.7, ease: "easeOut" }}
+            className="h-full rounded-full bg-gradient-to-r from-violet-500 via-fuchsia-500 to-emerald-400"
+          />
+        </div>
+      </div>
+
+      {/* Payoff order */}
+      <div>
+        <p className="text-[11px] uppercase tracking-wider text-zinc-500 mb-2">Recommended Payoff Order</p>
+        <div className="space-y-1.5">
+          <AnimatePresence mode="popLayout">
+            {projection.order.map((d, i) => (
+              <motion.div
+                key={d.id || d.name}
+                layout
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0 }}
+                className="flex items-center gap-2 text-xs"
+              >
+                <span className="h-5 w-5 rounded-md bg-zinc-800 text-zinc-300 flex items-center justify-center font-semibold text-[10px]">
+                  {i + 1}
+                </span>
+                <span className="text-zinc-300 font-medium flex-1">{d.name}</span>
+                <span className="text-zinc-500 tabular-nums">
+                  ${(d.current_balance || 0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}
+                </span>
+                {d.interest_rate > 0 && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-300 tabular-nums">
+                    {d.interest_rate}% APR
+                  </span>
+                )}
+                {i < projection.order.length - 1 && <ArrowRight className="h-3 w-3 text-zinc-700 hidden sm:block" />}
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
+        <p className="text-[10px] text-zinc-600 mt-2.5 italic">
+          {method === "avalanche"
+            ? "Avalanche: highest interest rate first — saves the most money."
+            : "Snowball: lowest balance first — fastest wins, builds momentum."}
+        </p>
+      </div>
+    </Card>
+  );
+}
