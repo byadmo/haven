@@ -40,7 +40,34 @@ const OPS_SCHEMA = {
           action: { type: "string", enum: ["create", "update", "delete"] },
           targetId: { type: "string" },
           summary: { type: "string" },
-          data: { type: "object", additionalProperties: true },
+          data: {
+            type: "object",
+            additionalProperties: true,
+            properties: {
+              description: { type: "string" },
+              amount: { type: "number" },
+              type: { type: "string", enum: ["income", "expense"] },
+              category: { type: "string" },
+              date: { type: "string" },
+              account_id: { type: "string" },
+              is_scheduled: { type: "boolean" },
+              frequency: { type: "string", enum: ["one_time", "daily", "weekly", "biweekly", "monthly", "yearly", "custom"] },
+              next_date: { type: "string" },
+              custom_interval: { type: "number" },
+              custom_unit: { type: "string", enum: ["days", "weeks", "months", "years"] },
+              name: { type: "string" },
+              current_balance: { type: "number" },
+              original_balance: { type: "number" },
+              interest_rate: { type: "number" },
+              minimum_payment: { type: "number" },
+              due_date: { type: "string" },
+              status: { type: "string", enum: ["active", "paid_off"] },
+              show_in_accounts: { type: "boolean" },
+              balance: { type: "number" },
+              accountType: { type: "string", enum: ["chequing", "savings"] },
+              show_in_summary: { type: "boolean" },
+            },
+          },
         },
         required: ["id", "entity", "action", "summary"],
       },
@@ -186,22 +213,51 @@ export default function AssistantChat({ accounts, debts, transactions }) {
   async function executeOps(list) {
     setOpsBusy(true);
     const applied = [];
+    const failed = [];
     try {
-      await Promise.all(list.map(async (op) => {
+      for (const op of list) {
         const E = base44.entities[op.entity];
-        if (!E) return;
+        if (!E) { failed.push(op.summary || op.action); continue; }
         try {
-          if (op.action === "create") { await E.create(cleanData(op.data)); applied.push(op); }
-          else if (op.action === "update" && op.targetId) { await E.update(op.targetId, cleanData(op.data)); applied.push(op); }
-          else if (op.action === "delete" && op.targetId) { await E.delete(op.targetId); applied.push(op); }
-        } catch (e) { /* skip failed op */ }
-      }));
-      addMsg({ role: "assistant", kind: "text", text: `✓ Applied ${applied.length} change${applied.length === 1 ? "" : "s"}.` });
+          if (op.action === "create") {
+            const data = withCreateDefaults(op.entity, cleanData(op.data));
+            await E.create(data);
+            applied.push(op);
+          } else if (op.action === "update" && op.targetId) {
+            await E.update(op.targetId, cleanData(op.data));
+            applied.push(op);
+          } else if (op.action === "delete" && op.targetId) {
+            await E.delete(op.targetId);
+            applied.push(op);
+          } else {
+            failed.push(op.summary || `${op.action} (missing targetId)`);
+          }
+        } catch (e) {
+          failed.push(`${op.summary || op.action}: ${e.message || "error"}`);
+        }
+      }
+      const report = `✓ Applied ${applied.length} change${applied.length === 1 ? "" : "s"}` +
+        (failed.length ? ` · ⚠ ${failed.length} failed` : "");
+      addMsg({ role: "assistant", kind: "text", text: report });
+      if (failed.length) {
+        addMsg({ role: "assistant", kind: "text", text: failed.map((f) => `• ${f}`).join("\n") });
+      }
       setOps(null);
       setOpsOpen(false);
     } finally {
       setOpsBusy(false);
     }
+  }
+
+  function withCreateDefaults(entity, data) {
+    const out = { ...data };
+    if (entity === "Transaction") {
+      if (!out.description) out.description = "AI entry";
+      if (!out.type) out.type = "expense";
+      if (!out.date) out.date = new Date().toISOString().slice(0, 10);
+      if (out.amount === undefined) out.amount = 0;
+    }
+    return out;
   }
 
   async function regenerateOps(priorOps, feedback) {
