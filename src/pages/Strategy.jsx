@@ -37,23 +37,18 @@ export default function Strategy() {
 
   if (loading) {
     return (
-      <div className="dark min-h-screen bg-zinc-950 flex items-center justify-center">
+      <div className="dark min-h-screen bg-black flex items-center justify-center">
         <div className="w-8 h-8 border-4 border-zinc-800 border-t-zinc-400 rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="dark min-h-screen bg-zinc-950 text-zinc-100 selection:bg-violet-500/30">
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute -top-40 -right-40 h-96 w-96 rounded-full bg-violet-600/10 blur-[120px]" />
-        <div className="absolute -bottom-40 -left-40 h-96 w-96 rounded-full bg-emerald-600/10 blur-[120px]" />
-      </div>
-
+    <div className="dark min-h-screen bg-black text-zinc-100 selection:bg-emerald-500/30">
       <DashboardHeader actions={
         <button
           onClick={() => setRefreshKey((k) => k + 1)}
-          className="rounded-lg bg-zinc-900/60 border border-zinc-800 px-3 py-1.5 text-xs text-zinc-300 hover:text-zinc-100 hover:bg-zinc-800 transition-colors"
+          className="border border-white/10 bg-black px-3 py-1.5 text-xs uppercase tracking-widest text-zinc-300 hover:border-white/30 hover:text-white transition-colors duration-150"
         >
           Refresh
         </button>

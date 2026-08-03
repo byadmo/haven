@@ -93,8 +93,26 @@
 }
 
 @layer utilities {
-  /* High-Performance Telemetry: drop heavy rounded corners → sharp 1px-bordered modules */
-  .rounded-2xl, .rounded-xl, .rounded-lg, .rounded-md { border-radius: 0 !important; }
+  /* High-Performance Telemetry: sharp 1px-bordered modules on a true-black canvas.
+     Applied globally so every page matches the scrubber timeline aesthetic.
+     UI-only overrides — no business logic touched. */
+  .rounded-2xl, .rounded-xl, .rounded-lg, .rounded-md, .rounded-sm { border-radius: 0 !important; }
+
+  /* no soft shadows, no glass blur */
+  .shadow, .shadow-sm, .shadow-md, .shadow-lg, .shadow-xl, .shadow-2xl { box-shadow: none !important; }
+  .drop-shadow, .drop-shadow-md, .drop-shadow-lg { filter: none !important; }
+  .backdrop-blur, .backdrop-blur-sm, .backdrop-blur-md, .backdrop-blur-xl, .backdrop-blur-2xl {
+    backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
+  }
+
+  /* surfaces → true black */
+  .bg-zinc-900, .bg-zinc-900\/60, .bg-zinc-900\/70, .bg-zinc-900\/80, .bg-zinc-950, .bg-zinc-950\/60, .bg-zinc-950\/70 { background-color: #000 !important; }
+  /* borders → white/10 */
+  .border-zinc-800, .border-zinc-800\/60, .border-zinc-800\/70 { border-color: rgb(255 255 255 / 0.10) !important; }
+  /* muted text → telemetry slate */
+  .text-zinc-500 { color: rgb(255 255 255 / 0.50) !important; }
+  .text-zinc-600 { color: rgb(255 255 255 / 0.30) !important; }
+
   /* mono + tabular nums for numerals */
   .tnum { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 }
