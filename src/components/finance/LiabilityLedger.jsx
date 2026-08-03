@@ -29,7 +29,7 @@ export default function LiabilityLedger({ debts, onChanged }) {
   const [logging, setLogging] = React.useState(false);
   const [expanded, setExpanded] = React.useState({});
   const [showOverride, setShowOverride] = React.useState({});
-  const [cardOpen, setCardOpen] = React.useState({});
+  const [ledgerOpen, setLedgerOpen] = React.useState(true);
 
   const fc = useForecast();
   const point = fc?.point;
@@ -133,8 +133,17 @@ export default function LiabilityLedger({ debts, onChanged }) {
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-      {debts.map((d) => {
+    <div className="rounded-lg bg-black border border-white/10">
+      <button
+        onClick={() => setLedgerOpen((v) => !v)}
+        className="w-full flex items-center justify-between px-4 py-3"
+      >
+        <span className="text-[11px] uppercase tracking-widest text-white/50 font-medium">Liabilities · {debts.length}</span>
+        <ChevronDown className={`h-4 w-4 text-white/40 transition-transform ${ledgerOpen ? "rotate-180" : ""}`} />
+      </button>
+      {ledgerOpen && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 pt-0">
+          {debts.map((d) => {
         const key = d.id || d.name;
         const proj = point?.liabilities?.[key];
         const balance = proj != null ? proj : (d.current_balance || 0);
@@ -149,24 +158,15 @@ export default function LiabilityLedger({ debts, onChanged }) {
         const history = paymentsByDebt[d.id] || [];
         const totalPaid = history.reduce((s, p) => s + (p.amount || 0), 0);
         const isOpen = expanded[d.id];
-        const isCardOpen = cardOpen[d.id];
 
         const containerCx = `rounded-lg bg-black border ${isCleared ? "border-emerald-500/30 opacity-50" : "border-white/10"} p-4 hover:border-white/30 transition-colors duration-150`;
 
         return (
           <div key={d.id} className={containerCx}>
             <div className="flex items-start justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setCardOpen((prev) => ({ ...prev, [d.id]: !prev[d.id] }))}
-                  aria-label="Toggle details"
-                >
-                  <ChevronDown className={`h-4 w-4 text-white/40 transition-transform ${isCardOpen ? "rotate-180" : ""}`} />
-                </button>
-                <div>
-                  <p className="font-semibold text-sm text-zinc-100">{d.name}</p>
-                  <p className="text-[10px] uppercase tracking-widest text-white/50 mt-0.5">{isCleared ? "Cleared" : "Active liability"}</p>
-                </div>
+              <div>
+                <p className="font-semibold text-sm text-zinc-100">{d.name}</p>
+                <p className="text-[10px] uppercase tracking-widest text-white/50 mt-0.5">{isCleared ? "Cleared" : "Active liability"}</p>
               </div>
               <div className="flex items-center gap-1.5">
                 {!isCleared && (
@@ -196,8 +196,7 @@ export default function LiabilityLedger({ debts, onChanged }) {
 
             <p className="text-xl sm:text-2xl font-bold font-mono tabular-nums tracking-tight text-zinc-50 mb-2">{fmt(balance)}</p>
 
-            <div className={isCardOpen ? "block" : "hidden"}>
-              <div className="mb-3">
+            <div className="mb-3">
                 <div className="h-1.5 bg-white/10 overflow-hidden">
                   {isCleared ? (
                     <div className="w-full h-full bg-emerald-500" />
@@ -364,10 +363,11 @@ export default function LiabilityLedger({ debts, onChanged }) {
                   )}
                 </div>
               )}
-            </div>
           </div>
         );
       })}
+        </div>
+      )}
     </div>
   );
 }
