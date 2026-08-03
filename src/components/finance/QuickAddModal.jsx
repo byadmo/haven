@@ -86,7 +86,7 @@ export default function QuickAddModal({ open, onOpenChange, accounts = [], onSav
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-zinc-900 border-zinc-800 text-zinc-100 max-w-md p-0 overflow-hidden">
+      <DialogContent className="bg-zinc-900 border-zinc-800 text-zinc-100 max-w-md p-0">
         <DialogHeader className="px-5 pt-5 pb-2">
           <DialogTitle className="text-zinc-50">Quick Add</DialogTitle>
           <DialogDescription className="text-zinc-500">Log a transaction in seconds — Tab to move, Enter to save.</DialogDescription>
