@@ -89,6 +89,7 @@
 
   body {
     @apply bg-background text-foreground font-body;
+    background-color: #000;
   }
 
   html {
@@ -123,7 +124,7 @@
   .tnum { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 
   @keyframes dd-page-enter { from { opacity: 0; } to { opacity: 1; } }
-  .dd-page-enter { animation: dd-page-enter 0.3s ease-out; will-change: opacity; }
+  .dd-page-enter { animation: dd-page-enter 0.12s ease-out; will-change: opacity; }
   @media (prefers-reduced-motion: reduce) { .dd-page-enter { animation: none; } }
 }
 
