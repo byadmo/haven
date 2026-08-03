@@ -119,7 +119,7 @@ export default function Home() {
       <ForecastProvider forecastData={forecastData}>
       <main className="relative max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-6">
         <Reveal>
-          <div className="border border-white/10 bg-black">
+          <div className="rounded-lg border border-white/10 bg-black">
             <TelemetryReadout />
             <ScrubbableTimeline />
           </div>

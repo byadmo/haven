@@ -123,7 +123,7 @@ export default function LiabilityLedger({ debts, onChanged }) {
         const totalPaid = history.reduce((s, p) => s + (p.amount || 0), 0);
         const isOpen = expanded[d.id];
 
-        const containerCx = `rounded-none bg-black border ${isCleared ? "border-emerald-500/30 opacity-50" : "border-white/10"} p-4 hover:border-white/30 transition-colors duration-150`;
+        const containerCx = `rounded-lg bg-black border ${isCleared ? "border-emerald-500/30 opacity-50" : "border-white/10"} p-4 hover:border-white/30 transition-colors duration-150`;
 
         return (
           <div key={d.id} className={containerCx}>

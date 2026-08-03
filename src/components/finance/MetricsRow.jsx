@@ -74,7 +74,7 @@ export default function MetricsRow({ netWorth, income, expense, incomePct, expen
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.04 }}
-            className="relative rounded-none bg-black border border-white/10 p-4 hover:border-white/30 transition-colors duration-150 overflow-hidden"
+            className="relative rounded-lg bg-black border border-white/10 p-4 hover:border-white/30 transition-colors duration-150 overflow-hidden"
           >
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">

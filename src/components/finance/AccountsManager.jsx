@@ -83,7 +83,7 @@ export default function AccountsManager({ onChanged }) {
 
   return (
     <div>
-      <div className="rounded-none bg-black border border-white/10 p-5 hover:border-white/30 transition-colors duration-150">
+      <div className="rounded-lg bg-black border border-white/10 p-5 hover:border-white/30 transition-colors duration-150">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <div className="h-8 w-8 flex items-center justify-center bg-emerald-500/10 text-emerald-400">
@@ -115,7 +115,7 @@ export default function AccountsManager({ onChanged }) {
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
-                className="rounded-none border border-white/10 bg-black p-3.5 group hover:border-white/30 transition-colors duration-150"
+                className="rounded-lg border border-white/10 bg-black p-3.5 group hover:border-white/30 transition-colors duration-150"
               >
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-[10px] uppercase tracking-widest text-white/50 font-medium">

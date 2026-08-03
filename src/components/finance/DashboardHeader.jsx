@@ -17,7 +17,7 @@ export default function DashboardHeader({ actions }) {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between gap-3">
         <div className="flex items-center gap-4">
           <Link to="/" className="flex items-center gap-2.5">
-            <div className="h-8 w-8 flex items-center justify-center bg-emerald-500 text-black">
+            <div className="h-8 w-8 rounded-lg flex items-center justify-center bg-emerald-500 text-black">
               <Wallet className="h-4 w-4" />
             </div>
             <div>
