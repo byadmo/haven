@@ -11,6 +11,8 @@ const fmt = (v) =>
 
 export default function Assistant() {
   const [accounts, setAccounts] = React.useState([]);
+  const [debts, setDebts] = React.useState([]);
+  const [transactions, setTransactions] = React.useState([]);
   const [summary, setSummary] = React.useState("");
   const [loading, setLoading] = React.useState(true);
 
@@ -22,6 +24,8 @@ export default function Assistant() {
     ])
       .then(([a, d, t]) => {
         setAccounts(a);
+        setDebts(d);
+        setTransactions(t);
         const cash = a.reduce((s, x) => s + (x.balance || 0), 0);
         const debt = d.reduce((s, x) => s + (x.current_balance || 0), 0);
         const now = new Date();
@@ -64,10 +68,15 @@ export default function Assistant() {
           </div>
           <div>
             <h1 className="text-base font-semibold text-zinc-50">Finance Assistant</h1>
-            <p className="text-[10px] uppercase tracking-widest text-white/50">Upload a statement or ask anything</p>
+            <p className="text-[10px] uppercase tracking-widest text-white/50">Upload a statement or command changes — you approve everything</p>
           </div>
         </div>
-        <AssistantChat accounts={accounts} summary={summary} />
+        <AssistantChat
+          accounts={accounts}
+          debts={debts}
+          transactions={transactions}
+          summary={summary}
+        />
       </main>
     </div>
   );
