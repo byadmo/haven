@@ -153,7 +153,11 @@ export default function StockTracker({ onChanged }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-4">
+      <div className="mb-4">
+        <StockChart stocks={stocks} />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
         <div className="lg:col-span-2 space-y-3">
           {loading ? (
             <p className="text-sm text-zinc-500 text-center py-8">Loading holdings…</p>
@@ -300,8 +304,6 @@ export default function StockTracker({ onChanged }) {
           </div>
         </div>
       </div>
-
-      <StockChart stocks={stocks} />
 
       <StockImportModal open={showImport} onOpenChange={setShowImport} onSaved={loadStocks} />
     </section>
