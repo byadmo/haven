@@ -6,10 +6,10 @@ import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
-  SelectSeparator,
   SelectLabel,
 } from "@/components/ui/select";
 import {
@@ -165,13 +165,12 @@ export default function QuickAddModal({ open, onOpenChange, accounts = [], debts
                   <SelectItem value={null}>No account</SelectItem>
                   {accounts.map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
                   {debts.length > 0 && (
-                    <>
-                      <SelectSeparator />
-                      <SelectLabel className="text-[10px] uppercase tracking-wider text-zinc-500">Liabilities</SelectLabel>
+                    <SelectGroup>
+                      <SelectLabel className="text-[10px] uppercase tracking-wider text-zinc-500 px-2 py-1">Liabilities</SelectLabel>
                       {debts.map((d) => (
                         <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
                       ))}
-                    </>
+                    </SelectGroup>
                   )}
                 </SelectContent>
               </Select>
