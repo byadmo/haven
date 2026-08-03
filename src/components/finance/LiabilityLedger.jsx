@@ -266,16 +266,16 @@ export default function LiabilityLedger({ debts, onChanged }) {
                     <form onSubmit={saveEdit} className="space-y-3">
                       <div className="space-y-1.5">
                         <Label className="text-white/50">Current Balance ($)</Label>
-                        <Input type="number" step="0.01" defaultValue={d.current_balance} onChange={(e) => setEditing((prev) => ({ ...prev, current_balance: e.target.value }))} className="bg-black border-white/10 text-zinc-100" />
+                        <Input type="number" step="any" defaultValue={d.current_balance} onChange={(e) => setEditing((prev) => ({ ...prev, current_balance: e.target.value }))} className="bg-black border-white/10 text-zinc-100" />
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1.5">
                           <Label className="text-white/50">Interest Rate (%)</Label>
-                          <Input type="number" step="0.01" defaultValue={d.interest_rate} onChange={(e) => setEditing((prev) => ({ ...prev, interest_rate: e.target.value }))} className="bg-black border-white/10 text-zinc-100" />
+                          <Input type="number" step="any" defaultValue={d.interest_rate} onChange={(e) => setEditing((prev) => ({ ...prev, interest_rate: e.target.value }))} className="bg-black border-white/10 text-zinc-100" />
                         </div>
                         <div className="space-y-1.5">
                           <Label className="text-white/50">Min. Payment ($)</Label>
-                          <Input type="number" step="0.01" defaultValue={d.minimum_payment} onChange={(e) => setEditing((prev) => ({ ...prev, minimum_payment: e.target.value }))} className="bg-black border-white/10 text-zinc-100" />
+                          <Input type="number" step="any" defaultValue={d.minimum_payment} onChange={(e) => setEditing((prev) => ({ ...prev, minimum_payment: e.target.value }))} className="bg-black border-white/10 text-zinc-100" />
                         </div>
                       </div>
                       <div className="space-y-1.5">
