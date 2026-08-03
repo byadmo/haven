@@ -18,7 +18,6 @@ export default function DebtModal({ open, onOpenChange, onSaved }) {
   const [dueDate, setDueDate] = React.useState(format(new Date(), "yyyy-MM-dd"));
   const [showInAccounts, setShowInAccounts] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
-  const balanceRef = React.useRef(null);
 
   React.useEffect(() => {
     if (open) {
@@ -30,8 +29,6 @@ export default function DebtModal({ open, onOpenChange, onSaved }) {
       setMinimumPayment("");
       setDueDate(format(new Date(), "yyyy-MM-dd"));
       setShowInAccounts(false);
-      const t = setTimeout(() => balanceRef.current?.focus(), 60);
-      return () => clearTimeout(t);
     }
   }, [open]);
 
@@ -72,7 +69,6 @@ export default function DebtModal({ open, onOpenChange, onSaved }) {
             <div className="mt-1 relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-2xl font-bold text-zinc-600">$</span>
               <input
-                ref={balanceRef}
                 type="number"
                 step="0.01"
                 min="0"
