@@ -5,6 +5,7 @@ import DashboardHeader from "@/components/finance/DashboardHeader";
 import DebtStrategyEngine from "@/components/finance/DebtStrategyEngine";
 import DebtProjectionChart from "@/components/finance/DebtProjectionChart";
 import GoalPlanner from "@/components/finance/GoalPlanner";
+import StrategyAdvisor from "@/components/finance/StrategyAdvisor";
 import Reveal from "@/components/finance/Reveal";
 
 export default function Strategy() {
@@ -51,6 +52,9 @@ export default function Strategy() {
         </Reveal>
         <Reveal delay={0.05}>
           <DebtStrategyEngine debts={debts} monthlySurplus={surplus} />
+        </Reveal>
+        <Reveal delay={0.07}>
+          <StrategyAdvisor debts={debts} accounts={accounts} transactions={txns} surplus={surplus} />
         </Reveal>
       </main>
     </div>
