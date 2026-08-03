@@ -7,28 +7,42 @@ import {
   Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
 } from "@/components/ui/select";
 import { Mail, Loader2, Send, Bell, BellOff } from "lucide-react";
-import { format, subMonths } from "date-fns";
 
-function buildMonthOptions() {
+const MONTHS = [
+  { value: "01", label: "January" },
+  { value: "02", label: "February" },
+  { value: "03", label: "March" },
+  { value: "04", label: "April" },
+  { value: "05", label: "May" },
+  { value: "06", label: "June" },
+  { value: "07", label: "July" },
+  { value: "08", label: "August" },
+  { value: "09", label: "September" },
+  { value: "10", label: "October" },
+  { value: "11", label: "November" },
+  { value: "12", label: "December" },
+];
+
+function buildYearOptions() {
   const now = new Date();
-  const opts = [];
-  for (let i = 0; i < 12; i++) {
-    const d = subMonths(now, i);
-    opts.push({
-      value: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
-      label: format(d, "MMMM yyyy"),
-    });
+  const years = [];
+  for (let y = now.getFullYear(); y >= 2022; y--) {
+    years.push(String(y));
   }
-  return opts;
+  return years;
 }
 
 export default function AutomatedReportSettings() {
-  const MONTHS = React.useMemo(buildMonthOptions, []);
+  const YEARS = React.useMemo(buildYearOptions, []);
+  const now = new Date();
+  const prevMonthIdx = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
+  const prevYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
   const [enabled, setEnabled] = React.useState(true);
   const [frequency, setFrequency] = React.useState("monthly");
   const [saving, setSaving] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
-  const [sendMonth, setSendMonth] = React.useState(MONTHS[0].value);
+  const [sendYear, setSendYear] = React.useState(String(prevYear));
+  const [sendMonth, setSendMonth] = React.useState(String(prevMonthIdx + 1).padStart(2, "0"));
   const [sending, setSending] = React.useState(false);
   const [sendResult, setSendResult] = React.useState("");
 
@@ -77,15 +91,16 @@ export default function AutomatedReportSettings() {
     setSendResult("");
     try {
       const me = await base44.auth.me();
+      const monthValue = `${sendYear}-${sendMonth}`;
       const res = await base44.functions.invoke("GenerateMonthlyReport", {
-        month: sendMonth,
+        month: monthValue,
         user_id: me.id,
       });
       if (res.data?.error) {
         setSendResult("Error: " + res.data.error);
       } else {
-        const label = MONTHS.find((m) => m.value === sendMonth)?.label;
-        setSendResult(`Report sent to ${me.email} for ${label}.`);
+        const monthLabel = MONTHS.find((m) => m.value === sendMonth)?.label;
+        setSendResult(`Report sent to ${me.email} for ${monthLabel} ${sendYear}.`);
       }
     } catch (e) {
       setSendResult("Could not send: " + (e?.message || e));
@@ -154,7 +169,7 @@ export default function AutomatedReportSettings() {
           <div className="pt-3 border-t border-white/10">
             <Label className="text-sm font-medium text-zinc-200 mb-2 block">Send a report now</Label>
             <p className="text-[11px] text-white/40 mb-3">
-              Manually trigger a financial summary for any month, sent to your email immediately.
+              Choose any month and year to generate a custom financial summary, sent to your email immediately.
             </p>
             <div className="flex flex-col sm:flex-row gap-2">
               <Select value={sendMonth} onValueChange={setSendMonth} disabled={sending}>
@@ -164,6 +179,16 @@ export default function AutomatedReportSettings() {
                 <SelectContent className="bg-black border-white/10 max-h-72">
                   {MONTHS.map((m) => (
                     <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={sendYear} onValueChange={setSendYear} disabled={sending}>
+                <SelectTrigger className="bg-black border-white/10 text-zinc-100 h-10 w-28">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-black border-white/10 max-h-72">
+                  {YEARS.map((y) => (
+                    <SelectItem key={y} value={y}>{y}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
