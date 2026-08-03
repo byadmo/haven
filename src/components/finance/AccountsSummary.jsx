@@ -1,7 +1,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { Landmark, ArrowRight } from "lucide-react";
+import { Landmark, ArrowRight, Briefcase } from "lucide-react";
 
 const fmt = (v) =>
   (v || 0).toLocaleString(undefined, {
@@ -11,8 +11,20 @@ const fmt = (v) =>
     maximumFractionDigits: 2,
   });
 
+const SHOW_INVEST_KEY = "dd.accounts.showInvestments";
+
 export default function AccountsSummary() {
   const navigate = useNavigate();
+  const [showInvestments, setShowInvestments] = React.useState(
+    () => localStorage.getItem(SHOW_INVEST_KEY) === "1"
+  );
+  function toggleInvestments() {
+    setShowInvestments((prev) => {
+      const next = !prev;
+      localStorage.setItem(SHOW_INVEST_KEY, next ? "1" : "0");
+      return next;
+    });
+  }
   const [accounts, setAccounts] = React.useState([]);
   const [stocks, setStocks] = React.useState([]);
   const [debts, setDebts] = React.useState([]);
@@ -59,7 +71,7 @@ export default function AccountsSummary() {
   );
   const debtsTotal = activeDebts.reduce((s, d) => s + (d.current_balance || 0), 0);
 
-  const total = bankTotal + investTotal - debtsTotal;
+  const total = bankTotal + (showInvestments ? investTotal : 0) - debtsTotal;
   const itemCount = visibleAccounts.length + investmentGroups.length + activeDebts.length;
 
   const previewCards = [
@@ -70,13 +82,15 @@ export default function AccountsSummary() {
       value: fmt(a.balance || 0),
       valueClass: "text-emerald-400",
     })),
-    ...investmentGroups.map((g) => ({
-      key: `inv-${g.account}`,
-      label: "Investment",
-      name: g.account,
-      value: fmt(g.value),
-      valueClass: "text-indigo-300",
-    })),
+    ...(showInvestments
+      ? investmentGroups.map((g) => ({
+          key: `inv-${g.account}`,
+          label: "Investment",
+          name: g.account,
+          value: fmt(g.value),
+          valueClass: "text-indigo-300",
+        }))
+      : []),
     ...activeDebts.map((d) => ({
       key: `debt-${d.id}`,
       label: "Liability",
@@ -107,6 +121,18 @@ export default function AccountsSummary() {
           <span className={`text-sm font-bold font-mono tabular-nums tracking-tight ${total < 0 ? "text-rose-400" : "text-emerald-400"}`}>
             {fmt(total)}
           </span>
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); toggleInvestments(); }}
+            title="Toggle investment accounts"
+            className={`flex items-center gap-1.5 text-[10px] uppercase tracking-widest border px-2.5 py-1.5 rounded-md transition-colors ${
+              showInvestments
+                ? "border-indigo-500/40 text-indigo-300 bg-indigo-500/10"
+                : "border-white/10 text-white/50 hover:text-white"
+            }`}
+          >
+            <Briefcase className="h-3.5 w-3.5" />
+          </button>
           <ArrowRight className="h-4 w-4 text-white/30" />
         </div>
       </div>

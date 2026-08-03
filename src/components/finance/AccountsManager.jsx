@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Trash2, Pencil, Check, X, Landmark, Eye, EyeOff, Briefcase, CreditCard, ScanLine } from "lucide-react";
+import { Plus, Trash2, Pencil, Check, X, Landmark, Eye, EyeOff, CreditCard, ScanLine, Briefcase } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import AccountBalanceImportModal from "@/components/finance/AccountBalanceImportModal";
 import { useForecast } from "@/lib/forecast-context";
@@ -22,7 +22,11 @@ const fmt = (v) =>
     maximumFractionDigits: 2,
   });
 
-const SHOW_INVEST_KEY = "dd.accounts.showInvestments";
+const SectionHeader = ({ icon: Icon, children }) => (
+  <h3 className="text-[11px] uppercase tracking-widest text-white/50 mb-3 flex items-center gap-1.5 font-semibold">
+    <Icon className="h-3.5 w-3.5" /> {children}
+  </h3>
+);
 
 export default function AccountsManager({ onChanged }) {
   const [accounts, setAccounts] = React.useState([]);
@@ -36,10 +40,6 @@ export default function AccountsManager({ onChanged }) {
   const [editId, setEditId] = React.useState(null);
   const [editName, setEditName] = React.useState("");
   const [editBal, setEditBal] = React.useState("");
-  const [showHidden, setShowHidden] = React.useState(false);
-  const [showInvestments, setShowInvestments] = React.useState(
-    () => localStorage.getItem(SHOW_INVEST_KEY) === "1"
-  );
   const [scanOpen, setScanOpen] = React.useState(false);
 
   const load = React.useCallback(async () => {
@@ -64,14 +64,6 @@ export default function AccountsManager({ onChanged }) {
     });
     return () => { unsubDebt(); unsubAcct(); };
   }, [load]);
-
-  function toggleInvestments() {
-    setShowInvestments((prev) => {
-      const next = !prev;
-      localStorage.setItem(SHOW_INVEST_KEY, next ? "1" : "0");
-      return next;
-    });
-  }
 
   async function toggleVisibility(a) {
     const next = a.show_in_summary === false ? true : false;
@@ -118,9 +110,7 @@ export default function AccountsManager({ onChanged }) {
     onChanged?.();
   }
 
-  const visibleAccounts = accounts.filter((a) => a.show_in_summary !== false);
-  const hiddenAccounts = accounts.filter((a) => a.show_in_summary === false);
-  const bankTotal = visibleAccounts.reduce((s, a) => s + (a.balance || 0), 0);
+  const bankTotal = accounts.reduce((s, a) => s + (a.balance || 0), 0);
 
   const investmentGroups = React.useMemo(() => {
     const map = {};
@@ -134,7 +124,7 @@ export default function AccountsManager({ onChanged }) {
   const investTotal = investmentGroups.reduce((s, g) => s + g.value, 0);
 
   const activeDebts = debts.filter(
-    (d) => (d.status || "active") !== "paid_off" && d.show_in_accounts === true
+    (d) => (d.status || "active") !== "paid_off"
   );
   const debtsTotal = activeDebts.reduce((s, d) => s + (d.current_balance || 0), 0);
 
@@ -142,20 +132,106 @@ export default function AccountsManager({ onChanged }) {
   const isFuture = !!fc?.isFuture;
   const dispTotal = isFuture
     ? fc.point?.cashBalance ?? bankTotal
-    : bankTotal + (showInvestments ? investTotal : 0) - debtsTotal;
+    : bankTotal + investTotal - debtsTotal;
+
+  const renderAccountCard = (a) => (
+    <motion.div
+      key={a.id}
+      layout
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0 }}
+      className={`rounded-lg border bg-black p-3 sm:p-3.5 group hover:border-white/30 transition-colors duration-150 ${a.show_in_summary === false ? "border-white/5 border-dashed opacity-60" : "border-white/10"}`}
+    >
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-[10px] uppercase tracking-widest text-white/50 font-medium">
+          {a.type || "chequing"}
+        </span>
+        <div className="flex items-center gap-0">
+          <button
+            onClick={() => toggleVisibility(a)}
+            title={a.show_in_summary === false ? "Show in summary" : "Hide from summary"}
+            className="h-7 w-7 sm:h-8 sm:w-8 rounded-md flex items-center justify-center text-white/50 hover:text-zinc-200 hover:bg-zinc-800"
+          >
+            {a.show_in_summary === false ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+          </button>
+          {editId === a.id ? (
+            <>
+              <button
+                onClick={() => commitRename(a.id)}
+                className="h-7 w-7 sm:h-8 sm:w-8 rounded-md flex items-center justify-center text-emerald-400 hover:bg-emerald-500/10"
+              >
+                <Check className="h-3.5 w-3.5" />
+              </button>
+              <button
+                onClick={() => setEditId(null)}
+                className="h-7 w-7 sm:h-8 sm:w-8 rounded-md flex items-center justify-center text-zinc-500 hover:bg-zinc-800"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => {
+                  setEditId(a.id);
+                  setEditName(a.name);
+                  setEditBal(String(a.balance ?? 0));
+                }}
+                className="h-7 w-7 sm:h-8 sm:w-8 rounded-md flex items-center justify-center text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+              <button
+                onClick={() => remove(a.id)}
+                className="h-7 w-7 sm:h-8 sm:w-8 rounded-md flex items-center justify-center text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+      {editId === a.id ? (
+        <div className="space-y-1.5 mb-1">
+          <Input
+            value={editName}
+            onChange={(e) => setEditName(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && commitRename(a.id)}
+            className="h-8 bg-zinc-900 border-zinc-800 text-zinc-100 text-sm"
+            autoFocus
+          />
+          <Input
+            type="number"
+            step="0.01"
+            value={editBal}
+            onChange={(e) => setEditBal(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && commitRename(a.id)}
+            placeholder="Balance"
+            className="h-8 bg-zinc-900 border-zinc-800 text-zinc-100 text-sm font-mono tabular-nums"
+          />
+        </div>
+      ) : (
+        <p className="text-sm font-semibold text-zinc-100 mb-1 truncate">{a.name}</p>
+      )}
+      <p className="text-lg sm:text-xl font-bold font-mono tabular-nums tracking-tight text-emerald-400">
+        {fmt(a.balance || 0)}
+      </p>
+    </motion.div>
+  );
 
   return (
     <div>
-      <div className="rounded-lg bg-black border border-white/10 p-5 hover:border-white/30 transition-colors duration-150">
+      <div className="rounded-lg bg-black border border-white/10 p-4 sm:p-5 hover:border-white/30 transition-colors duration-150">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-5 gap-3">
           <div className="flex items-center gap-2 min-w-0">
             <div className="h-8 w-8 flex items-center justify-center bg-emerald-500/10 text-emerald-400 shrink-0">
               <Landmark className="h-4 w-4" />
             </div>
             <div className="min-w-0">
-              <h2 className="font-semibold text-sm text-zinc-100">Accounts</h2>
+              <h2 className="font-semibold text-sm text-zinc-100">All Accounts</h2>
               <p className="text-[11px] uppercase tracking-widest text-white/50 truncate">
-                {isFuture ? `Projection · T+${fc.timelineIndex}` : "Cash & investments"}
+                {isFuture ? `Projection · T+${fc.timelineIndex}` : "Cash · investments · liabilities"}
               </p>
             </div>
           </div>
@@ -168,130 +244,44 @@ export default function AccountsManager({ onChanged }) {
             >
               <ScanLine className="h-3.5 w-3.5" /> Scan
             </button>
-            <button
-              type="button"
-              onClick={toggleInvestments}
-              title="Toggle investment accounts"
-              className={`flex items-center gap-1.5 text-[10px] uppercase tracking-widest border px-2.5 py-1.5 rounded-md transition-colors ${
-                showInvestments
-                  ? "border-indigo-500/40 text-indigo-300 bg-indigo-500/10"
-                  : "border-white/10 text-white/50 hover:text-white"
-              }`}
-            >
-              <Briefcase className="h-3.5 w-3.5" /> <span className="hidden sm:inline">{showInvestments ? "Investments on" : "Investments"}</span>
-            </button>
-              <span className={`text-sm font-bold font-mono tabular-nums tracking-tight ${dispTotal < 0 ? "text-rose-400" : "text-emerald-400"}`}>
+            <span className={`text-sm font-bold font-mono tabular-nums tracking-tight ${dispTotal < 0 ? "text-rose-400" : "text-emerald-400"}`}>
               {fmt(dispTotal)}
-              </span>
+            </span>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3 mb-5">
-          <AnimatePresence mode="popLayout">
-            {visibleAccounts.length === 0 && !loading && (!showInvestments || investmentGroups.length === 0) && activeDebts.length === 0 && (
-              <motion.p
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="col-span-full text-sm text-zinc-500 text-center py-6"
-              >
-                No accounts shown. Add your first account below.
-              </motion.p>
-            )}
-            {visibleAccounts.map((a) => (
-              <motion.div
-                key={a.id}
-                layout
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                className="rounded-lg border border-white/10 bg-black p-3.5 group hover:border-white/30 transition-colors duration-150"
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[10px] uppercase tracking-widest text-white/50 font-medium">
-                    {a.type || "chequing"}
-                  </span>
-                  <div className="flex items-center gap-0.5 sm:gap-0">
-                    <button
-                           onClick={() => toggleVisibility(a)}
-                           title={a.show_in_summary === false ? "Show in summary" : "Hide from summary"}
-                           className="h-7 w-7 sm:h-8 sm:w-8 rounded-md flex items-center justify-center text-white/50 hover:text-zinc-200 hover:bg-zinc-800"
-                    >
-                      {a.show_in_summary === false ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                    </button>
-                    {editId === a.id ? (
-                      <>
-                        <button
-                          onClick={() => commitRename(a.id)}
-                          className="h-7 w-7 sm:h-8 sm:w-8 rounded-md flex items-center justify-center text-emerald-400 hover:bg-emerald-500/10"
-                        >
-                          <Check className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          onClick={() => setEditId(null)}
-                          className="h-7 w-7 sm:h-8 sm:w-8 rounded-md flex items-center justify-center text-zinc-500 hover:bg-zinc-800"
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button
-                          onClick={() => {
-                            setEditId(a.id);
-                            setEditName(a.name);
-                            setEditBal(String(a.balance ?? 0));
-                          }}
-                          className="h-7 w-7 sm:h-8 sm:w-8 rounded-md flex items-center justify-center text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800"
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          onClick={() => remove(a.id)}
-                          className="h-7 w-7 sm:h-8 sm:w-8 rounded-md flex items-center justify-center text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-                {editId === a.id ? (
-                  <div className="space-y-1.5 mb-1">
-                    <Input
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && commitRename(a.id)}
-                      className="h-8 bg-zinc-900 border-zinc-800 text-zinc-100 text-sm"
-                      autoFocus
-                    />
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={editBal}
-                      onChange={(e) => setEditBal(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && commitRename(a.id)}
-                      placeholder="Balance"
-                      className="h-8 bg-zinc-900 border-zinc-800 text-zinc-100 text-sm font-mono tabular-nums"
-                    />
-                  </div>
-                ) : (
-                  <p className="text-sm font-semibold text-zinc-100 mb-1 truncate">{a.name}</p>
-                )}
-                <p className="text-lg sm:text-xl font-bold font-mono tabular-nums tracking-tight text-emerald-400">
-                  {fmt(a.balance || 0)}
-                </p>
-              </motion.div>
-            ))}
+        {/* Chequing & Savings */}
+        <div className="mb-6">
+          <SectionHeader icon={Landmark}>Chequing & Savings</SectionHeader>
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3">
+            <AnimatePresence mode="popLayout">
+              {accounts.length === 0 && !loading && (
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="col-span-full text-sm text-zinc-500 text-center py-4"
+                >
+                  No bank accounts yet.
+                </motion.p>
+              )}
+              {accounts.map(renderAccountCard)}
+            </AnimatePresence>
+          </div>
+        </div>
 
-            {showInvestments &&
-              investmentGroups.map((g) => (
+        {/* Investments */}
+        {investmentGroups.length > 0 && (
+          <div className="mb-6">
+            <SectionHeader icon={Briefcase}>Investments</SectionHeader>
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3">
+              {investmentGroups.map((g) => (
                 <motion.div
                   key={`inv-${g.account}`}
                   layout
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0 }}
-                  className="rounded-lg border border-white/10 bg-black p-3.5 hover:border-indigo-500/30 transition-colors"
+                  className="rounded-lg border border-white/10 bg-black p-3 sm:p-3.5 hover:border-indigo-500/30 transition-colors"
                 >
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-[10px] uppercase tracking-widest text-white/50 font-medium">Investment</span>
@@ -304,17 +294,25 @@ export default function AccountsManager({ onChanged }) {
                   <p className="text-[9px] uppercase tracking-widest text-white/30 mt-1">Cost basis</p>
                 </motion.div>
               ))}
+            </div>
+          </div>
+        )}
 
-            {activeDebts.map((d) => (
-              <motion.div
-                key={`debt-${d.id}`}
-                layout
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -6 }}
-                transition={{ duration: 0.2 }}
-                className="rounded-lg border border-white/10 bg-black p-3.5 hover:border-rose-500/30 transition-colors"
-              >
+        {/* Liabilities */}
+        {activeDebts.length > 0 && (
+          <div>
+            <SectionHeader icon={CreditCard}>Liabilities</SectionHeader>
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3">
+              {activeDebts.map((d) => (
+                <motion.div
+                  key={`debt-${d.id}`}
+                  layout
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.2 }}
+                  className="rounded-lg border border-white/10 bg-black p-3 sm:p-3.5 hover:border-rose-500/30 transition-colors"
+                >
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-[10px] uppercase tracking-widest text-white/50 font-medium">Liability</span>
                     <CreditCard className="h-3.5 w-3.5 text-rose-300" />
@@ -325,32 +323,7 @@ export default function AccountsManager({ onChanged }) {
                   </p>
                 </motion.div>
               ))}
-          </AnimatePresence>
-        </div>
-
-        {hiddenAccounts.length > 0 && (
-          <div className="mb-4">
-            <button
-              onClick={() => setShowHidden((v) => !v)}
-              className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-white/50 hover:text-white transition-colors"
-            >
-              <Eye className="h-3.5 w-3.5" />
-              {showHidden ? "Hide hidden accounts" : `${hiddenAccounts.length} hidden account${hiddenAccounts.length === 1 ? "" : "s"}`}
-            </button>
-            {showHidden && (
-              <div className="mt-2 flex flex-wrap gap-2">
-                {hiddenAccounts.map((a) => (
-                  <button
-                    key={a.id}
-                    onClick={() => toggleVisibility(a)}
-                    className="flex items-center gap-1.5 rounded-md border border-white/10 bg-black px-2.5 py-1.5 text-xs text-white/60 hover:text-white hover:border-white/30 transition-colors"
-                  >
-                    <Eye className="h-3 w-3" />
-                    {a.name} <span className="text-white/30 font-mono tabular-nums">{fmt(a.balance || 0)}</span>
-                  </button>
-                ))}
-              </div>
-            )}
+            </div>
           </div>
         )}
 
