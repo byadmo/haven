@@ -8,6 +8,7 @@ import { Plus, Trash2, RotateCcw, ChevronLeft } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import MonthlyReport from "@/components/finance/MonthlyReport";
 import AutomatedReportSettings from "@/components/finance/AutomatedReportSettings";
+import CalendarSyncSettings from "@/components/finance/CalendarSyncSettings";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/AuthContext";
@@ -139,6 +140,10 @@ export default function Settings() {
 
         <Reveal delay={0.05}>
           <MonthlyReport />
+        </Reveal>
+
+        <Reveal delay={0.07}>
+          <CalendarSyncSettings />
         </Reveal>
 
         <Reveal delay={0.1}>
