@@ -1,15 +1,22 @@
 import React from "react";
-import { Link, NavLink } from "react-router-dom";
-import { Wallet, Settings as SettingsIcon } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Wallet, Settings as SettingsIcon, LayoutDashboard, LineChart, PieChart, TrendingUp, Target, Sparkles } from "lucide-react";
 import CommandPalette from "@/components/finance/CommandPalette";
 import BackupModal from "@/components/finance/BackupModal";
 import MobileNav from "@/components/finance/MobileNav";
+import NavDropdown from "@/components/finance/NavDropdown";
 
 export default function DashboardHeader({ actions }) {
-  const linkClass = ({ isActive }) =>
-    `px-2 py-1.5 text-[11px] font-mono uppercase tracking-wide transition-colors duration-150 ${
-      isActive ? "text-emerald-400 border-b-2 border-emerald-400" : "text-white/50 hover:text-white border-b-2 border-transparent"
-    }`;
+  const financesGroup = [
+    { to: "/", label: "Overview", icon: LayoutDashboard, end: true },
+    { to: "/portfolio", label: "Portfolio", icon: LineChart },
+    { to: "/insights", label: "Insights", icon: PieChart },
+  ];
+  const planningGroup = [
+    { to: "/forecast", label: "Forecast", icon: TrendingUp },
+    { to: "/strategy", label: "Strategy", icon: Target },
+    { to: "/assistant", label: "Ask Adam", icon: Sparkles },
+  ];
 
   return (
     <>
@@ -24,13 +31,9 @@ export default function DashboardHeader({ actions }) {
           </div>
         </Link>
 
-        <nav className="hidden sm:flex items-center shrink-0 mr-auto">
-          <NavLink to="/" className={linkClass} end>Overview</NavLink>
-          <NavLink to="/forecast" className={linkClass}>Forecast</NavLink>
-          <NavLink to="/assistant" className={linkClass}>Ask Adam</NavLink>
-          <NavLink to="/strategy" className={linkClass}>Strategy</NavLink>
-          <NavLink to="/portfolio" className={linkClass}>Portfolio</NavLink>
-          <NavLink to="/insights" className={linkClass}>Insights</NavLink>
+        <nav className="hidden sm:flex items-center gap-1 shrink-0 mr-auto">
+          <NavDropdown label="Finances" items={financesGroup} />
+          <NavDropdown label="Planning" items={planningGroup} />
         </nav>
 
         <div className="flex items-center gap-1.5 ml-auto shrink-0">
