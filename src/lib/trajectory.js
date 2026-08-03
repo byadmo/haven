@@ -48,11 +48,15 @@ export function computeTrajectory({ debts = [], accounts = [], transactions = []
   const keyframeLabels = { 0: "T·0 BASELINE" };
 
   const totalDebt0 = active.reduce((s, d) => s + d.balance, 0);
+  const liabilities0 = {};
+  balances.forEach((d) => { liabilities0[d.id || d.name] = Math.max(0, d.balance); });
   const series = [{
     month: 0,
     date: addMonths(now, 0),
     netWorth: startingCash - totalDebt0,
     debtRemaining: totalDebt0,
+    income: recIn,
+    liabilities: liabilities0,
     cashBuffer: startingCash - recOut,
     cashBalance: startingCash,
     keyframe: true,
@@ -107,11 +111,15 @@ export function computeTrajectory({ debts = [], accounts = [], transactions = []
       keyframeLabels[m] = "DEBT FREE";
     }
 
+    const libs = {};
+    balances.forEach((d) => { libs[d.id || d.name] = Math.max(0, d.balance); });
     series.push({
       month: m,
       date: addMonths(now, m),
       netWorth: cash - debtRemaining,
       debtRemaining,
+      income: recIn,
+      liabilities: libs,
       cashBuffer: cash - recOut,
       cashBalance: cash,
       keyframe: keyframeMonths.has(m),

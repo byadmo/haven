@@ -1,6 +1,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { Wallet, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { useForecast } from "@/lib/forecast-context";
 
 const fmt = (v) =>
   (v || 0).toLocaleString(undefined, {
@@ -14,7 +15,7 @@ function ChangeChip({ pct }) {
   if (pct === null || isNaN(pct)) return null;
   const up = pct >= 0;
   return (
-    <span className={`inline-flex items-center gap-0.5 text-[11px] font-medium tabular-nums ${up ? "text-emerald-400" : "text-rose-400"}`}>
+    <span className={`inline-flex items-center gap-0.5 text-[11px] font-mono tabular-nums ${up ? "text-emerald-400" : "text-rose-400"}`}>
       {up ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
       {Math.abs(pct).toFixed(0)}%
     </span>
@@ -22,6 +23,11 @@ function ChangeChip({ pct }) {
 }
 
 export default function MetricsRow({ netWorth, income, expense, incomePct, expensePct, spendRatio }) {
+  const fc = useForecast();
+  const fp = fc?.point;
+  if (fp) { netWorth = fp.netWorth; income = fp.income; }
+  const isFuture = !!fc?.isFuture;
+
   const cards = [
     {
       label: "Net Worth",
@@ -29,7 +35,7 @@ export default function MetricsRow({ netWorth, income, expense, incomePct, expen
       icon: <Wallet className="h-4 w-4" />,
       accent: "indigo",
       bar: null,
-      chip: null,
+      chip: isFuture ? <span className="text-[10px] font-mono tabular-nums text-emerald-400">T+{fc.timelineIndex} PROJ</span> : null,
     },
     {
       label: "Monthly Income",
@@ -68,18 +74,18 @@ export default function MetricsRow({ netWorth, income, expense, incomePct, expen
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.04 }}
-            className="relative rounded-2xl bg-zinc-900/60 backdrop-blur-xl border border-zinc-800 p-4 shadow-lg shadow-black/30 overflow-hidden"
+            className="relative rounded-none bg-black border border-white/10 p-4 hover:border-white/30 transition-colors duration-150 overflow-hidden"
           >
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <div className={`h-7 w-7 rounded-lg flex items-center justify-center ${accents[c.accent]}`}>{c.icon}</div>
-                <span className="text-[11px] uppercase tracking-wider text-zinc-500 font-medium">{c.label}</span>
+                <div className={`h-7 w-7 flex items-center justify-center ${accents[c.accent]}`}>{c.icon}</div>
+                <span className="text-[11px] uppercase tracking-widest text-white/50 font-medium">{c.label}</span>
               </div>
               {c.chip}
             </div>
-            <p className="text-2xl font-bold tabular-nums text-zinc-50">{c.value}</p>
+            <p className="text-2xl font-bold font-mono tabular-nums tracking-tight text-zinc-50">{c.value}</p>
             {c.bar !== null && (
-              <div className="mt-3 h-1.5 rounded-full bg-zinc-800 overflow-hidden">
+              <div className="mt-3 h-1.5 bg-white/10 overflow-hidden">
                 <motion.div
                   initial={{ width: 0 }}
                   animate={{ width: `${c.bar}%` }}

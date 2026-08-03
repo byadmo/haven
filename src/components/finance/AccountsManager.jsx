@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/select";
 import { Plus, Trash2, Pencil, Check, X, Wallet, Landmark } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useForecast } from "@/lib/forecast-context";
 
 const fmt = (v) =>
   (v || 0).toLocaleString(undefined, {
@@ -76,20 +77,24 @@ export default function AccountsManager({ onChanged }) {
 
   const total = accounts.reduce((s, a) => s + (a.balance || 0), 0);
 
+  const fc = useForecast();
+  const isFuture = !!fc?.isFuture;
+  const dispTotal = isFuture ? (fc.point?.cashBalance ?? total) : total;
+
   return (
     <div>
-      <div className="rounded-2xl bg-zinc-900/60 backdrop-blur-xl border border-zinc-800 p-5 shadow-xl shadow-black/30">
+      <div className="rounded-none bg-black border border-white/10 p-5 hover:border-white/30 transition-colors duration-150">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-emerald-500/15 flex items-center justify-center">
-              <Landmark className="h-4 w-4 text-emerald-400" />
+            <div className="h-8 w-8 flex items-center justify-center bg-emerald-500/10 text-emerald-400">
+              <Landmark className="h-4 w-4" />
             </div>
             <div>
               <h2 className="font-semibold text-sm text-zinc-100">Chequing Accounts</h2>
-              <p className="text-[11px] text-zinc-500">Cash moved automatically by income &amp; expenses</p>
+              <p className="text-[11px] uppercase tracking-widest text-white/50">{isFuture ? `Projection · T+${fc.timelineIndex}` : "Cash moved by income & expenses"}</p>
             </div>
           </div>
-          <span className="text-sm font-bold tabular-nums text-emerald-400">{fmt(total)}</span>
+          <span className="text-sm font-bold font-mono tabular-nums tracking-tight text-emerald-400">{fmt(dispTotal)}</span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
@@ -110,10 +115,10 @@ export default function AccountsManager({ onChanged }) {
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
-                className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-3.5 group"
+                className="rounded-none border border-white/10 bg-black p-3.5 group hover:border-white/30 transition-colors duration-150"
               >
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-[10px] uppercase tracking-wider text-zinc-500 font-medium">
+                  <span className="text-[10px] uppercase tracking-widest text-white/50 font-medium">
                     {a.type || "chequing"}
                   </span>
                   <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -164,7 +169,7 @@ export default function AccountsManager({ onChanged }) {
                 ) : (
                   <p className="text-sm font-semibold text-zinc-100 mb-1 truncate">{a.name}</p>
                 )}
-                <p className="text-xl font-bold tabular-nums text-emerald-400">{fmt(a.balance || 0)}</p>
+                <p className="text-xl font-bold font-mono tabular-nums tracking-tight text-emerald-400">{fmt(a.balance || 0)}</p>
               </motion.div>
             ))}
           </AnimatePresence>

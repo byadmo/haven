@@ -15,6 +15,7 @@ import CashBuffer from "@/components/finance/CashBuffer";
 import TelemetryReadout from "@/components/finance/TelemetryReadout";
 import ScrubbableTimeline from "@/components/finance/ScrubbableTimeline";
 import { computeTrajectory } from "@/lib/trajectory";
+import { ForecastProvider } from "@/lib/forecast-context";
 import LiabilityLedger from "@/components/finance/LiabilityLedger";
 import DebtForm from "@/components/finance/DebtForm";
 import AccountsManager from "@/components/finance/AccountsManager";
@@ -29,18 +30,11 @@ export default function Home() {
   const [refreshKey, setRefreshKey] = React.useState(0);
   const [quickAdd, setQuickAdd] = React.useState(false);
   const [showDebtForm, setShowDebtForm] = React.useState(false);
-  const [playhead, setPlayhead] = React.useState(0);
 
-  const trajectory = React.useMemo(
-    () => computeTrajectory({ debts, accounts, transactions: txns }),
+  const forecastData = React.useMemo(
+    () => computeTrajectory({ debts, accounts, transactions: txns }).series,
     [debts, accounts, txns]
   );
-
-  React.useEffect(() => {
-    if (playhead > trajectory.series.length - 1) setPlayhead(0);
-  }, [trajectory.series.length, playhead]);
-
-  const point = trajectory.series[Math.min(playhead, trajectory.series.length - 1)] || trajectory.series[0];
 
   const loadData = React.useCallback(async () => {
     const [t, d, a] = await Promise.all([
@@ -122,16 +116,12 @@ export default function Home() {
 
       <DashboardHeader actions={headerActions} />
 
+      <ForecastProvider forecastData={forecastData}>
       <main className="relative max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-6">
         <Reveal>
           <div className="border border-white/10 bg-black">
-            <TelemetryReadout point={point} />
-            <ScrubbableTimeline
-              series={trajectory.series}
-              keyframes={trajectory.keyframes}
-              index={playhead}
-              onIndex={setPlayhead}
-            />
+            <TelemetryReadout />
+            <ScrubbableTimeline />
           </div>
         </Reveal>
 
@@ -190,6 +180,7 @@ export default function Home() {
           <Reveal><LiabilityLedger debts={debts} onChanged={() => setRefreshKey((k) => k + 1)} /></Reveal>
         </section>
       </main>
+      </ForecastProvider>
 
       <QuickAddModal
         open={quickAdd}

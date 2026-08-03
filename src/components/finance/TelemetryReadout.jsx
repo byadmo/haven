@@ -1,5 +1,6 @@
 import React from "react";
 import { format } from "date-fns";
+import { useForecast } from "@/lib/forecast-context";
 
 const money = (v) =>
   (v || 0).toLocaleString(undefined, {
@@ -15,8 +16,8 @@ function toneColor(tone) {
 function Metric({ label, value, tone, badge }) {
   return (
     <div className="p-4 sm:p-5 flex-1">
-      <p className="text-[10px] tracking-[0.2em] text-zinc-500 font-mono">{label}</p>
-      <p className={`mt-1 text-2xl sm:text-3xl font-mono tabular-nums ${toneColor(tone)}`}>{value}</p>
+      <p className="text-[10px] tracking-[0.2em] text-white/50 font-mono uppercase">{label}</p>
+      <p className={`mt-1 text-2xl sm:text-3xl font-mono tabular-nums tracking-tight ${toneColor(tone)}`}>{value}</p>
       {badge && (
         <span className="mt-1.5 inline-block text-[9px] tracking-[0.18em] px-1.5 py-0.5 border border-emerald-500/40 text-emerald-400 font-mono">
           {badge}
@@ -26,7 +27,9 @@ function Metric({ label, value, tone, badge }) {
   );
 }
 
-export default function TelemetryReadout({ point }) {
+export default function TelemetryReadout() {
+  const fc = useForecast();
+  const point = fc?.point;
   if (!point) return null;
   const nw = point.netWorth || 0;
   const debt = point.debtRemaining || 0;
@@ -35,13 +38,13 @@ export default function TelemetryReadout({ point }) {
   return (
     <div className="flex flex-col sm:flex-row sm:items-stretch divide-y sm:divide-y-0 sm:divide-x divide-white/10">
       <div className="p-4 sm:p-5">
-        <p className="text-[10px] tracking-[0.2em] text-zinc-500 font-mono">FORECAST</p>
-        <p className="mt-1 text-2xl font-mono tabular-nums text-zinc-50">T+{point.month}</p>
-        <p className="text-[11px] font-mono tabular-nums text-zinc-400">{format(point.date, "MMM yyyy").toUpperCase()}</p>
+        <p className="text-[10px] tracking-[0.2em] text-white/50 font-mono uppercase">Forecast</p>
+        <p className="mt-1 text-2xl font-mono tabular-nums tracking-tight text-zinc-50">T+{point.month}</p>
+        <p className="text-[11px] font-mono tabular-nums tracking-tight text-white/50">{format(point.date, "MMM yyyy").toUpperCase()}</p>
       </div>
-      <Metric label="NET WORTH" value={money(nw)} tone={nw >= 0 ? "emerald" : "rose"} />
-      <Metric label="DEBT REMAINING" value={money(debt)} tone={debt <= 0 ? "emerald" : "amber"} />
-      <Metric label="CASH BUFFER" value={money(buf)} tone={buf < 0 ? "amber" : "emerald"} badge={point.keyframe && point.keyframeLabel ? point.keyframeLabel : null} />
+      <Metric label="Net Worth" value={money(nw)} tone={nw >= 0 ? "emerald" : "rose"} />
+      <Metric label="Debt Remaining" value={money(debt)} tone={debt <= 0 ? "emerald" : "amber"} />
+      <Metric label="Cash Buffer" value={money(buf)} tone={buf < 0 ? "amber" : "emerald"} badge={point.keyframe && point.keyframeLabel ? point.keyframeLabel : null} />
     </div>
   );
 }
