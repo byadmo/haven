@@ -80,7 +80,10 @@ export default function MetricsRow({ netWorth, income, expense, incomePct, expen
             className="relative rounded-lg bg-black border border-white/10 p-2.5 sm:p-4 hover:border-white/30 transition-colors duration-150 overflow-hidden"
           >
             <div className="flex items-center justify-between mb-2 sm:mb-3">
-              <div className={`h-6 w-6 sm:h-7 sm:w-7 flex items-center justify-center ${accents[c.accent]}`}>{c.icon}</div>
+              <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                <div className={`h-5 w-5 sm:h-7 sm:w-7 flex items-center justify-center ${accents[c.accent]} shrink-0`}>{c.icon}</div>
+                <span className="text-[9px] sm:text-[11px] uppercase tracking-widest text-white/50 font-medium truncate">{c.label}</span>
+              </div>
               {c.chip}
             </div>
             <p className={`text-base sm:text-2xl font-bold font-mono tabular-nums tracking-tight ${c.valueColor}`}>{c.value}</p>

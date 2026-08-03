@@ -186,7 +186,7 @@ export default function AccountsManager({ onChanged }) {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-3 mb-5">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3 mb-5">
           <AnimatePresence mode="popLayout">
             {visibleAccounts.length === 0 && !loading && (!showInvestments || investmentGroups.length === 0) && activeDebts.length === 0 && (
               <motion.p

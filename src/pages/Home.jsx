@@ -3,7 +3,7 @@ import { useFinanceData } from "@/lib/FinanceDataContext";
 import {
   startOfMonth, endOfMonth, isWithinInterval, parseISO, subMonths,
 } from "date-fns";
-import { Plus, ArrowRight, UploadCloud } from "lucide-react";
+import { Plus, UploadCloud } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import DashboardHeader from "@/components/finance/DashboardHeader";
 import QuickAddModal from "@/components/finance/QuickAddModal";
@@ -11,7 +11,6 @@ import MetricsRow from "@/components/finance/MetricsRow";
 import CashFlowAnalytics from "@/components/finance/CashFlowAnalytics";
 import RecentTransactions from "@/components/finance/RecentTransactions";
 import UpcomingRecurring from "@/components/finance/UpcomingRecurring";
-import CashBuffer from "@/components/finance/CashBuffer";
 import { computeTrajectory } from "@/lib/trajectory";
 import { ForecastProvider } from "@/lib/forecast-context";
 import LiabilityLedger from "@/components/finance/LiabilityLedger";
@@ -22,7 +21,6 @@ import DebtProgressTracker from "@/components/finance/DebtProgressTracker";
 import StatementImportModal from "@/components/finance/StatementImportModal";
 import AccountsManager from "@/components/finance/AccountsManager";
 import Reveal from "@/components/finance/Reveal";
-import { Link } from "react-router-dom";
 
 export default function Home() {
   const { transactions: txns, debts, accounts, refresh, refreshKey } = useFinanceData();
@@ -121,29 +119,7 @@ export default function Home() {
             </Reveal>
           </div>
           <div className="space-y-6">
-            <Reveal><CashBuffer accounts={accounts} transactions={txns} /></Reveal>
             <Reveal><UpcomingRecurring transactions={txns} accounts={accounts} onChanged={refresh} /></Reveal>
-
-            <div className="space-y-3">
-              <Link to="/strategy" className="group block rounded-2xl bg-zinc-900/60 backdrop-blur-xl border border-zinc-800 p-4 hover:border-indigo-500/40 transition-colors">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-semibold text-sm text-zinc-100">Debt Strategy</h3>
-                    <p className="text-xs text-zinc-500">Projection graph &amp; optimizer</p>
-                  </div>
-                  <ArrowRight className="h-4 w-4 text-zinc-500 group-hover:text-indigo-300 transition-colors" />
-                </div>
-              </Link>
-              <Link to="/portfolio" className="group block rounded-2xl bg-zinc-900/60 backdrop-blur-xl border border-zinc-800 p-4 hover:border-emerald-500/40 transition-colors">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-semibold text-sm text-zinc-100">Stock Portfolio</h3>
-                    <p className="text-xs text-zinc-500">Holdings by account</p>
-                  </div>
-                  <ArrowRight className="h-4 w-4 text-zinc-500 group-hover:text-emerald-300 transition-colors" />
-                </div>
-              </Link>
-            </div>
           </div>
         </div>
 
