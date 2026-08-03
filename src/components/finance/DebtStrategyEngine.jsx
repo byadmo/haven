@@ -79,7 +79,7 @@ export default function DebtStrategyEngine({ debts, monthlySurplus }) {
           </div>
           <div>
             <h2 className="font-semibold text-sm text-zinc-100">Debt Strategy Engine</h2>
-            <p className="text-xs text-zinc-500">Simulate your path to debt-free</p>
+            <p className="text-xs text-zinc-500">Simulate your path to debt-free — pick Avalanche (highest interest first) or Snowball (smallest balance first) to see your payoff timeline, interest cost, and recommended payment order.</p>
           </div>
         </div>
         <ToggleGroup type="single" value={method} onValueChange={(v) => v && setMethod(v)} className="bg-zinc-950/60 border border-zinc-800 rounded-lg p-1 self-start">
@@ -199,6 +199,7 @@ export default function DebtStrategyEngine({ debts, monthlySurplus }) {
         <div className="flex items-center gap-2 mb-3">
           <Wand2 className="h-4 w-4 text-violet-300" />
           <p className="text-xs font-semibold uppercase tracking-wider text-violet-300">What-If Optimizer</p>
+          <p className="text-[10px] text-zinc-500 mt-1">Drag the boost slider to see how adding extra money each month shortens your payoff time and saves interest.</p>
         </div>
 
         <div className="mb-4">

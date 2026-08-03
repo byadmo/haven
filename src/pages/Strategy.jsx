@@ -37,9 +37,12 @@ export default function Strategy() {
 
       <main className="relative max-w-6xl mx-auto px-6 sm:px-6 py-10 sm:py-6 space-y-10 sm:space-y-6">
         <Reveal>
-          <DebtProjectionChart debts={debts} surplus={surplus} />
+          <StrategyAdvisor debts={debts} accounts={accounts} transactions={txns} surplus={surplus} />
         </Reveal>
         <Reveal delay={0.03}>
+          <DebtProjectionChart debts={debts} surplus={surplus} />
+        </Reveal>
+        <Reveal delay={0.05}>
           <GoalPlanner
             debts={debts}
             accounts={accounts}
@@ -52,9 +55,6 @@ export default function Strategy() {
         </Reveal>
         <Reveal delay={0.05}>
           <DebtStrategyEngine debts={debts} monthlySurplus={surplus} />
-        </Reveal>
-        <Reveal delay={0.07}>
-          <StrategyAdvisor debts={debts} accounts={accounts} transactions={txns} surplus={surplus} />
         </Reveal>
       </main>
     </div>
