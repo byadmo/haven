@@ -48,6 +48,7 @@ export default function LiabilityLedger({ debts, onChanged }) {
 
   async function saveEdit(e) {
     e.preventDefault();
+    if (!editing?.id) return;
     setSaving(true);
     try {
       await base44.entities.Debt.update(editing.id, {
@@ -87,7 +88,7 @@ export default function LiabilityLedger({ debts, onChanged }) {
   async function logPayment(e) {
     e.preventDefault();
     const amt = parseFloat(paying.amount) || 0;
-    if (amt <= 0 || !paying.date) return;
+    if (amt <= 0 || !paying.date || !paying.debt_id) return;
     setLogging(true);
     try {
       const debt = debts.find((d) => d.id === paying.debt_id);
