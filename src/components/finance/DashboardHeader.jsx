@@ -23,7 +23,7 @@ export default function DashboardHeader({ actions }) {
               <Wallet className="h-4 w-4" />
             </div>
             <div>
-              <h1 className="text-base font-bold tracking-tight text-zinc-50 leading-none font-mono">DEBT FREE</h1>
+              <h1 className="text-base font-bold tracking-tight text-zinc-50 leading-none font-mono">HAVEN</h1>
               <p className="text-[10px] uppercase tracking-widest text-white/50 mt-0.5 hidden sm:block font-mono">{format(now, "EEEE · MMM d").toUpperCase()}</p>
             </div>
           </Link>
