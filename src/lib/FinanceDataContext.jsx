@@ -1,6 +1,7 @@
 import React from "react";
 import { Outlet } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
+import { CurrencyProvider } from "@/lib/currency-context";
 
 const FinanceDataContext = React.createContext(null);
 
@@ -52,9 +53,11 @@ export function useFinanceData() {
 
 export function FinanceLayout() {
   return (
-    <FinanceDataProvider>
-      <FinanceLayoutInner />
-    </FinanceDataProvider>
+    <CurrencyProvider>
+      <FinanceDataProvider>
+        <FinanceLayoutInner />
+      </FinanceDataProvider>
+    </CurrencyProvider>
   );
 }
 

@@ -1,16 +1,14 @@
 import React from "react";
 import CashFlowAnalytics from "@/components/finance/CashFlowAnalytics";
 import NetWorthChart from "@/components/finance/NetWorthChart";
-import CurrencySelector from "@/components/finance/CurrencySelector";
 
 const TABS = [
-  { id: "cashflow", label: "Cash Flow Trends" },
   { id: "networth", label: "Total Net Worth" },
+  { id: "cashflow", label: "Cash Flow Trends" },
 ];
 
 export default function ChartSwitcher({ transactions, accounts, debts }) {
-  const [tab, setTab] = React.useState("cashflow");
-  const [currency, setCurrency] = React.useState("USD");
+  const [tab, setTab] = React.useState("networth");
 
   return (
     <div className="rounded-2xl bg-zinc-900/60 backdrop-blur-xl border border-zinc-800 p-5 shadow-2xl shadow-black/40">
@@ -28,13 +26,12 @@ export default function ChartSwitcher({ transactions, accounts, debts }) {
             </button>
           ))}
         </div>
-        <CurrencySelector value={currency} onChange={setCurrency} />
       </div>
 
-      {tab === "cashflow" ? (
-        <CashFlowAnalytics transactions={transactions} currency={currency} embedded />
+      {tab === "networth" ? (
+        <NetWorthChart transactions={transactions} accounts={accounts} debts={debts} />
       ) : (
-        <NetWorthChart transactions={transactions} accounts={accounts} debts={debts} currency={currency} />
+        <CashFlowAnalytics transactions={transactions} embedded />
       )}
     </div>
   );

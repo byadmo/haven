@@ -285,12 +285,12 @@ ${ctx.text}`;
           </Button>
           <Button
             onClick={applyToEngine}
-            disabled={loading != null || applied}
+            disabled={loading != null}
             size="sm"
             className="bg-indigo-600 text-white hover:bg-indigo-500"
           >
             <Rocket className="h-3.5 w-3.5" />
-            {applied ? "Applied to Engine" : "Apply to Engine"}
+            {applied ? "Applied ✓ — Re-apply" : "Apply to Engine"}
           </Button>
         </div>
       )}

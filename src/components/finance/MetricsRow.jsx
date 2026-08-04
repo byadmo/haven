@@ -2,14 +2,7 @@ import React from "react";
 import { motion } from "framer-motion";
 import { Wallet, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { useForecast } from "@/lib/forecast-context";
-
-const fmt = (v) =>
-  (v || 0).toLocaleString(undefined, {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+import { useCurrency } from "@/lib/currency-context";
 
 function ChangeChip({ pct }) {
   if (pct === null || isNaN(pct)) return null;
@@ -24,6 +17,7 @@ function ChangeChip({ pct }) {
 
 export default function MetricsRow({ netWorth, income, expense, incomePct, expensePct, spendRatio }) {
   const fc = useForecast();
+  const { fmtMoney: fmt } = useCurrency();
   const fp = fc?.point;
   if (fp) { netWorth = fp.netWorth; income = fp.income; }
   const isFuture = !!fc?.isFuture;

@@ -6,16 +6,10 @@ import { simulateFlatRun } from "@/lib/trajectory";
 import { format } from "date-fns";
 import { Sparkles, TrendingDown, CalendarCheck, ArrowRight, Wand2, PiggyBank } from "lucide-react";
 import { ResponsiveContainer, ComposedChart, Line, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
+import { useCurrency } from "@/lib/currency-context";
 
-const fmt = (v) =>
-  (v || 0).toLocaleString(undefined, {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-
-export default function DebtStrategyEngine({ debts, monthlySurplus, forcedSurplus, forcedMethod }) {
+export default function DebtStrategyEngine({ debts, monthlySurplus, forcedSurplus, forcedMethod, forcedBoost }) {
+  const { fmtMoney: fmt, fmtAxis } = useCurrency();
   const [method, setMethod] = React.useState("avalanche");
   const [surplus, setSurplus] = React.useState(monthlySurplus || 0);
   const [boost, setBoost] = React.useState(0);
@@ -31,6 +25,10 @@ export default function DebtStrategyEngine({ debts, monthlySurplus, forcedSurplu
   React.useEffect(() => {
     if (forcedMethod === "avalanche" || forcedMethod === "snowball") setMethod(forcedMethod);
   }, [forcedMethod]);
+
+  React.useEffect(() => {
+    if (typeof forcedBoost === "number") setBoost(forcedBoost);
+  }, [forcedBoost]);
 
   // Single unified run per scenario — replaces 5 separate simulations.
   const baseRun = React.useMemo(
@@ -134,7 +132,7 @@ export default function DebtStrategyEngine({ debts, monthlySurplus, forcedSurplu
         <div className="flex items-center justify-between mb-1.5">
           <label className="text-xs text-zinc-400">Monthly surplus available</label>
           <span className="text-sm font-semibold text-zinc-100 tabular-nums">
-            ${surplus.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}
+            {fmt(surplus)}
           </span>
         </div>
         <input
@@ -183,7 +181,7 @@ export default function DebtStrategyEngine({ debts, monthlySurplus, forcedSurplu
                 </span>
                 <span className="text-zinc-300 font-medium flex-1">{d.name}</span>
                 <span className="text-zinc-500 tabular-nums">
-                  ${(d.current_balance || 0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}
+                  {fmt(d.current_balance || 0)}
                 </span>
                 {d.interest_rate > 0 && (
                   <span className="text-[10px] px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-300 tabular-nums">
@@ -253,7 +251,7 @@ export default function DebtStrategyEngine({ debts, monthlySurplus, forcedSurplu
               <ComposedChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
                 <XAxis dataKey="month" stroke="#52525b" fontSize={10} tickFormatter={(m) => `${m}mo`} tickLine={false} axisLine={false} />
-                <YAxis stroke="#52525b" fontSize={10} width={44} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} tickLine={false} axisLine={false} />
+                <YAxis stroke="#52525b" fontSize={10} width={44} tickFormatter={(v) => fmtAxis(v)} tickLine={false} axisLine={false} />
                 <Tooltip contentStyle={{ background: "#18181b", border: "1px solid #27272a", borderRadius: 8, fontSize: 11 }} labelFormatter={(m) => `Month ${m}`} formatter={(v) => fmt(v)} />
                 <Line type="monotone" dataKey="base" stroke="#f43f5e" strokeWidth={2} dot={false} isAnimationActive={false} />
                 <Line type="monotone" dataKey="accelerated" stroke="#34d399" strokeWidth={2} strokeDasharray="5 4" dot={false} isAnimationActive={false} />

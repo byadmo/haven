@@ -3,19 +3,17 @@ import { differenceInMonths, format } from "date-fns";
 import { computeTrajectory, solveExtraForTarget } from "@/lib/trajectory";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Target, Calendar } from "lucide-react";
+import { Target, Calendar, RotateCcw, CheckCircle2 } from "lucide-react";
+import { useCurrency } from "@/lib/currency-context";
 
-const fmt = (v) =>
-  (v || 0).toLocaleString(undefined, {
-    style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2,
-  });
-
-export default function GoalPlanner({ debts, accounts, transactions, method, months, onApply, currentExtra }) {
+export default function GoalPlanner({ debts, accounts, transactions, method, months, onApply }) {
+  const { fmtMoney: fmt } = useCurrency();
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const [target, setTarget] = React.useState("");
+  const [applied, setApplied] = React.useState(null); // { extra, dateIso, label }
 
-  const targetMonths = target ? Math.max(1, differenceInMonths(new Date(target + 'T00:00:00'), today)) : null;
+  const targetMonths = target ? Math.max(1, differenceInMonths(new Date(target + "T00:00:00"), today)) : null;
   const horizon = Math.max(months, targetMonths ?? months);
 
   const solved = React.useMemo(() => {
@@ -27,16 +25,31 @@ export default function GoalPlanner({ debts, accounts, transactions, method, mon
     ? computeTrajectory({ debts, accounts, transactions, months: horizon, method, extraPayment: solved.extra }).series
     : null;
   const goalFreeMonth = goalSeries?.find((p) => p.debtRemaining <= 0.005)?.month;
-  const goalFreeDate = goalFreeMonth != null ? format(goalSeries[goalFreeMonth].date, "MMM yyyy") : null;
+  const goalFreeDateObj = goalFreeMonth != null ? goalSeries[goalFreeMonth].date : null;
+  const goalFreeDate = goalFreeDateObj ? format(goalFreeDateObj, "MMM d, yyyy") : null;
+  const goalFreeIso = goalFreeDateObj ? format(goalFreeDateObj, "yyyy-MM-dd") : target || null;
 
-  // Earliest possible debt-free date: pay nothing extra, just minimums + monthly surplus from recurring income/expenses
   const earliestTraj = React.useMemo(
     () => computeTrajectory({ debts, accounts, transactions, months: 120, method, extraPayment: 0 }),
     [debts, accounts, transactions, method]
   );
   const earliestFreeMonth = earliestTraj.series.findIndex((p) => p.debtRemaining <= 0.005);
-  const earliestDate = earliestFreeMonth >= 0 ? format(earliestTraj.series[earliestFreeMonth].date, "MMM yyyy") : null;
+  const earliestDate = earliestFreeMonth >= 0 ? format(earliestTraj.series[earliestFreeMonth].date, "MMM d, yyyy") : null;
   const monthlySurplus = earliestTraj.series[0]?.monthlyNet || 0;
+
+  // Repopulate the Apply button whenever the goal date changes.
+  React.useEffect(() => { setApplied(null); }, [target]);
+
+  function handleApply() {
+    if (solved?.extra == null) return;
+    onApply?.(solved.extra, goalFreeIso);
+    setApplied({ extra: solved.extra, dateIso: goalFreeIso, label: goalFreeDate });
+  }
+
+  function handleRestore() {
+    if (!applied) return;
+    onApply?.(applied.extra, applied.dateIso);
+  }
 
   return (
     <div>
@@ -104,11 +117,21 @@ export default function GoalPlanner({ debts, accounts, transactions, method, mon
               </div>
               <Button
                 size="sm"
-                onClick={() => onApply(solved.extra)}
+                onClick={handleApply}
                 className="bg-indigo-600 text-white hover:bg-indigo-500 mb-1"
               >
-                Apply
+                {applied ? "Re-apply to Engine" : "Apply to Engine"}
               </Button>
+              {applied && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleRestore}
+                  className="border-white/10 text-zinc-300 hover:bg-white/5 mb-1"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" /> Restore
+                </Button>
+              )}
             </div>
           )}
         </div>
@@ -118,10 +141,11 @@ export default function GoalPlanner({ debts, accounts, transactions, method, mon
             Not reachable with current income — try a later date
           </p>
         )}
-        {solved?.extra != null && currentExtra === solved.extra && (
-          <p className="text-[10px] tracking-[0.18em] font-mono uppercase text-emerald-400 mt-2">
-            ✓ Applied to your projection below
-          </p>
+        {applied && (
+          <div className="mt-3 flex items-center gap-2 text-[10px] tracking-[0.18em] font-mono uppercase text-emerald-400">
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            Applied to Engine — debt-free by {applied.label}. Target payoff date saved to your liabilities.
+          </div>
         )}
       </div>
     </div>

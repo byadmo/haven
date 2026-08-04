@@ -32,7 +32,7 @@ import {
   addMonths,
 } from "date-fns";
 import { TrendingDown, TrendingUp } from "lucide-react";
-import { fmtMoney, fmtAxis } from "@/lib/currency";
+import { useCurrency } from "@/lib/currency-context";
 
 const RANGES = [
   { id: "7d",  label: "Last 7 days",   unit: "days",   count: 7,  bucket: "day" },
@@ -43,7 +43,7 @@ const RANGES = [
   { id: "all", label: "All time",      unit: "all",               bucket: "month" },
 ];
 
-function ChartTooltip({ active, payload, label, currency }) {
+function ChartTooltip({ active, payload, label, fmt }) {
   if (!active || !payload?.length) return null;
   return (
     <div className="backdrop-blur-md bg-zinc-900/80 border border-zinc-700/80 rounded-xl px-3 py-2 shadow-2xl">
@@ -53,7 +53,7 @@ function ChartTooltip({ active, payload, label, currency }) {
           <span className="h-2 w-2 rounded-full" style={{ background: p.color }} />
           <span className="text-zinc-400 capitalize">{p.dataKey}</span>
           <span className="text-zinc-100 font-semibold tabular-nums ml-auto">
-            {fmtMoney(p.value, currency)}
+            {fmt(p.value)}
           </span>
         </div>
       ))}
@@ -61,7 +61,8 @@ function ChartTooltip({ active, payload, label, currency }) {
   );
 }
 
-export default function CashFlowAnalytics({ transactions, currency = "USD", embedded = false }) {
+export default function CashFlowAnalytics({ transactions, embedded = false }) {
+  const { fmtMoney: fmt, fmtAxis } = useCurrency();
   const [rangeId, setRangeId] = React.useState("3m");
   const range = RANGES.find((r) => r.id === rangeId) || RANGES[2];
 
@@ -153,9 +154,9 @@ export default function CashFlowAnalytics({ transactions, currency = "USD", embe
               fontSize={11}
               tickLine={false}
               axisLine={false}
-              tickFormatter={(v) => fmtAxis(v, currency)}
+              tickFormatter={(v) => fmtAxis(v)}
             />
-            <Tooltip content={<ChartTooltip currency={currency} />} cursor={{ stroke: "#3f3f46", strokeWidth: 1 }} />
+            <Tooltip content={<ChartTooltip fmt={fmt} />} cursor={{ stroke: "#3f3f46", strokeWidth: 1 }} />
             <Area type="monotone" dataKey="income" stroke="#34d399" strokeWidth={2.5} fill="url(#incomeGrad)" />
             <Area type="monotone" dataKey="expense" stroke="#fb7185" strokeWidth={2.5} fill="url(#expenseGrad)" />
           </AreaChart>
@@ -176,7 +177,7 @@ export default function CashFlowAnalytics({ transactions, currency = "USD", embe
               {isLoss ? "Net Loss" : "Net Profit"} · {range.label.toLowerCase()}
             </p>
             <p className={`text-xl font-bold tabular-nums ${isLoss ? "text-rose-400" : "text-emerald-400"} ${isLoss ? "animate-pulse" : ""}`}>
-              {isLoss ? "-" : "+"}{fmtMoney(Math.abs(net), currency)}
+              {isLoss ? "-" : "+"}{fmt(Math.abs(net))}
             </p>
           </div>
         </div>

@@ -1,6 +1,7 @@
 import React from "react";
 import { useFinanceData } from "@/lib/FinanceDataContext";
 import { startOfMonth, endOfMonth, isWithinInterval, parseISO } from "date-fns";
+import { base44 } from "@/api/base44Client";
 import DashboardHeader from "@/components/finance/DashboardHeader";
 import DebtStrategyEngine from "@/components/finance/DebtStrategyEngine";
 import DebtProjectionChart from "@/components/finance/DebtProjectionChart";
@@ -10,10 +11,9 @@ import Reveal from "@/components/finance/Reveal";
 
 export default function Strategy() {
   const { debts, accounts, transactions: txns, refresh } = useFinanceData();
-  const [goalExtra, setGoalExtra] = React.useState(0);
-  // AI advisor → engine handoff state.
   const [appliedSurplus, setAppliedSurplus] = React.useState(null);
   const [appliedMethod, setAppliedMethod] = React.useState(null);
+  const [goalBoost, setGoalBoost] = React.useState(null);
 
   const now = new Date();
   const mStart = startOfMonth(now);
@@ -21,11 +21,24 @@ export default function Strategy() {
   let inc = 0, exp = 0;
   txns.forEach((t) => {
     if (isWithinInterval(parseISO(t.date), { start: mStart, end: mEnd })) {
-      if (t.type === "income") inc += t.amount;
-      else exp += t.amount;
+      if (t.type === "income") inc += t.amount; else exp += t.amount;
     }
   });
   const surplus = Math.max(0, inc - exp);
+
+  // Apply goal: feed the extra payment into the Debt Strategy Engine boost,
+  // and populate each active liability's target_payoff_date.
+  async function handleApplyGoal(extra, dateIso) {
+    setGoalBoost(extra);
+    if (dateIso) {
+      await Promise.all(
+        debts
+          .filter((d) => (d.current_balance || 0) > 0)
+          .map((d) => base44.entities.Debt.update(d.id, { target_payoff_date: dateIso }).catch(() => {}))
+      );
+      refresh();
+    }
+  }
 
   return (
     <div className="dd-page-enter dark min-h-screen bg-black text-zinc-100 selection:bg-emerald-500/30">
@@ -45,7 +58,7 @@ export default function Strategy() {
             accounts={accounts}
             transactions={txns}
             surplus={surplus}
-            onApplyRecommendations={({ surplus: s, method, months }) => {
+            onApplyRecommendations={({ surplus: s, method }) => {
               if (typeof s === "number") setAppliedSurplus(s);
               if (method) setAppliedMethod(method);
             }}
@@ -61,8 +74,7 @@ export default function Strategy() {
             transactions={txns}
             method="avalanche"
             months={120}
-            currentExtra={goalExtra}
-            onApply={(e) => setGoalExtra(e)}
+            onApply={handleApplyGoal}
           />
         </Reveal>
         <Reveal delay={0.05}>
@@ -71,6 +83,7 @@ export default function Strategy() {
             monthlySurplus={surplus}
             forcedSurplus={appliedSurplus}
             forcedMethod={appliedMethod}
+            forcedBoost={goalBoost}
           />
         </Reveal>
       </main>
