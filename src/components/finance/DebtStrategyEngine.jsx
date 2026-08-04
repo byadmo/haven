@@ -15,7 +15,7 @@ const fmt = (v) =>
     maximumFractionDigits: 2,
   });
 
-export default function DebtStrategyEngine({ debts, monthlySurplus }) {
+export default function DebtStrategyEngine({ debts, monthlySurplus, forcedSurplus, forcedMethod }) {
   const [method, setMethod] = React.useState("avalanche");
   const [surplus, setSurplus] = React.useState(monthlySurplus || 0);
   const [boost, setBoost] = React.useState(0);
@@ -23,6 +23,14 @@ export default function DebtStrategyEngine({ debts, monthlySurplus }) {
   React.useEffect(() => {
     if (monthlySurplus) setSurplus(monthlySurplus);
   }, [monthlySurplus]);
+
+  // Apply externally-forced surplus/method (e.g. from AI Strategy Advisor).
+  React.useEffect(() => {
+    if (typeof forcedSurplus === "number") setSurplus(forcedSurplus);
+  }, [forcedSurplus]);
+  React.useEffect(() => {
+    if (forcedMethod === "avalanche" || forcedMethod === "snowball") setMethod(forcedMethod);
+  }, [forcedMethod]);
 
   // Single unified run per scenario — replaces 5 separate simulations.
   const baseRun = React.useMemo(

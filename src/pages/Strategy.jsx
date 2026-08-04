@@ -11,6 +11,9 @@ import Reveal from "@/components/finance/Reveal";
 export default function Strategy() {
   const { debts, accounts, transactions: txns, refresh } = useFinanceData();
   const [goalExtra, setGoalExtra] = React.useState(0);
+  // AI advisor → engine handoff state.
+  const [appliedSurplus, setAppliedSurplus] = React.useState(null);
+  const [appliedMethod, setAppliedMethod] = React.useState(null);
 
   const now = new Date();
   const mStart = startOfMonth(now);
@@ -37,7 +40,16 @@ export default function Strategy() {
 
       <main className="relative max-w-6xl mx-auto px-5 sm:px-6 py-8 sm:py-6 space-y-8 sm:space-y-6">
         <Reveal>
-          <StrategyAdvisor debts={debts} accounts={accounts} transactions={txns} surplus={surplus} />
+          <StrategyAdvisor
+            debts={debts}
+            accounts={accounts}
+            transactions={txns}
+            surplus={surplus}
+            onApplyRecommendations={({ surplus: s, method, months }) => {
+              if (typeof s === "number") setAppliedSurplus(s);
+              if (method) setAppliedMethod(method);
+            }}
+          />
         </Reveal>
         <Reveal delay={0.03}>
           <DebtProjectionChart debts={debts} surplus={surplus} />
@@ -54,7 +66,12 @@ export default function Strategy() {
           />
         </Reveal>
         <Reveal delay={0.05}>
-          <DebtStrategyEngine debts={debts} monthlySurplus={surplus} />
+          <DebtStrategyEngine
+            debts={debts}
+            monthlySurplus={surplus}
+            forcedSurplus={appliedSurplus}
+            forcedMethod={appliedMethod}
+          />
         </Reveal>
       </main>
     </div>

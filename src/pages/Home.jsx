@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import DashboardHeader from "@/components/finance/DashboardHeader";
 import QuickAddModal from "@/components/finance/QuickAddModal";
 import MetricsRow from "@/components/finance/MetricsRow";
-import CashFlowAnalytics from "@/components/finance/CashFlowAnalytics";
+import ChartSwitcher from "@/components/finance/ChartSwitcher";
 import RecentTransactions from "@/components/finance/RecentTransactions";
 import UpcomingRecurring from "@/components/finance/UpcomingRecurring";
 import { computeTrajectory } from "@/lib/trajectory";
@@ -110,7 +110,7 @@ export default function Home() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
-            <Reveal><CashFlowAnalytics transactions={txns} /></Reveal>
+            <Reveal><ChartSwitcher transactions={txns} accounts={accounts} debts={debts} /></Reveal>
             <Reveal delay={0.05}>
               <RecentTransactions transactions={txns} accounts={accounts} debts={debts} refreshKey={refreshKey} onChanged={refresh} />
             </Reveal>

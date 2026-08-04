@@ -7,6 +7,7 @@ import Reveal from "@/components/finance/Reveal";
 import InsightMetrics from "@/components/finance/InsightMetrics";
 import IncomeVsSpendingChart from "@/components/finance/IncomeVsSpendingChart";
 import CategoryBreakdownChart from "@/components/finance/CategoryBreakdownChart";
+import SpendingInsights from "@/components/finance/SpendingInsights";
 
 export default function Insights() {
   const { transactions: txns } = useFinanceData();
@@ -77,6 +78,15 @@ export default function Insights() {
 
         <Reveal>
           <InsightMetrics income={current.income} spending={current.spending} savings={current.savings} savingsRate={savingsRate} />
+        </Reveal>
+
+        <Reveal>
+          <SpendingInsights
+            monthLabel={format(anchor, "MMMM yyyy")}
+            start={startOfMonth(anchor)}
+            end={endOfMonth(anchor)}
+            transactions={txns}
+          />
         </Reveal>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

@@ -22,7 +22,6 @@ import {
   endOfWeek,
   startOfMonth,
   endOfMonth,
-  isWithinInterval,
   parseISO,
   format,
   subDays,
@@ -31,7 +30,7 @@ import {
   addWeeks,
   addMonths,
 } from "date-fns";
-import { TrendingDown, TrendingUp } from "lucide-react";
+import { TrendingUp, TrendingDown } from "lucide-react";
 import { fmtMoney, fmtAxis } from "@/lib/currency";
 
 const RANGES = [
@@ -39,7 +38,7 @@ const RANGES = [
   { id: "30d", label: "Last 30 days",  unit: "days",   count: 30, bucket: "day" },
   { id: "3m",  label: "Last 3 months", unit: "months", count: 3,  bucket: "week" },
   { id: "6m",  label: "Last 6 months", unit: "months", count: 6,  bucket: "month" },
-  { id: "12m", label: "Last 12 months",unit: "months", count: 12, bucket: "month" },
+  { id: "12m", label: "Last 12 months", unit: "months", count: 12, bucket: "month" },
   { id: "all", label: "All time",      unit: "all",               bucket: "month" },
 ];
 
@@ -61,7 +60,10 @@ function ChartTooltip({ active, payload, label, currency }) {
   );
 }
 
-export default function CashFlowAnalytics({ transactions, currency = "USD", embedded = false }) {
+// Reconstructs historical net worth: today's (cash - debt) minus the cumulative
+// income/expense transactions that occurred *after* each bucket. Debt history
+// isn't stored, so liability balances are held constant at today's snapshot.
+export default function NetWorthChart({ transactions, accounts, debts, currency = "USD" }) {
   const [rangeId, setRangeId] = React.useState("3m");
   const range = RANGES.find((r) => r.id === rangeId) || RANGES[2];
 
@@ -76,7 +78,7 @@ export default function CashFlowAnalytics({ transactions, currency = "USD", embe
         try {
           const d = parseISO(t.date);
           if (!earliest || d < earliest) earliest = d;
-        } catch { /* skip bad dates */ }
+        } catch {}
       }
       start = earliest ? startOfMonth(earliest) : startOfMonth(subMonths(now, 11));
     }
@@ -84,66 +86,61 @@ export default function CashFlowAnalytics({ transactions, currency = "USD", embe
     const buckets = [];
     if (range.bucket === "day") {
       for (let d = startOfDay(start); d <= now; d = addDays(d, 1))
-        buckets.push({ s: startOfDay(d), e: endOfDay(d), label: format(d, "MMM d") });
+        buckets.push({ e: endOfDay(d), label: format(d, "MMM d") });
     } else if (range.bucket === "week") {
       for (let d = startOfWeek(start); d <= now; d = addWeeks(d, 1))
-        buckets.push({ s: startOfWeek(d), e: endOfWeek(d), label: format(d, "MMM d") });
+        buckets.push({ e: endOfWeek(d), label: format(d, "MMM d") });
     } else {
       for (let d = startOfMonth(start); d <= now; d = addMonths(d, 1))
-        buckets.push({ s: startOfMonth(d), e: endOfMonth(d), label: format(d, "MMM yy") });
+        buckets.push({ e: endOfMonth(d), label: format(d, "MMM yy") });
     }
 
-    let totalNet = 0;
+    const todayCash = accounts.reduce((s, a) => s + (a.balance || 0), 0);
+    const todayDebt = debts.reduce((s, d) => s + (d.current_balance || 0), 0);
+    const todayNetWorth = todayCash - todayDebt;
+
     const points = buckets.map((b) => {
-      let inc = 0, exp = 0;
+      let futureNet = 0;
       for (const t of transactions) {
         try {
-          if (isWithinInterval(parseISO(t.date), { start: b.s, end: b.e })) {
-            if (t.type === "income") inc += t.amount; else exp += t.amount;
-          }
-        } catch { /* skip bad dates */ }
+          const d = parseISO(t.date);
+          if (d > b.e) futureNet += (t.type === "income" ? t.amount : -t.amount);
+        } catch {}
       }
-      totalNet += inc - exp;
-      return { label: b.label, income: inc, expense: exp };
+      const nw = todayNetWorth - futureNet;
+      return { label: b.label, netWorth: Math.round(nw * 100) / 100, raw: nw };
     });
 
-    return { data: points, net: totalNet };
-  }, [transactions, range]);
+    return { data: points, net: todayNetWorth };
+  }, [transactions, accounts, debts, range]);
 
   const isLoss = net < 0;
+  const latest = data[data.length - 1]?.raw ?? net;
+  const first = data[0]?.raw ?? net;
+  const delta = latest - first;
 
-  const header = (
-    <div className="flex items-center justify-between mb-4 gap-3">
-      <div>
-        <h2 className="font-semibold text-sm text-zinc-100">Cash Flow Trends</h2>
-        <p className="text-xs text-zinc-500">Income vs expenses over time</p>
+  return (
+    <div>
+      <div className="flex items-center justify-end mb-2">
+        <Select value={rangeId} onValueChange={setRangeId}>
+          <SelectTrigger className="w-[150px] h-8 text-xs bg-zinc-950/60 border-zinc-800 text-zinc-200">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="bg-zinc-900 border-zinc-800">
+            {RANGES.map((r) => (
+              <SelectItem key={r.id} value={r.id}>{r.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
-      <Select value={rangeId} onValueChange={setRangeId}>
-        <SelectTrigger className="w-[150px] h-8 text-xs bg-zinc-950/60 border-zinc-800 text-zinc-200">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent className="bg-zinc-900 border-zinc-800">
-          {RANGES.map((r) => (
-            <SelectItem key={r.id} value={r.id}>{r.label}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
-  );
 
-  const body = (
-    <>
       <div className="h-[260px] mb-4">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data} margin={{ top: 6, right: 6, left: -10, bottom: 0 }}>
             <defs>
-              <linearGradient id="incomeGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#34d399" stopOpacity={0.4} />
-                <stop offset="95%" stopColor="#34d399" stopOpacity={0} />
-              </linearGradient>
-              <linearGradient id="expenseGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#fb7185" stopOpacity={0.35} />
-                <stop offset="95%" stopColor="#fb7185" stopOpacity={0} />
+              <linearGradient id="nwGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#818cf8" stopOpacity={0.4} />
+                <stop offset="95%" stopColor="#818cf8" stopOpacity={0} />
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
@@ -156,53 +153,31 @@ export default function CashFlowAnalytics({ transactions, currency = "USD", embe
               tickFormatter={(v) => fmtAxis(v, currency)}
             />
             <Tooltip content={<ChartTooltip currency={currency} />} cursor={{ stroke: "#3f3f46", strokeWidth: 1 }} />
-            <Area type="monotone" dataKey="income" stroke="#34d399" strokeWidth={2.5} fill="url(#incomeGrad)" />
-            <Area type="monotone" dataKey="expense" stroke="#fb7185" strokeWidth={2.5} fill="url(#expenseGrad)" />
+            <Area type="monotone" dataKey="netWorth" stroke="#818cf8" strokeWidth={2.5} fill="url(#nwGrad)" />
           </AreaChart>
         </ResponsiveContainer>
       </div>
 
-      <div
-        className={`rounded-xl border p-4 flex items-center justify-between transition-all ${
-          isLoss ? "border-rose-500/40 bg-rose-500/10" : "border-emerald-500/30 bg-emerald-500/10"
-        }`}
-      >
+      <div className={`rounded-xl border p-4 flex items-center justify-between transition-all ${
+        isLoss ? "border-rose-500/40 bg-rose-500/10" : "border-indigo-500/30 bg-indigo-500/10"
+      }`}>
         <div className="flex items-center gap-2.5">
-          <div className={`h-9 w-9 rounded-full flex items-center justify-center ${isLoss ? "bg-rose-500/20" : "bg-emerald-500/20"}`}>
-            {isLoss ? <TrendingDown className="h-5 w-5 text-rose-400" /> : <TrendingUp className="h-5 w-5 text-emerald-400" />}
+          <div className={`h-9 w-9 rounded-full flex items-center justify-center ${isLoss ? "bg-rose-500/20" : "bg-indigo-500/20"}`}>
+            {isLoss ? <TrendingDown className="h-5 w-5 text-rose-400" /> : <TrendingUp className="h-5 w-5 text-indigo-400" />}
           </div>
           <div>
-            <p className="text-[11px] uppercase tracking-wider text-zinc-400">
-              {isLoss ? "Net Loss" : "Net Profit"} · {range.label.toLowerCase()}
-            </p>
-            <p className={`text-xl font-bold tabular-nums ${isLoss ? "text-rose-400" : "text-emerald-400"} ${isLoss ? "animate-pulse" : ""}`}>
-              {isLoss ? "-" : "+"}{fmtMoney(Math.abs(net), currency)}
+            <p className="text-[11px] uppercase tracking-wider text-zinc-400">Current Net Worth</p>
+            <p className={`text-xl font-bold tabular-nums ${isLoss ? "text-rose-400" : "text-indigo-300"}`}>
+              {fmtMoney(net, currency)}
             </p>
           </div>
         </div>
-        {isLoss && (
-          <span className="text-[11px] text-rose-300/80 italic max-w-[140px] text-right hidden sm:block">
-            Expenses exceed income — consider trimming.
+        {Math.abs(delta) > 0.005 && (
+          <span className="text-[11px] tabular-nums italic max-w-[160px] text-right text-zinc-400">
+            {delta >= 0 ? "+" : "-"}{fmtMoney(Math.abs(delta), currency)} over {range.label.toLowerCase()}
           </span>
         )}
       </div>
-    </>
-  );
-
-  if (embedded) {
-    return (
-      <div>
-        {header}
-        {body}
-      </div>
-    );
-  }
-
-  return (
-    <div className="rounded-2xl bg-zinc-900/60 backdrop-blur-xl border border-zinc-800 p-5 shadow-2xl shadow-black/40">
-      {header}
-
-      {body}
     </div>
   );
 }
