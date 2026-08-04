@@ -14,25 +14,43 @@ import { UploadCloud, Loader2, Check, Camera, ScanLine, Building2, Plus, X, Cred
 const EXTRACT_SCHEMA = {
   type: "object",
   properties: {
+    source_type: {
+      type: "string",
+      enum: ["balance_snapshot", "apple_wallet_detail", "banking_app_list", "credit_card_summary", "statement_table", "receipt", "not_financial"],
+      description: "What kind of image this is. 'balance_snapshot' = a screen showing a current balance (e.g. an RBC account page with '$621.77 Balance'), or a 'Current Balance / Outstanding Balance' field on a credit card. 'apple_wallet_detail' = iOS Wallet transaction detail page (large amount, merchant, 'Status: Approved' block, card name, NO current balance). 'banking_app_list' = RBC/TD/Scotia app showing a card image with one or more 'Latest Transactions' rows (may or may not show balance). 'credit_card_summary' = card image with highlighted transactions, no balance. 'statement_table' = printed/PDF statement with date/description/amount columns. 'receipt' = store or email receipt. 'not_financial' = no financial data visible.",
+    },
+    card_name: {
+      type: "string",
+      description: "Name of the card or account shown in the image (e.g. 'RBC Cash Back Mastercard', 'Royal Bank Cashback MasterCard', 'TD Every Day-A'). Returns empty if no card/account name is visible. Used to pre-fill an account match even when no balance is present.",
+    },
+    card_last4: {
+      type: "string",
+      description: "Last 4 digits of the card if shown (e.g. '8615'). Leave empty otherwise.",
+    },
     accounts: {
       type: "array",
+      description: "Every account/card detected in the image WITH A CURRENT BALANCE. If the image is an Apple Wallet transaction detail or a banking 'Latest Transactions' list that does NOT display a current balance, leave this array empty — do not invent a balance from a transaction amount. Transaction amounts are NOT balances.",
       items: {
         type: "object",
         properties: {
-          account_name: { type: "string", description: "The name of the financial account or card shown (e.g. 'RBC Chequing', 'TD Savings', 'Scotia Momentum Visa', 'PC Mastercard', 'CIBC Line of Credit', 'BMO Mortgage')" },
-          balance: { type: "number", description: "The current balance amount shown. For credit cards and loans, this is the outstanding balance owed (positive number)." },
+          account_name: { type: "string", description: "The name of the financial account or card (e.g. 'RBC Chequing', 'TD Savings', 'Scotia Momentum Visa', 'RBC Cash Back Mastercard', 'CIBC Line of Credit', 'BMO Mortgage')" },
+          balance: {
+            type: "number",
+            description: "The CURRENT balance amount shown for this account. For credit cards and loans this is the outstanding/current balance owed (positive number). Strip currency symbols and prefixes (CA$, CDN$, USD, $) and commas. E.g. 'Outstanding Balance CA$621.77' → 621.77. If no current balance field is visible (only a single transaction amount), do NOT include this account — there is no balance to read.",
+          },
           account_type: {
             type: "string",
             enum: ["chequing", "savings", "credit_card", "line_of_credit", "loan", "mortgage", "investment", "other"],
-            description: "Account type. Use 'credit_card' for any credit card (Visa, Mastercard, Amex), 'line_of_credit' for lines of credit, 'loan' for personal/auto loans, 'mortgage' for mortgages."
+            description: "Account type. Use 'credit_card' for any credit card (Visa, Mastercard, Amex), 'line_of_credit' for lines of credit, 'loan' for personal/auto loans, 'mortgage' for mortgages, 'chequing'/'savings' for deposit accounts.",
           },
         },
         required: ["account_name", "balance", "account_type"],
       },
     },
   },
-  required: ["accounts"],
 };
+
+const TX_ONLY_SOURCE = new Set(["apple_wallet_detail", "banking_app_list", "credit_card_summary", "receipt"]);
 
 const LIABILITY_TYPES = new Set(["credit_card", "line_of_credit", "loan", "mortgage"]);
 const isLiabilityType = (t) => LIABILITY_TYPES.has(t);
@@ -98,11 +116,42 @@ export default function AccountBalanceImportModal({ open, onOpenChange, accounts
         json_schema: EXTRACT_SCHEMA,
       });
       const out = res?.output;
-      const items = Array.isArray(out?.accounts)
+      const srcType = out?.source_type || "";
+      const cardName = out?.card_name || "";
+
+      let items = Array.isArray(out?.accounts)
         ? out.accounts
         : out?.account_name != null
-          ? [{ account_name: out.account_name, balance: out.balance }]
+          ? [{ account_name: out.account_name, balance: out.balance, account_type: out.account_type || "other" }]
           : [];
+
+      // Apple Wallet detail and banking 'Latest Transactions' screens show a
+      // single charge, not a balance. No amount to update here — point the
+      // user to the Bank Statement importer instead of showing a confusing
+      // 'could not read' error.
+      if (items.length === 0 && TX_ONLY_SOURCE.has(srcType) && cardName) {
+        setError(
+          "This image shows a transaction on \"" + cardName + "\", but no current balance. " +
+          "Use 'Import Bank Statement' to log transactions instead."
+        );
+        setParsing(false);
+        return;
+      }
+      if (items.length === 0 && TX_ONLY_SOURCE.has(srcType)) {
+        setError("This image shows a transaction, not a balance — use 'Import Bank Statement' to log it.");
+        setParsing(false);
+        return;
+      }
+      if (items.length === 0 && srcType === "not_financial") {
+        setError("No balance or card could be detected in this image.");
+        setParsing(false);
+        return;
+      }
+      if (items.length === 0 && cardName) {
+        setError("Detected \"" + cardName + "\", but no balance is shown. Capture an account summary page that shows the current balance, then retry.");
+        setParsing(false);
+        return;
+      }
 
       if (items.length === 1) {
         const accountName = items[0].account_name || "";
