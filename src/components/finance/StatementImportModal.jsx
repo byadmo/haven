@@ -17,7 +17,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { adjustLinkedBalance, txEffect, balanceApplies } from "@/lib/accounts";
+import { applyTxAccountEffect } from "@/lib/accounts";
 import { useCategories, categoryOptions } from "@/lib/categories";
 import { format } from "date-fns";
 import { UploadCloud, Loader2, Trash2, Check, FileText, ImageIcon, Camera } from "lucide-react";
@@ -141,8 +141,8 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
           date: r.date,
           account_id: r.account_id || undefined,
         });
-        if (r.account_id && balanceApplies(r.date)) {
-          await adjustLinkedBalance(r.account_id, txEffect(r));
+        if (r.account_id) {
+          await applyTxAccountEffect(r);
         }
         setDone((d) => d + 1);
       }

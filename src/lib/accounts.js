@@ -24,6 +24,40 @@ export function txEffect(t) {
 }
 
 /**
+ * The transfer direction a transaction used for its primary account_id
+ * when it was created, accounting for type:
+ *   expense → account_id IS the "FROM" account → direction "out"
+ *   income  → account_id IS the "TO"   account → direction "in"
+ * Liabilities invert the meaning of out/in versus bank accounts, but
+ * `adjustTransferInOut` already handles that, so the caller only needs to
+ * pass the right direction here.
+ */
+export function txAccountDirection(tx) {
+  return tx.type === "income" ? "in" : "out";
+}
+
+/**
+ * Apply (or re-apply) a transaction's effect to its primary account_id,
+ * correctly handling bank accounts and liabilities. Only runs when the
+ * transaction date has arrived (not in the future).
+ */
+export async function applyTxAccountEffect(tx) {
+  if (!tx?.account_id || !balanceApplies(tx?.date)) return null;
+  return adjustTransferInOut(tx.account_id, tx.amount, txAccountDirection(tx));
+}
+
+/**
+ * Reverse a transaction's effect on its primary account_id, correctly
+ * handling bank accounts and liabilities. Only runs when the transaction
+ * date has arrived. This is the symmetric counterpart of applyTxAccountEffect.
+ */
+export async function reverseTxAccountEffect(tx) {
+  if (!tx?.account_id || !balanceApplies(tx?.date)) return null;
+  const reverse = txAccountDirection(tx) === "out" ? "in" : "out";
+  return adjustTransferInOut(tx.account_id, tx.amount, reverse);
+}
+
+/**
  * Adjust an Account balance by `delta` and persist it.
  */
 export async function adjustAccountBalance(accountId, delta) {

@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { adjustLinkedBalance, txEffect, balanceApplies } from "@/lib/accounts";
+import { applyTxAccountEffect, reverseTxAccountEffect } from "@/lib/accounts";
 import { AnimatePresence, motion } from "framer-motion";
 import RecurringFields from "@/components/finance/RecurringFields";
 import { useCategories, categoryOptions } from "@/lib/categories";
@@ -28,7 +28,7 @@ function Row({ t, accountsMap, onChanged, categories }) {
   async function fullDelete() {
     setRemoving(true);
     try {
-      if (t.account_id && balanceApplies(t.date)) await adjustLinkedBalance(t.account_id, -txEffect(t));
+      if (t.account_id) await reverseTxAccountEffect(t);
       await base44.entities.Transaction.delete(t.id);
       setDelOpen(false);
       onChanged?.();
@@ -52,22 +52,22 @@ function Row({ t, accountsMap, onChanged, categories }) {
     e.preventDefault();
     setSaving(true);
     try {
-      const oldEffect = txEffect(t);
       const newType = payload.type ?? t.type;
       const newAmount = parseFloat(payload.amount) || t.amount;
-      const newEffect = txEffect({ type: newType, amount: newAmount });
-      const oldAcct = t.account_id;
       const newAcct = payload.account_id !== undefined ? (payload.account_id || "") : t.account_id;
-      const oldApplied = balanceApplies(t.date);
-      const newApplied = balanceApplies(payload.date ?? t.date);
-      if (oldAcct && oldApplied) await adjustLinkedBalance(oldAcct, -oldEffect);
-      if (newAcct && newApplied) await adjustLinkedBalance(newAcct, newEffect);
+      const newDate = payload.date ?? format(parseISO(t.date), "yyyy-MM-dd");
+      // Reverse the OLD transaction's effect on its primary account (correctly handles liabilities).
+      await reverseTxAccountEffect(t);
+      // Apply the NEW transaction's effect (if it has an account and the date has arrived).
+      if (newAcct) {
+        await applyTxAccountEffect({ account_id: newAcct, type: newType, amount: newAmount, date: newDate });
+      }
       await base44.entities.Transaction.update(t.id, {
         description: payload.description ?? t.description,
         amount: newAmount,
         type: newType,
         category: payload.category ?? t.category,
-        date: payload.date ?? format(parseISO(t.date), "yyyy-MM-dd"),
+        date: newDate,
         account_id: newAcct || undefined,
         is_scheduled: payload.is_scheduled ?? false,
         frequency: payload.frequency ?? "one_time",
