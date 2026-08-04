@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Sparkles, Loader2, CheckCircle2, AlertTriangle, TrendingUp, DollarSign, Target, Activity } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { isWithinInterval, parseISO } from "date-fns";
+import { useCurrency } from "@/lib/currency-context";
 
 const SCHEMA = {
   type: "object",
@@ -37,12 +38,8 @@ const iconMap = {
   "activity": Activity,
 };
 
-const fmt = (v) =>
-  (v || 0).toLocaleString(undefined, {
-    style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2,
-  });
-
 export default function SpendingInsights({ monthLabel, start, end, transactions }) {
+  const { fmtMoney: fmt } = useCurrency();
   const storageKey = `dd:insights:${monthLabel}`;
   const [data, setData] = React.useState(null);
   const [loading, setLoading] = React.useState(false);

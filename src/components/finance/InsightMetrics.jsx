@@ -1,13 +1,10 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { TrendingUp, TrendingDown, PiggyBank, Percent } from "lucide-react";
-
-const money = (v) =>
-  (v || 0).toLocaleString(undefined, {
-    style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2,
-  });
+import { useCurrency } from "@/lib/currency-context";
 
 export default function InsightMetrics({ income, spending, savings, savingsRate }) {
+  const { fmtMoney: money } = useCurrency();
   const toneCls = {
     emerald: "text-emerald-400",
     rose: "text-rose-400",

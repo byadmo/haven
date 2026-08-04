@@ -144,7 +144,7 @@ export default function GoalPlanner({ debts, accounts, transactions, method, mon
         {applied && (
           <div className="mt-3 flex items-center gap-2 text-[10px] tracking-[0.18em] font-mono uppercase text-emerald-400">
             <CheckCircle2 className="h-3.5 w-3.5" />
-            Applied to Engine — debt-free by {applied.label}. Target payoff date saved to your liabilities.
+            Applied to Engine — debt-free by {applied.label}.
           </div>
         )}
       </div>

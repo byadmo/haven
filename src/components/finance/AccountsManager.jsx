@@ -15,14 +15,7 @@ import AccountBalanceImportModal from "@/components/finance/AccountBalanceImport
 import TransferModal from "@/components/finance/TransferModal";
 import LiabilityLedger from "@/components/finance/LiabilityLedger";
 import { useForecast } from "@/lib/forecast-context";
-
-const fmt = (v) =>
-  (v || 0).toLocaleString(undefined, {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+import { useCurrency } from "@/lib/currency-context";
 
 const SectionHeader = ({ icon: Icon, children }) => (
   <h3 className="text-[11px] uppercase tracking-widest text-white/50 mb-3 flex items-center gap-1.5 font-semibold">
@@ -31,6 +24,7 @@ const SectionHeader = ({ icon: Icon, children }) => (
 );
 
 export default function AccountsManager({ onChanged }) {
+  const { fmtMoney: fmt } = useCurrency();
   const [accounts, setAccounts] = React.useState([]);
   const [stocks, setStocks] = React.useState([]);
   const [debts, setDebts] = React.useState([]);

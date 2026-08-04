@@ -1,11 +1,7 @@
 import React from "react";
 import { format } from "date-fns";
 import { useForecast } from "@/lib/forecast-context";
-
-const money = (v) =>
-  (v || 0).toLocaleString(undefined, {
-    style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2,
-  });
+import { useCurrency } from "@/lib/currency-context";
 
 function relativeLabel(month) {
   if (month === 0) return "Now";
@@ -37,6 +33,7 @@ function Metric({ label, value, tone, badge }) {
 
 export default function TelemetryReadout() {
   const fc = useForecast();
+  const { fmtMoney: money } = useCurrency();
   const point = fc?.point;
   if (!point) return null;
   const nw = point.netWorth || 0;

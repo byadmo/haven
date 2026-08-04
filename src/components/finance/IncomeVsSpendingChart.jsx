@@ -2,21 +2,17 @@ import React from "react";
 import {
   ResponsiveContainer, ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip,
 } from "recharts";
-
-const money = (v) =>
-  (v || 0).toLocaleString(undefined, {
-    style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2,
-  });
-const kFmt = (v) => `$${Math.abs(v) >= 1000 ? (v / 1000).toFixed(1) + "k" : Math.round(v)}`;
+import { useCurrency } from "@/lib/currency-context";
 
 function Tip({ active, payload, label }) {
+  const { fmtMoney } = useCurrency();
   if (!active || !payload?.length) return null;
   return (
     <div className="rounded-lg border border-white/10 bg-black px-3 py-2 text-xs">
       <p className="text-white/50 uppercase tracking-widest mb-1.5">{label}</p>
       {payload.map((p) => (
         <p key={p.dataKey} className="font-mono tabular-nums" style={{ color: p.color || p.fill }}>
-          {p.name}: {money(p.value)}
+          {p.name}: {fmtMoney(p.value)}
         </p>
       ))}
     </div>
@@ -24,6 +20,7 @@ function Tip({ active, payload, label }) {
 }
 
 export default function IncomeVsSpendingChart({ data }) {
+  const { fmtAxis } = useCurrency();
   return (
     <div className="rounded-lg bg-black border border-white/10 p-5 h-full">
       <div className="flex items-center justify-between mb-4">
@@ -34,7 +31,7 @@ export default function IncomeVsSpendingChart({ data }) {
         <ComposedChart data={data} margin={{ top: 4, right: 8, left: -8, bottom: 0 }}>
           <CartesianGrid stroke="rgba(255,255,255,0.05)" vertical={false} />
           <XAxis dataKey="label" tick={{ fontSize: 10, fill: "rgba(255,255,255,0.4)" }} axisLine={{ stroke: "rgba(255,255,255,0.1)" }} tickLine={false} />
-          <YAxis tick={{ fontSize: 10, fill: "rgba(255,255,255,0.4)" }} axisLine={false} tickLine={false} tickFormatter={kFmt} width={48} />
+          <YAxis tick={{ fontSize: 10, fill: "rgba(255,255,255,0.4)" }} axisLine={false} tickLine={false} tickFormatter={fmtAxis} width={48} />
           <Tooltip content={<Tip />} cursor={{ fill: "rgba(255,255,255,0.03)" }} />
           <Bar dataKey="income" name="Income" fill="#10b981" radius={[4, 4, 0, 0]} barSize={16} />
           <Bar dataKey="spending" name="Spending" fill="#f43f5e" radius={[4, 4, 0, 0]} barSize={16} />

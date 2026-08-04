@@ -14,14 +14,11 @@ import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { TrendingUp, Flame, Snowflake } from "lucide-react";
 import ForecastTip from "@/components/finance/ForecastTip";
-
-const fmt = (v) =>
-  (v || 0).toLocaleString(undefined, {
-    style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 0,
-  });
+import { useCurrency } from "@/lib/currency-context";
 
 export default function Forecast() {
   const { transactions: txns, debts, accounts } = useFinanceData();
+  const { fmtMoney: fmt } = useCurrency();
   const [method, setMethod] = React.useState("avalanche");
   const [extra, setExtra] = React.useState(0);
   const [incomeAdjust, setIncomeAdjust] = React.useState(0);

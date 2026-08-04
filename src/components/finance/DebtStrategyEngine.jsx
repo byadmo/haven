@@ -8,7 +8,7 @@ import { Sparkles, TrendingDown, CalendarCheck, ArrowRight, Wand2, PiggyBank } f
 import { ResponsiveContainer, ComposedChart, Line, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { useCurrency } from "@/lib/currency-context";
 
-export default function DebtStrategyEngine({ debts, monthlySurplus, forcedSurplus, forcedMethod, forcedBoost }) {
+export default function DebtStrategyEngine({ debts, monthlySurplus, forcedSurplus, forcedMethod }) {
   const { fmtMoney: fmt, fmtAxis } = useCurrency();
   const [method, setMethod] = React.useState("avalanche");
   const [surplus, setSurplus] = React.useState(monthlySurplus || 0);
@@ -18,17 +18,14 @@ export default function DebtStrategyEngine({ debts, monthlySurplus, forcedSurplu
     if (monthlySurplus) setSurplus(monthlySurplus);
   }, [monthlySurplus]);
 
-  // Apply externally-forced surplus/method (e.g. from AI Strategy Advisor).
+  // Apply externally-forced surplus/method ({value, nonce} objects so re-applying
+  // the same value still re-triggers the effect and resets a manually-moved slider).
   React.useEffect(() => {
-    if (typeof forcedSurplus === "number") setSurplus(forcedSurplus);
+    if (forcedSurplus && typeof forcedSurplus.value === "number") setSurplus(forcedSurplus.value);
   }, [forcedSurplus]);
   React.useEffect(() => {
-    if (forcedMethod === "avalanche" || forcedMethod === "snowball") setMethod(forcedMethod);
+    if (forcedMethod && (forcedMethod.value === "avalanche" || forcedMethod.value === "snowball")) setMethod(forcedMethod.value);
   }, [forcedMethod]);
-
-  React.useEffect(() => {
-    if (typeof forcedBoost === "number") setBoost(forcedBoost);
-  }, [forcedBoost]);
 
   // Single unified run per scenario — replaces 5 separate simulations.
   const baseRun = React.useMemo(

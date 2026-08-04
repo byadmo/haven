@@ -15,10 +15,12 @@ import { applyTxAccountEffect, reverseTxAccountEffect } from "@/lib/accounts";
 import { AnimatePresence, motion } from "framer-motion";
 import RecurringFields from "@/components/finance/RecurringFields";
 import { useCategories, categoryOptions } from "@/lib/categories";
+import { useCurrency } from "@/lib/currency-context";
 import TransactionExplorerModal from "@/components/finance/TransactionExplorerModal";
 
 
 function Row({ t, accountsMap, onChanged, categories }) {
+  const { fmtMoney: fmt } = useCurrency();
   const isIncome = t.type === "income";
   const [edit, setEdit] = React.useState(null);
   const [saving, setSaving] = React.useState(false);
@@ -101,7 +103,7 @@ function Row({ t, accountsMap, onChanged, categories }) {
         </p>
       </div>
       <span className={`text-sm font-semibold tabular-nums ${isIncome ? "text-emerald-400" : "text-rose-400"}`}>
-        {isIncome ? "+" : "-"}${t.amount.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}
+        {isIncome ? "+" : "-"}{fmt(t.amount)}
       </span>
       <Dialog>
         <DialogTrigger asChild>
@@ -347,6 +349,7 @@ export default function RecentTransactions({ transactions, accounts = [], onChan
 }
 
 function DebtPaymentRow({ t }) {
+  const { fmtMoney: fmt } = useCurrency();
   return (
     <div className="group flex items-center gap-3 py-3 sm:py-2 border-b border-zinc-800/60 last:border-0">
       <div className="h-8 w-8 sm:h-7 sm:w-7 rounded-full flex items-center justify-center shrink-0 bg-emerald-500/15">
@@ -361,7 +364,7 @@ function DebtPaymentRow({ t }) {
         </p>
       </div>
       <span className="text-sm font-semibold tabular-nums text-rose-400">
-        -${t.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        -{fmt(t.amount)}
       </span>
     </div>
   );

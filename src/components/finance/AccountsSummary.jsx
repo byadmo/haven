@@ -2,19 +2,13 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { Landmark, ArrowRight, Briefcase } from "lucide-react";
-
-const fmt = (v) =>
-  (v || 0).toLocaleString(undefined, {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+import { useCurrency } from "@/lib/currency-context";
 
 const SHOW_INVEST_KEY = "dd.accounts.showInvestments";
 
 export default function AccountsSummary() {
   const navigate = useNavigate();
+  const { fmtMoney: fmt } = useCurrency();
   const [showInvestments, setShowInvestments] = React.useState(
     () => localStorage.getItem(SHOW_INVEST_KEY) === "1"
   );

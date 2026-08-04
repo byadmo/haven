@@ -11,16 +11,10 @@ import {
 import { simulateTimeline } from "@/lib/debtStrategy";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Wand2 } from "lucide-react";
-
-const fmt = (v) =>
-  (v || 0).toLocaleString(undefined, {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+import { useCurrency } from "@/lib/currency-context";
 
 function ChartTooltip({ active, payload, label }) {
+  const { fmtMoney: fmt } = useCurrency();
   if (!active || !payload?.length) return null;
   return (
     <div className="rounded-lg border border-zinc-700 bg-zinc-900/95 backdrop-blur px-3 py-2 shadow-xl">
@@ -39,6 +33,7 @@ function ChartTooltip({ active, payload, label }) {
 }
 
 export default function DebtProjectionChart({ debts, surplus }) {
+  const { fmtMoney: fmt, fmtAxis } = useCurrency();
   const [method, setMethod] = React.useState("avalanche");
 
   const base = React.useMemo(
@@ -111,7 +106,7 @@ export default function DebtProjectionChart({ debts, surplus }) {
             <YAxis
               stroke="#52525b"
               fontSize={11}
-              tickFormatter={(v) => fmt(v)}
+              tickFormatter={(v) => fmtAxis(v)}
               tickLine={false}
               axisLine={false}
               width={56}

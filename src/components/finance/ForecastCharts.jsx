@@ -5,11 +5,7 @@ import {
   ResponsiveContainer, LineChart, Line, AreaChart, Area,
   XAxis, YAxis, Tooltip, ReferenceLine, Legend,
 } from "recharts";
-
-const money0 = (v) =>
-  (v || 0).toLocaleString(undefined, {
-    style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2,
-  });
+import { useCurrency } from "@/lib/currency-context";
 
 const fmtDate = (m) => format(addMonths(new Date(), m), "MMM yy");
 
@@ -40,6 +36,7 @@ function Card({ title, subtitle, children, height = 220 }) {
 
 export default function ForecastCharts({ series, order }) {
   const fc = useForecast();
+  const { fmtMoney, fmtAxis } = useCurrency();
   const index = fc?.timelineIndex ?? 0;
 
   if (!series?.length) return null;
@@ -59,8 +56,8 @@ export default function ForecastCharts({ series, order }) {
       <Card title="Debt Remaining" subtitle="Total balance over time — drops to $0 at payoff">
         <AreaChart data={series.map((p) => ({ m: p.month, dr: p.debtRemaining }))} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
           <XAxis dataKey="m" tickFormatter={fmtDate} {...axisProps} />
-          <YAxis tickFormatter={money0} width={56} {...axisProps} axisLine={false} />
-          <Tooltip formatter={(v) => money0(v)} {...tooltipProps} />
+          <YAxis tickFormatter={fmtAxis} width={56} {...axisProps} axisLine={false} />
+          <Tooltip formatter={(v) => fmtMoney(v)} {...tooltipProps} />
           <ReferenceLine x={index} stroke="#f43f5e" strokeDasharray="3 3" />
           <Area type="monotone" dataKey="dr" stroke="#f43f5e" fill="rgba(244,63,94,0.12)" strokeWidth={2} />
         </AreaChart>
@@ -69,8 +66,8 @@ export default function ForecastCharts({ series, order }) {
       <Card title="Net Worth" subtitle="Cash minus debt — your financial health">
         <LineChart data={netWorthData} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
           <XAxis dataKey="m" tickFormatter={fmtDate} {...axisProps} />
-          <YAxis tickFormatter={money0} width={56} {...axisProps} axisLine={false} />
-          <Tooltip formatter={(v) => money0(v)} {...tooltipProps} />
+          <YAxis tickFormatter={fmtAxis} width={56} {...axisProps} axisLine={false} />
+          <Tooltip formatter={(v) => fmtMoney(v)} {...tooltipProps} />
           <ReferenceLine x={index} stroke="#10b981" strokeDasharray="3 3" />
           <Line type="monotone" dataKey="nw" stroke="#10b981" strokeWidth={2} dot={false} />
         </LineChart>
@@ -79,8 +76,8 @@ export default function ForecastCharts({ series, order }) {
       <Card title="Monthly Cash Flow" subtitle="Recurring income vs expenses you've logged">
         <AreaChart data={cashFlowData} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
           <XAxis dataKey="m" tickFormatter={fmtDate} {...axisProps} />
-          <YAxis tickFormatter={money0} width={56} {...axisProps} axisLine={false} />
-          <Tooltip formatter={(v) => money0(v)} {...tooltipProps} />
+          <YAxis tickFormatter={fmtAxis} width={56} {...axisProps} axisLine={false} />
+          <Tooltip formatter={(v) => fmtMoney(v)} {...tooltipProps} />
           <Legend wrapperStyle={{ fontSize: 10 }} iconType="plainline" />
           <Area type="monotone" dataKey="income" name="Income" stroke="#10b981" fill="rgba(16,185,129,0.08)" strokeWidth={2} />
           <Area type="monotone" dataKey="expenses" name="Expenses" stroke="#f43f5e" fill="rgba(244,63,94,0.08)" strokeWidth={2} />
@@ -92,8 +89,8 @@ export default function ForecastCharts({ series, order }) {
         <Card title="Each Debt to Zero" subtitle="Individual liability balances over time" height={260}>
           <LineChart data={liabData} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
             <XAxis dataKey="m" tickFormatter={fmtDate} {...axisProps} />
-            <YAxis tickFormatter={money0} width={56} {...axisProps} axisLine={false} />
-            <Tooltip formatter={(v) => money0(v)} {...tooltipProps} />
+            <YAxis tickFormatter={fmtAxis} width={56} {...axisProps} axisLine={false} />
+            <Tooltip formatter={(v) => fmtMoney(v)} {...tooltipProps} />
             <ReferenceLine x={index} stroke="rgba(255,255,255,0.3)" strokeDasharray="3 3" />
             <Legend wrapperStyle={{ fontSize: 10 }} iconType="plainline" />
             {ids.map((d, i) => (

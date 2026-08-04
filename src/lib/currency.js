@@ -20,7 +20,8 @@ export function fmtMoney(amount, rate, code, opts = {}) {
   const v = (amount || 0) * r;
   const minFrac = opts.minDigits ?? c.decimals;
   const maxFrac = opts.maxDigits ?? c.decimals;
-  return `${c.symbol}${Math.abs(v).toLocaleString(undefined, {
+  const sign = v < -0.0001 ? "-" : "";
+  return `${sign}${c.symbol}${Math.abs(v).toLocaleString(undefined, {
     minimumFractionDigits: minFrac,
     maximumFractionDigits: maxFrac,
   })}`;

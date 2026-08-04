@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { adjustAccountBalance, txEffect } from "@/lib/accounts";
+import { useCurrency } from "@/lib/currency-context";
 
 const CATEGORIES = [
   "Income", "Transit (GO/TTC)", "E39/Civic Maintenance", "Christ Like! Inventory",
@@ -30,6 +31,7 @@ const CATEGORIES = [
 ];
 
 function FlowRow({ t, onChanged, accountsMap }) {
+  const { fmtMoney: fmt } = useCurrency();
   const isIncome = t.type === "income";
   const [edit, setEdit] = React.useState(null);
   const [saving, setSaving] = React.useState(false);
@@ -90,7 +92,7 @@ function FlowRow({ t, onChanged, accountsMap }) {
           </p>
         </div>
         <span className={`text-sm font-semibold tabular-nums ${isIncome ? "text-emerald-400" : "text-rose-400"}`}>
-          {isIncome ? "+" : "-"}${t.amount.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}
+          {isIncome ? "+" : "-"}{fmt(t.amount)}
         </span>
         <Dialog>
           <DialogTrigger asChild>

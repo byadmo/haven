@@ -14,11 +14,10 @@ import {
 } from "@/components/ui/select";
 import RecurringFields from "@/components/finance/RecurringFields";
 import { useCategories, categoryOptions } from "@/lib/categories";
-
-const fmt = (v) =>
-  (v || 0).toLocaleString(undefined, { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 });
+import { useCurrency } from "@/lib/currency-context";
 
 function Row({ t, accountsMap, categories, onChanged }) {
+  const { fmtMoney: fmt } = useCurrency();
   const isIncome = t.type === "income";
   const due = parseISO(t.date);
   const [open, setOpen] = React.useState(false);

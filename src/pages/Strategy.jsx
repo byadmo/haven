@@ -11,9 +11,10 @@ import Reveal from "@/components/finance/Reveal";
 
 export default function Strategy() {
   const { debts, accounts, transactions: txns, refresh } = useFinanceData();
-  const [appliedSurplus, setAppliedSurplus] = React.useState(null);
-  const [appliedMethod, setAppliedMethod] = React.useState(null);
-  const [goalBoost, setGoalBoost] = React.useState(null);
+  // Override objects carry a nonce so re-applying the same value still
+  // re-triggers the engine's effect and resets a slider the user moved.
+  const [surplusOverride, setSurplusOverride] = React.useState(null);
+  const [methodOverride, setMethodOverride] = React.useState(null);
 
   const now = new Date();
   const mStart = startOfMonth(now);
@@ -26,10 +27,13 @@ export default function Strategy() {
   });
   const surplus = Math.max(0, inc - exp);
 
-  // Apply goal: feed the extra payment into the Debt Strategy Engine boost,
-  // and populate each active liability's target_payoff_date.
+  function applySurplus(value) { setSurplusOverride({ value, nonce: Date.now() }); }
+  function applyMethod(value) { setMethodOverride({ value, nonce: Date.now() }); }
+
+  // Goal apply moves the Debt Strategy Engine's monthly-surplus slider to the
+  // calculated extra, and writes the payoff date onto each active liability.
   async function handleApplyGoal(extra, dateIso) {
-    setGoalBoost(extra);
+    applySurplus(extra);
     if (dateIso) {
       await Promise.all(
         debts
@@ -59,8 +63,8 @@ export default function Strategy() {
             transactions={txns}
             surplus={surplus}
             onApplyRecommendations={({ surplus: s, method }) => {
-              if (typeof s === "number") setAppliedSurplus(s);
-              if (method) setAppliedMethod(method);
+              if (typeof s === "number") applySurplus(s);
+              if (method) applyMethod(method);
             }}
           />
         </Reveal>
@@ -81,9 +85,8 @@ export default function Strategy() {
           <DebtStrategyEngine
             debts={debts}
             monthlySurplus={surplus}
-            forcedSurplus={appliedSurplus}
-            forcedMethod={appliedMethod}
-            forcedBoost={goalBoost}
+            forcedSurplus={surplusOverride}
+            forcedMethod={methodOverride}
           />
         </Reveal>
       </main>

@@ -15,13 +15,10 @@ import { useForecast } from "@/lib/forecast-context";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-
-const fmt = (v) =>
-  (v || 0).toLocaleString(undefined, {
-    style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2,
-  });
+import { useCurrency } from "@/lib/currency-context";
 
 export default function LiabilityLedger({ debts, onChanged, showPayoffTarget = true }) {
+  const { fmtMoney: fmt } = useCurrency();
   const [editing, setEditing] = React.useState(null);
   const [saving, setSaving] = React.useState(false);
   const [payments, setPayments] = React.useState([]);
