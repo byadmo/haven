@@ -196,8 +196,8 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
   const { categories } = useCategories();
   const categoryList = categoryOptions(categories);
 
-  const [file, setFile] = React.useState(null);
-  const [preview, setPreview] = React.useState(null);
+  const [files, setFiles] = React.useState([]);
+  const [previews, setPreviews] = React.useState([]);
   const [parsing, setParsing] = React.useState(false);
   const [rows, setRows] = React.useState([]);
   const [error, setError] = React.useState("");
@@ -211,19 +211,20 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
   }, [open]);
 
   function reset() {
-    if (preview) URL.revokeObjectURL(preview);
-    setFile(null);
-    setPreview(null);
+    previews.forEach((p) => p && URL.revokeObjectURL(p));
+    setFiles([]);
+    setPreviews([]);
     setRows([]);
     setError("");
     setDone(0);
   }
 
-  function handleFile(f) {
-    if (!f) return;
-    if (preview) URL.revokeObjectURL(preview);
-    setFile(f);
-    setPreview(f.type.startsWith("image/") ? URL.createObjectURL(f) : null);
+  function handleFiles(fileList) {
+    const arr = Array.from(fileList || []);
+    if (!arr.length) return;
+    previews.forEach((p) => p && URL.revokeObjectURL(p));
+    setFiles(arr);
+    setPreviews(arr.map((f) => (f.type.startsWith("image/") ? URL.createObjectURL(f) : null)));
     setRows([]);
     setError("");
   }
@@ -233,28 +234,41 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
   }
 
   async function handleParse() {
-    if (!file || parsing) return;
+    if (!files.length || parsing) return;
     setParsing(true);
     setError("");
     setRows([]);
     try {
-      const up = await base44.integrations.Core.UploadFile({ file });
-      const res = await base44.integrations.Core.ExtractDataFromUploadedFile({
-        file_url: up.file_url,
-        json_schema: EXTRACT_SCHEMA,
-      });
-      let list = [];
-      if (Array.isArray(res?.output)) list = res.output;
-      else if (res?.output?.transactions) list = res.output.transactions;
-      if (!Array.isArray(list)) list = [];
-      const norm = list.map(normalizeRow).filter((r) => r.description || r.amount);
-      if (!norm.length) {
-        setError("No transactions found in this file. Try a clearer screenshot or PDF.");
+      const all = [];
+      let failures = 0;
+      for (const f of files) {
+        try {
+          const up = await base44.integrations.Core.UploadFile({ file: f });
+          const res = await base44.integrations.Core.ExtractDataFromUploadedFile({
+            file_url: up.file_url,
+            json_schema: EXTRACT_SCHEMA,
+          });
+          let list = [];
+          if (Array.isArray(res?.output)) list = res.output;
+          else if (res?.output?.transactions) list = res.output.transactions;
+          if (!Array.isArray(list)) list = [];
+          for (const r of list) {
+            const n = normalizeRow(r);
+            if (n.description || n.amount) all.push(n);
+          }
+        } catch {
+          failures++;
+        }
+      }
+      if (!all.length) {
+        if (failures === files.length) setError("Could not parse — AI may be busy, please retry.");
+        else setError("No transactions found in those files. Try clearer screenshots or PDFs.");
       } else {
-        setRows(norm);
+        setRows(all);
+        if (failures > 0) setError(`${failures} of ${files.length} file(s) could not be parsed and were skipped.`);
       }
     } catch (e) {
-      setError("Could not parse this file — AI may be busy, please retry.");
+      setError("Could not parse these files — AI may be busy, please retry.");
     } finally {
       setParsing(false);
     }
@@ -309,56 +323,63 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
         </DialogHeader>
 
         <div className="px-5 pb-5 space-y-4">
-          {/* Upload zone */}
-          {rows.length === 0 && (
-            <>
-              <div
-                onClick={() => fileRef.current?.click()}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (f) handleFile(f); }}
-                className="cursor-pointer rounded-lg border border-dashed border-zinc-700 bg-zinc-950/60 hover:border-indigo-500/50 transition-colors p-6 sm:p-8 flex flex-col items-center justify-center gap-3 text-center touch-manipulation"
-              >
-                {parsing ? (
-                  <>
-                    <Loader2 className="h-8 w-8 text-indigo-400 animate-spin" />
-                    <p className="text-sm text-zinc-400 font-mono">Reading your statement…</p>
-                  </>
-                ) : preview ? (
-                  <img src={preview} alt="preview" className="max-h-40 rounded border border-zinc-800" />
-                ) : file ? (
-                  <div className="flex items-center gap-2 text-zinc-300">
-                    {file.type.startsWith("image/") ? <ImageIcon className="h-6 w-6" /> : <FileText className="h-6 w-6" />}
-                    <span className="text-sm">{file.name}</span>
+        {/* Upload zone */}
+        {rows.length === 0 && (
+          <>
+            <div
+              onClick={() => fileRef.current?.click()}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => { e.preventDefault(); handleFiles(e.dataTransfer.files); }}
+              className="cursor-pointer rounded-lg border border-dashed border-zinc-700 bg-zinc-950/60 hover:border-indigo-500/50 transition-colors p-6 sm:p-8 flex flex-col items-center justify-center gap-3 text-center touch-manipulation"
+            >
+              {parsing ? (
+                <>
+                  <Loader2 className="h-8 w-8 text-indigo-400 animate-spin" />
+                  <p className="text-sm text-zinc-400 font-mono">Reading {files.length > 1 ? `${files.length} files…` : "your statement…"}<br/><span className="text-[11px] text-zinc-600">extracting one at a time</span></p>
+                </>
+              ) : previews.length > 0 ? (
+                <div className="flex flex-col items-center gap-2">
+                  {previews[0] && (
+                    <img src={previews[0]} alt="preview" className="max-h-32 rounded border border-zinc-800" />
+                  )}
+                  <p className="text-sm text-zinc-300 flex items-center gap-2">
+                    {previews[0] && !files[0].type.startsWith("image/")
+                      ? <FileText className="h-4 w-4" />
+                      : null}
+                    {files.length > 1
+                      ? `${files.length} files selected · ${previews[0] ? files[0].name + " " : ""}+${files.length - 1} more`
+                      : files[0].name}
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <UploadCloud className="h-8 w-8 text-zinc-500" />
+                  <div>
+                    <p className="text-sm text-zinc-300">Tap to upload photos or statements</p>
+                    <p className="text-[11px] text-zinc-600 mt-0.5 hidden sm:block">PNG, JPG, or PDF · pick multiple at once on mobile</p>
+                    <p className="text-[11px] text-zinc-600 mt-0.5 sm:hidden flex items-center justify-center gap-1"><ImageIcon className="h-3 w-3" /> Gallery or files · multi-select</p>
                   </div>
-                ) : (
-                  <>
-                    <UploadCloud className="h-8 w-8 text-zinc-500" />
-                    <div>
-                      <p className="text-sm text-zinc-300">Tap to snap a photo or upload a statement</p>
-                      <p className="text-[11px] text-zinc-600 mt-0.5 hidden sm:block">PNG, JPG, or PDF · camera ready on mobile</p>
-                      <p className="text-[11px] text-zinc-600 mt-0.5 sm:hidden flex items-center justify-center gap-1"><Camera className="h-3 w-3" /> Camera ready</p>
-                    </div>
-                  </>
-                )}
-              </div>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*,application/pdf"
-                capture="environment"
-                className="hidden"
-                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }}
-              />
-
-              {error && <p className="text-xs text-rose-400">{error}</p>}
-
-              {file && !parsing && (
-                <Button onClick={handleParse} className="w-full h-11 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold">
-                  <UploadCloud className="h-4 w-4 mr-1.5" /> Scan with AI
-                </Button>
+                </>
               )}
-            </>
-          )}
+            </div>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*,application/pdf"
+              multiple
+              className="hidden"
+              onChange={(e) => { handleFiles(e.target.files); e.target.value = ""; }}
+            />
+
+            {error && <p className="text-xs text-rose-400">{error}</p>}
+
+            {files.length > 0 && !parsing && (
+              <Button onClick={handleParse} className="w-full h-11 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold">
+                <UploadCloud className="h-4 w-4 mr-1.5" /> Scan{files.length > 1 ? ` ${files.length} files` : ""} with AI
+              </Button>
+            )}
+          </>
+        )}
 
           {/* Parsed rows */}
           {rows.length > 0 && (
