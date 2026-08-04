@@ -25,33 +25,168 @@ import confetti from "canvas-confetti";
 
 const today = () => format(new Date(), "yyyy-MM-dd");
 
+// Recognized screenshot formats (pass these hints to the model via field
+// descriptions so it knows what kinds of images to expect):
+//   • Apple Wallet "Transaction Detail" pages — large amount at top, merchant
+//     string, "M/D/YY, H:MM AM/PM" timestamp, "Status: Approved" block, card
+//     name (e.g. "Royal Bank Cashback MasterCard").
+//   • Banking app "Latest Transactions" lists — a card image plus one or more
+//     rounded transaction rows with merchant, amount (CA$ or $), payment
+//     method (Apple Pay, etc.), and a relative time ("Just now", "Today",
+//     "Yesterday", "Aug 3").
+//   • Credit card / chequing statements — multi-row tables with date,
+//     description, and amount columns.
+//   • Single-charge push notifications or email receipts.
+// Amounts may be prefixed with CA$, CDN$, USD, $, or no symbol. Relative
+// dates like "Just now" map to today's date. The merchant string often
+// contains a raw processor suffix (e.g. "Presto Appl/scvxd2kmd7") — extract
+// the clean human-readable merchant into `merchant_clean`.
+const KNOWN_CATEGORIES = [
+  "Income", "Transit (GO/TTC)", "E39/Civic Maintenance", "Christ Like! Inventory",
+  "Food/Groceries", "Rent", "Utilities", "Dining", "Other",
+];
+
+const MERCHANT_CATEGORY_HINTS = [
+  "Presto, GO Transit, TTC, UP Express, Uber, Lyft, Transit → 'Transit (GO/TTC)'",
+  "Loblaws, No Frills, Metro, Sobeys, Farm Boy, Whole Foods, Costco, Walmart grocery → 'Food/Groceries'",
+  "McDonalds, Tim Hortons, Starbucks, Subway, Swigch, DoorDash, Uber Eats, Skip → 'Dining'",
+  "Lula, Intel, landlord, property management, Condo → 'Rent'",
+  "Enbridge, Hydro, Bell, Rogers, Telus, Toronto Hydro, water, gas, internet → 'Utilities'",
+  "Payroll, salary, deposit, e-transfer in, refund, cashback reward → 'Income'",
+  "Honda, Toyota, mechanic, E39, BMW, parts, Civic maintenance → 'E39/Civic Maintenance'",
+  "inventory, stock, wholesale goods for resale → 'Christ Like! Inventory'",
+];
+
+const CATEGORY_FROM_DESCRIPTION = [
+  { test: /presto|ttc|\bgo\b|up express|transit|metrolinx|lyft|uber(\s|trip)?/i, cat: "Transit (GO/TTC)" },
+  { test: /loblaws|no frills|metro|sobeys|farm boy|whole foods|costco|walmart|grocery|superstore/i, cat: "Food/Groceries" },
+  { test: /mcdonald|tim horton|starbucks|subway|doordash|uber\s?eats|skipthedishes|restaurant|grill|pizza|sushi|bar\b|cafe/i, cat: "Dining" },
+  { test: /payroll|salary|deposit|e-transfer in|refund|cashback|interest paid|payment received/i, cat: "Income" },
+  { test: /rent|landlord|property mgmt|condo fee/i, cat: "Rent" },
+  { test: /enbridge|hydro|gas co|bell|rogers|telus|toronto hydro|water utility|internet|mobile plan/i, cat: "Utilities" },
+  { test: /e39|civic|mechanic|auto parts|tire|oil change|bmw|honda|toyota/i, cat: "E39/Civic Maintenance" },
+  { test: /inventory|wholesale|stock\b|resale/i, cat: "Christ Like! Inventory" },
+];
+
+function guessCategory(text) {
+  for (const { test, cat } of CATEGORY_FROM_DESCRIPTION) {
+    if (test.test(text)) return cat;
+  }
+  return "Other";
+}
+
+// Strip raw processor suffixes like "Presto Appl/scvxd2kmd7" → "Presto"
+function cleanMerchant(raw) {
+  if (!raw) return "";
+  let m = raw.split(/[/\\]/)[0].trim();
+  m = m.replace(/\s+(appl|apple pay|google pay|gpay|stripe|sq|pty|ltd|inc|llc)\b.*/i, "").trim();
+  m = m.replace(/[.,;:|]+$/, "").trim();
+  return m || raw.trim();
+}
+
+// Parse many date forms → yyyy-MM-dd. Relative ("Just now", "Today",
+// "Yesterday") resolve against `now`. Falls back to today.
+function parseDate(raw) {
+  if (!raw) return today();
+  const s = String(raw).trim();
+  const lc = s.toLowerCase();
+  if (!lc || lc === "just now" || lc === "today") return today();
+  if (lc === "yesterday") {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return format(d, "yyyy-MM-dd");
+  }
+  // "8/3/26, 9:52 PM"  →  2026-08-03
+  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})(?:[,\s].*)?$/);
+  if (m) {
+    const [, mo, da, yr] = m;
+    const year = yr.length === 2 ? 2000 + +yr : +yr;
+    return `${year}-${String(mo).padStart(2, "0")}-${String(da).padStart(2, "0")}`;
+  }
+  const d = new Date(s);
+  if (!isNaN(d.getTime())) return format(d, "yyyy-MM-dd");
+  return today();
+}
+
 const EXTRACT_SCHEMA = {
   type: "object",
   properties: {
+    source_type: {
+      type: "string",
+      enum: ["apple_wallet_detail", "banking_app_list", "credit_card_summary", "statement_table", "receipt", "other"],
+      description: "What kind of image this is. 'apple_wallet_detail' = iOS Wallet transaction detail page (large amount, merchant, date/time, Status: Approved block, card name). 'banking_app_list' = RBC/TD/Scotia/BMO/CIBC app showing a card image plus 'Latest Transactions' rows. 'credit_card_summary' = card image with one or two highlighted transactions. 'statement_table' = printed/PDF statement with date/description/amount columns. 'receipt' = store or email receipt.",
+    },
+    card_name: {
+      type: "string",
+      description: "Name of the card or account shown (e.g. 'RBC Cash Back Mastercard', 'Royal Bank Cashback MasterCard', 'TD Every Day-A'). Leave empty if not visible.",
+    },
+    card_last4: {
+      type: "string",
+      description: "Last 4 digits of the card if shown (e.g. '8615'). Leave empty otherwise.",
+    },
     transactions: {
       type: "array",
+      description: "Every transaction visible in the image. A single Apple Wallet detail page still yields one entry here. Parse each row even if merchant text contains a raw processor suffix like 'Presto Appl/scvxd2kmd7'.",
       items: {
         type: "object",
         properties: {
-          description: { type: "string", description: "Merchant or memo text" },
-          amount: { type: "number", description: "Absolute dollar amount (always positive)" },
-          type: { type: "string", enum: ["income", "expense"] },
-          category: { type: "string", description: "A reasonable category guess" },
-          date: { type: "string", description: "yyyy-MM-dd transaction date" },
+          description: {
+            type: "string",
+            description: "Original merchant/memo text exactly as shown, including any raw processor suffix (e.g. 'Presto Appl/scvxd2kmd7'). This is preserved for matching.",
+          },
+          merchant_clean: {
+            type: "string",
+            description: "Human-readable merchant name with processor suffixes removed. 'Presto Appl/scvxd2kmd7' → 'Presto'. 'TIM HORTONS 1234' → 'Tim Hortons'. Used as the display description.",
+          },
+          amount: {
+            type: "number",
+            description: "Absolute dollar amount as a positive number. Strip currency symbols and prefixes (CA$, CDN$, USD, $) and commas. E.g. 'CA$21.00' → 21.00.",
+          },
+          currency: {
+            type: "string",
+            enum: ["CAD", "USD", "other"],
+            description: "Currency indicated in the image. Use 'CAD' for CA$ / CDN$ / Royal Bank, 'USD' for $ with US context.",
+          },
+          type: {
+            type: "string",
+            enum: ["income", "expense"],
+            description: "'expense' for purchases, charges, bills, transit, dining. 'income' for payroll, refunds, deposits, cashback credited.",
+          },
+          category: {
+            type: "string",
+            enum: KNOWN_CATEGORIES,
+            description: "Best-fit category. Hints: " + MERCHANT_CATEGORY_HINTS.join(" | ") + ". Choose the closest match; use 'Other' if none fit.",
+          },
+          date: {
+            type: "string",
+            description: "Transaction date in yyyy-MM-dd. Relative labels resolve to today's date: 'Just now' and 'Today' → today, 'Yesterday' → yesterday. '8/3/26, 9:52 PM' → 2026-08-03. If no date is visible, use today's date.",
+          },
+          payment_method: {
+            type: "string",
+            description: "Payment method if shown (e.g. 'Apple Pay', 'Google Pay', 'Tap', 'Chip'). Leave empty if not visible.",
+          },
         },
         required: ["description", "amount", "type", "date"],
       },
     },
   },
+  required: ["transactions"],
 };
 
 function normalizeRow(r) {
+  const rawDesc = r.description || "";
+  const description = r.merchant_clean || cleanMerchant(rawDesc) || rawDesc;
+  const amount = Math.abs(Number(r.amount) || 0);
+  const type = r.type === "income" ? "income" : "expense";
+  let category = r.category && KNOWN_CATEGORIES.includes(r.category) ? r.category : null;
+  if (!category) category = type === "income" ? "Income" : guessCategory(description + " " + rawDesc);
+  if (!KNOWN_CATEGORIES.includes(category)) category = "Other";
   return {
-    description: r.description || "",
-    amount: Number(r.amount) || 0,
-    type: r.type === "income" ? "income" : "expense",
-    category: r.category || "Other",
-    date: r.date || today(),
+    description,
+    amount,
+    type,
+    category,
+    date: parseDate(r.date),
     account_id: "",
     included: true,
   };
