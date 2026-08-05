@@ -282,13 +282,13 @@ export default function TransactionExplorerModal({ open, onOpenChange, transacti
             )}
           </div>
 
-          <button
-            type="button"
-            onClick={() => setByAccount((v) => !v)}
-            className={`h-8 px-3 rounded-md text-xs font-medium border transition-colors hidden ${byAccount ? "bg-white/10 border-white/20 text-zinc-50" : "bg-black border-white/10 text-white/60 hover:text-white/90"}`}>
-            
-            By account
-          </button>
+          
+
+
+
+
+
+          
 
           {accounts.length > 0 &&
           <Select value={accountFilter} onValueChange={setAccountFilter}>
