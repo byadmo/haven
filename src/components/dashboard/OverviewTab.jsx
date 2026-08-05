@@ -50,18 +50,6 @@ export function Breakdown({ label, value, color = "bg-zinc-400" }) {
   );
 }
 
-// Cash / Investments / Debt — net worth is shown by MetricsRow above, so this
-// row surfaces the remaining balance sheet cards without duplication.
-export function OverviewKpis({ net }) {
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-      <Stat label="Cash" value={net ? money(net.cash) : "—"} />
-      <Stat label="Investments" value={net ? money(net.inv) : "—"} />
-      <Stat label="Debt" value={net ? money(net.debt) : "—"} accent="rose" />
-    </div>
-  );
-}
-
 export function OverviewSavings({ saving }) {
   return (
     <Card3 title="Savings Rate" subtitle="Last 3 months">

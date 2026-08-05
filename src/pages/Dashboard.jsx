@@ -16,7 +16,6 @@ import { ForecastProvider } from "@/lib/forecast-context";
 import { computeTrajectory } from "@/lib/trajectory";
 import {
   useOverviewData,
-  OverviewKpis,
   OverviewSavings,
   OverviewHeatmap,
   OverviewAlerts,
@@ -133,10 +132,7 @@ export default function Dashboard() {
             />
           </Reveal>
 
-          {/* Row 2 — balance-sheet KPIs (Cash · Investments · Debt) */}
-          <Reveal delay={0.02}><OverviewKpis net={net} /></Reveal>
-
-          {/* Row 3 — accounts ledger */}
+          {/* Row 2 — accounts ledger */}
           <Reveal delay={0.04}><AccountsSummary /></Reveal>
 
           {/* Row 4 — chart + upcoming recurring */}

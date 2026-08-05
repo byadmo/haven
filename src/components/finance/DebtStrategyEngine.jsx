@@ -46,7 +46,7 @@ export default function DebtStrategyEngine({ debts, monthlySurplus, forcedSurplu
     interestSaved: Math.max(0, baseRun.totalInterest - optRun.totalInterest),
   };
   const chartData = React.useMemo(() => {
-    const maxM = Math.max(baseRun.series.length, optRun.series.length, 1);
+    const maxM = Math.max(baseRun.series.length - 1, optRun.series.length - 1, 1);
     const out = [];
     for (let i = 0; i <= maxM; i++) {
       out.push({

@@ -17,6 +17,7 @@ const WEEK_TO_MONTH = 52 / 12;
 export function computeTrajectory({
   debts = [], accounts = [], transactions = [],
   months = 60, method = "avalanche", extraPayment = 0, incomeAdjust = 0,
+  stopAfterDebtFree = false,
 } = {}) {
   const now = new Date();
   const startingCash = Math.max(0, accounts.reduce((s, a) => s + (a.balance || 0), 0));
@@ -70,6 +71,7 @@ export function computeTrajectory({
 
   let cash = startingCash;
   let cumInterest = 0;
+  let debtFreeMonth = null;
 
   for (let m = 1; m <= months; m++) {
     cash += monthlyNet; // net living cash flow
@@ -122,6 +124,7 @@ export function computeTrajectory({
       keyframeMonths.add(m);
       keyframeLabels[m] = "DEBT FREE";
     }
+    if (debtFreeMonth === null && debtRemaining <= 0.005) debtFreeMonth = m;
 
     const libs = {};
     balances.forEach((d) => { libs[d.id || d.name] = Math.max(0, d.balance); });
@@ -140,6 +143,10 @@ export function computeTrajectory({
       keyframe: keyframeMonths.has(m),
       keyframeLabel: keyframeLabels[m] || "",
     });
+
+    // Stop calculating once debt hits zero + 2-month buffer (used by flat payoff
+    // projections so charts don't flatline for hundreds of months).
+    if (stopAfterDebtFree && debtFreeMonth !== null && m - debtFreeMonth >= 2) break;
   }
 
   return { series, keyframes: [...keyframeMonths].sort((a, b) => a - b), order };
@@ -193,7 +200,7 @@ export function sortDebts(debts, method = "avalanche") {
  *
  * Replaces the old simulatePayoff + simulateTimeline combo.
  */
-export function simulateFlatRun(debts, surplus, method = "avalanche", maxMonths = 600) {
+export function simulateFlatRun(debts, surplus, method = "avalanche", maxMonths = 360) {
   const order = sortDebts(debts, method);
   const totalDebt = order.reduce((s, d) => s + (d.current_balance || 0), 0);
 
@@ -215,6 +222,7 @@ export function simulateFlatRun(debts, surplus, method = "avalanche", maxMonths 
     months: maxMonths,
     method,
     extraPayment: surplus,
+    stopAfterDebtFree: true,
   });
 
   const debtFreeMonth = traj.findIndex((p) => p.debtRemaining <= 0.005);
