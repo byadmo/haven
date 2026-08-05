@@ -77,7 +77,8 @@ export default function QuickAddModal({ open, onOpenChange, accounts = [], debts
       setType("expense");
       setCategory("Other");
       setDate(format(new Date(), "yyyy-MM-dd"));
-      setFromId("");
+      const defAcct = accounts.find((a) => a.type === "chequing") || accounts[0];
+      setFromId(defAcct ? defAcct.id : "");
       setToId("");
       setRecurring(false);
       setFrequency("monthly");
