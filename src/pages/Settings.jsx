@@ -5,7 +5,7 @@ import Reveal from "@/components/finance/Reveal";
 import { useCategories } from "@/lib/categories";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Trash2, RotateCcw, ChevronLeft } from "lucide-react";
+import { Plus, Trash2, RotateCcw, ChevronLeft, ShieldCheck, ArrowRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import MonthlyReport from "@/components/finance/MonthlyReport";
 import AutomatedReportSettings from "@/components/finance/AutomatedReportSettings";
@@ -72,6 +72,25 @@ export default function Settings() {
 
       <main className="relative max-w-3xl mx-auto px-5 sm:px-6 py-8 sm:py-6 space-y-8 sm:space-y-6">
         <Reveal><PageTitle title="Settings" subtitle="Categories, currency, reports, and account controls" /></Reveal>
+
+        <Reveal>
+          <button
+            onClick={() => navigate("/setup")}
+            className="w-full text-left rounded-lg border border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10 transition-colors p-5 group"
+          >
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-lg bg-emerald-500/15 flex items-center justify-center shrink-0">
+                <ShieldCheck className="h-5 w-5 text-emerald-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold font-mono tracking-tight text-zinc-100">Complete Your Profile</p>
+                <p className="text-xs text-white/40 mt-0.5">Re-run the guided setup wizard to import statements and rebuild your accounts, bills, debts, and investments.</p>
+              </div>
+              <ArrowRight className="h-4 w-4 text-white/30 group-hover:text-emerald-300 group-hover:translate-x-0.5 transition-all shrink-0" />
+            </div>
+          </button>
+        </Reveal>
+
         <div>
           <h2 className="text-xs uppercase tracking-widest text-white/50">Categories</h2>
           <p className="text-lg font-semibold font-mono tracking-tight text-zinc-100 mt-1">Transaction Categories</p>

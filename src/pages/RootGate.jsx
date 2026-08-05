@@ -3,6 +3,7 @@ import { useAuth } from "@/lib/AuthContext";
 import Splash from "@/pages/Splash";
 import Dashboard from "@/pages/Dashboard";
 import { FinanceShell } from "@/lib/FinanceDataContext";
+import OnboardingGate from "@/components/onboarding/OnboardingGate";
 
 function FullSpinner() {
   return (
@@ -28,7 +29,9 @@ export default function RootGate() {
 
   return (
     <FinanceShell>
-      <Dashboard />
+      <OnboardingGate>
+        <Dashboard />
+      </OnboardingGate>
     </FinanceShell>
   );
 }

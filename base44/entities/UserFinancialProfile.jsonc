@@ -38,6 +38,10 @@
     "last_adaptation_date": {
       "type": "string",
       "format": "date"
+    },
+    "onboarding_completed": {
+      "type": "boolean",
+      "default": false
     }
   },
   "required": [

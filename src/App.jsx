@@ -17,6 +17,7 @@ import Budgeting from '@/pages/Budgeting';
 import CashFlow from '@/pages/CashFlow';
 import Assistant from '@/pages/Assistant';
 import Accounts from '@/pages/Accounts';
+import Setup from '@/pages/Setup';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { FinanceLayout } from '@/lib/FinanceDataContext';
 import { Navigate } from 'react-router-dom';
@@ -70,6 +71,7 @@ const AuthenticatedApp = () => {
         <Route path="/cashflow" element={<CashFlow />} />
         <Route path="/assistant" element={<Assistant />} />
         <Route path="/accounts" element={<Accounts />} />
+        <Route path="/setup" element={<Setup />} />
         </Route>
       </Route>
       <Route path="*" element={<PageNotFound />} />
