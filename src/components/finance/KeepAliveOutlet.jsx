@@ -4,13 +4,38 @@ import PageErrorBoundary from "@/components/finance/PageErrorBoundary";
 
 // Keep-alive outlet: instead of unmounting a page when the user navigates
 // away, keep up to MAX_MOUNTED recently-visited pages mounted in the DOM and
-// toggle their visibility with CSS (display:none — which also blocks
-// interaction on hidden instances). Returning to a visited page is instant —
-// no re-fetch, no re-render, no loading spinner — and scroll/state is
-// preserved. An LRU cap bounds memory on low-end devices; the oldest page is
-// unmounted when the limit is exceeded. A 150ms fade (dd-page-enter) makes the
-// switch feel like a native tab transition rather than a page load.
+// cross-fade between them with CSS opacity transitions (GPU-friendly — no
+// layout/transform animation). The active page is in normal flow (defines the
+// container height); inactive pages are absolutely layered behind it with
+// pointer-events disabled, so taps never bleed through. Returning to a
+// visited page is instant — no re-fetch, no re-render — and scroll/state is
+// preserved. An LRU cap bounds memory on low-end devices.
+//
+// Fade timing: incoming 200ms ease-out, outgoing 150ms ease-out. They run
+// simultaneously (the outgoing sits behind, z-index 0; the incoming is on top,
+// z-index 10) so there is never a flash of empty background.
 const MAX_MOUNTED = 4;
+
+const ACTIVE_STYLE = {
+  position: "relative",
+  zIndex: 10,
+  opacity: 1,
+  pointerEvents: "auto",
+  overflow: "visible",
+  transition: "opacity 200ms ease-out",
+};
+const INACTIVE_STYLE = {
+  position: "absolute",
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+  zIndex: 0,
+  opacity: 0,
+  pointerEvents: "none",
+  overflow: "hidden",
+  transition: "opacity 150ms ease-out",
+};
 
 export default function KeepAliveOutlet() {
   const location = useLocation();
@@ -31,14 +56,13 @@ export default function KeepAliveOutlet() {
   }
 
   return (
-    <div className="keep-alive-root">
+    <div className="keep-alive-root relative">
       {[...cache.current.entries()].map(([path, entry]) => {
         const active = path === location.pathname;
         return (
           <div
             key={path}
-            className={active ? "dd-page-enter" : ""}
-            style={{ display: active ? "block" : "none" }}
+            style={active ? ACTIVE_STYLE : INACTIVE_STYLE}
             aria-hidden={!active}
           >
             <PageErrorBoundary>{entry.el}</PageErrorBoundary>

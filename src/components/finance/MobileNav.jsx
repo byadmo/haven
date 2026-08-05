@@ -1,6 +1,5 @@
-import React, { useState } from "react";
+import React, { useLayoutEffect, useRef, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
 import {
   Home,
   ArrowLeftRight,
@@ -38,20 +37,69 @@ const secondary = [
   { to: "/settings", label: "Settings", icon: SettingsIcon },
 ];
 
+const isItemActive = (to, end, pathname) =>
+  end ? pathname === to : pathname === to || pathname.startsWith(to + "/");
+
 export default function MobileNav() {
   const [moreOpen, setMoreOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const moreActive = secondary.some((s) => location.pathname === s.to);
+  const containerRef = useRef(null);
+  const itemRefs = useRef([]);
 
-  const activePill = (show) =>
-    show ? (
-      <motion.span
-        layoutId="nav-active-pill"
-        className="absolute inset-1 rounded-full border border-emerald-400/30 bg-emerald-500/15"
-        transition={{ type: "spring", stiffness: 420, damping: 34 }}
-      />
-    ) : null;
+  const moreActive = secondary.some((s) => location.pathname === s.to);
+  const primaryActiveIdx = primary.findIndex((p) =>
+    isItemActive(p.to, p.end, location.pathname)
+  );
+  // Index into the 6-slot row (5 primary + More). -1 means none active.
+  const activeIndex =
+    primaryActiveIdx >= 0 ? primaryActiveIdx : moreActive ? primary.length : -1;
+
+  const [pill, setPill] = useState({ x: 0, w: 0, visible: false });
+
+  const measure = () => {
+    const cont = containerRef.current;
+    const node = itemRefs.current[activeIndex];
+    if (!cont || !node || activeIndex < 0) {
+      setPill((p) => ({ ...p, visible: false }));
+      return;
+    }
+    const contRect = cont.getBoundingClientRect();
+    const nodeRect = node.getBoundingClientRect();
+    setPill({
+      x: nodeRect.left - contRect.left,
+      w: nodeRect.width,
+      visible: true,
+    });
+  };
+
+  // Measure before paint so the indicator never flashes in the wrong spot.
+  useLayoutEffect(() => {
+    measure();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeIndex]);
+
+  // Re-measure on resize/orientation change so the pill stays aligned.
+  useLayoutEffect(() => {
+    let t;
+    const handler = () => {
+      clearTimeout(t);
+      t = setTimeout(measure, 200);
+    };
+    window.addEventListener("resize", handler);
+    window.addEventListener("orientationchange", handler);
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener("resize", handler);
+      window.removeEventListener("orientationchange", handler);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeIndex]);
+
+  const iconClass = (isActive) =>
+    `relative h-[18px] w-[18px] transition-colors duration-200 ease-out ${
+      isActive ? "text-emerald-300" : "text-white/45"
+    }`;
 
   return (
     <>
@@ -61,33 +109,46 @@ export default function MobileNav() {
         aria-label="Primary"
       >
         <div
-          className="pointer-events-auto flex items-center justify-between rounded-full border border-white/10 bg-black/75 px-2"
+          ref={containerRef}
+          className="pointer-events-auto relative flex items-center justify-between rounded-full border border-white/10 bg-black/75 px-2"
           style={{
             height: 56,
             width: "min(94vw, 392px)",
             borderRadius: 999,
-            boxShadow: "0 10px 30px -8px rgba(0,0,0,0.6), 0 2px 8px -4px rgba(0,0,0,0.4)",
+            boxShadow:
+              "0 10px 30px -8px rgba(0,0,0,0.6), 0 2px 8px -4px rgba(0,0,0,0.4)",
           }}
         >
-          {primary.map(({ to, label, icon: Icon, end }) => (
+          {/* Sliding active indicator — animated via transform only. */}
+          {pill.visible && (
+            <span
+              aria-hidden
+              className="pointer-events-none absolute rounded-full border border-emerald-400/30 bg-emerald-500/15"
+              style={{
+                top: 4,
+                bottom: 4,
+                left: 0,
+                width: Math.max(pill.w - 8, 0),
+                borderRadius: 999,
+                transform: `translateX(${pill.x + 4}px)`,
+                transition:
+                  "transform 250ms cubic-bezier(0.4,0,0.2,1), width 250ms cubic-bezier(0.4,0,0.2,1)",
+              }}
+            />
+          )}
+
+          {primary.map(({ to, label, icon: Icon, end }, i) => (
             <NavLink
               key={to}
               to={to}
               end={end}
               aria-label={label}
+              ref={(el) => (itemRefs.current[i] = el)}
               className="relative grid place-items-center rounded-full"
               style={{ height: 48, width: 48 }}
             >
               {({ isActive }) => (
-                <>
-                  {activePill(isActive)}
-                  <Icon
-                    className={`relative h-[18px] w-[18px] transition-colors ${
-                      isActive ? "text-emerald-300" : "text-white/45"
-                    }`}
-                    strokeWidth={1.75}
-                  />
-                </>
+                <Icon className={iconClass(isActive)} strokeWidth={1.75} />
               )}
             </NavLink>
           ))}
@@ -97,14 +158,12 @@ export default function MobileNav() {
             type="button"
             onClick={() => setMoreOpen(true)}
             aria-label="More"
+            ref={(el) => (itemRefs.current[primary.length] = el)}
             className="relative grid place-items-center rounded-full"
             style={{ height: 48, width: 48 }}
           >
-            {activePill(moreActive)}
             <Ellipsis
-              className={`relative h-[18px] w-[18px] transition-colors ${
-                moreActive ? "text-emerald-300" : "text-white/45"
-              }`}
+              className={iconClass(moreActive)}
               strokeWidth={1.75}
             />
           </button>
