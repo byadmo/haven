@@ -50,6 +50,7 @@ export default function TransactionExplorerModal({ open, onOpenChange, transacti
   const [deleting, setDeleting] = React.useState(false);
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   const [dupIds, setDupIds] = React.useState(new Set());
+  const [groupIds, setGroupIds] = React.useState(new Set());
 
   const allRows = React.useMemo(() => [...transactions, ...debtRows], [transactions, debtRows]);
 
@@ -86,12 +87,21 @@ export default function TransactionExplorerModal({ open, onOpenChange, transacti
   const clearAll = () => setSelected(new Set());
 
   const detectDuplicates = () => {
-    const seen = new Set();
-    const dups = new Set();
-    for (const t of [...transactions].sort((a, b) => new Date(a.date) - new Date(b.date))) {
+    const groups = {};
+    for (const t of transactions) {
       const key = `${t.date}|${(t.description || "").toLowerCase().trim()}|${Number(t.amount) || 0}|${t.account_id || ""}`;
-      if (seen.has(key)) dups.add(t.id); else seen.add(key);
+      (groups[key] ||= []).push(t);
     }
+    const gIds = new Set();
+    const dups = new Set();
+    for (const group of Object.values(groups)) {
+      if (group.length > 1) {
+        group.forEach((t) => gIds.add(t.id));
+        const keep = [...group].sort((a, b) => new Date(a.date) - new Date(b.date))[0];
+        group.forEach((t) => { if (t.id !== keep.id) dups.add(t.id); });
+      }
+    }
+    setGroupIds(gIds);
     setDupIds(dups);
     setBulkMode(true);
     setSelected(new Set(dups));
@@ -125,8 +135,8 @@ export default function TransactionExplorerModal({ open, onOpenChange, transacti
         <div className="flex items-center justify-between gap-2 shrink-0 pr-10">
           <DialogTitle className="text-sm font-semibold text-zinc-100">All Transactions</DialogTitle>
           <div className="flex items-center gap-2">
-            {dupIds.size > 0 && (
-              <span className="text-[10px] uppercase tracking-widest text-amber-400">{dupIds.size} flagged</span>
+            {groupIds.size > 0 && (
+              <span className="text-[10px] uppercase tracking-widest text-amber-400">{groupIds.size} flagged</span>
             )}
             <button
               type="button"
@@ -256,7 +266,7 @@ export default function TransactionExplorerModal({ open, onOpenChange, transacti
             filtered.map((t) =>
               t._kind === "debt_payment"
                 ? <DebtPaymentRow key={t.id} t={t} />
-                : <TransactionRow key={t.id} t={t} accountsMap={accountsMap || {}} onChanged={onChanged} categories={options} bulkMode={bulkMode} selected={selected.has(t.id)} onToggleSelect={toggle} flagged={dupIds.has(t.id)} />
+                : <TransactionRow key={t.id} t={t} accountsMap={accountsMap || {}} onChanged={onChanged} categories={options} bulkMode={bulkMode} selected={selected.has(t.id)} onToggleSelect={toggle} flagged={groupIds.has(t.id)} />
             )
           )}
         </div>

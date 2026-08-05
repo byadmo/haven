@@ -14,7 +14,6 @@ import UpcomingRecurring from "@/components/finance/UpcomingRecurring";
 import { computeTrajectory } from "@/lib/trajectory";
 import { ForecastProvider } from "@/lib/forecast-context";
 import DebtForm from "@/components/finance/DebtForm";
-import DebtModal from "@/components/finance/DebtModal";
 import StatementImportModal from "@/components/finance/StatementImportModal";
 import AccountsSummary from "@/components/finance/AccountsSummary";
 import Reveal from "@/components/finance/Reveal";
@@ -22,7 +21,6 @@ import Reveal from "@/components/finance/Reveal";
 export default function Home() {
   const { transactions: txns, debts, accounts, refresh, refreshKey } = useFinanceData();
   const [quickAdd, setQuickAdd] = React.useState(false);
-  const [showDebtForm, setShowDebtForm] = React.useState(false);
   const [showImport, setShowImport] = React.useState(false);
 
   const forecastData = React.useMemo(
@@ -69,13 +67,6 @@ export default function Home() {
         className="bg-indigo-600 text-white hover:bg-indigo-500"
       >
         <Plus className="h-4 w-4 mr-1" /> <span className="hidden sm:inline">Transaction</span><span className="sm:hidden">Add</span>
-      </Button>
-      <Button
-        size="sm"
-        onClick={() => setShowDebtForm(true)}
-        className="bg-indigo-600 text-white hover:bg-indigo-500"
-      >
-        <Plus className="h-4 w-4 mr-1" /> <span className="hidden sm:inline">Liability</span><span className="sm:hidden">Debt</span>
       </Button>
       <Button
         size="sm"
@@ -129,13 +120,6 @@ export default function Home() {
         onOpenChange={setQuickAdd}
         accounts={accounts}
         debts={debts}
-        onSaved={refresh}
-      />
-
-      <DebtModal
-        open={showDebtForm}
-        onOpenChange={setShowDebtForm}
-        accounts={accounts}
         onSaved={refresh}
       />
 

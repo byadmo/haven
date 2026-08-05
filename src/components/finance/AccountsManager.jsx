@@ -13,6 +13,7 @@ import { Plus, Trash2, Pencil, Check, X, Landmark, Eye, EyeOff, ScanLine, Briefc
 import { motion, AnimatePresence } from "framer-motion";
 import AccountBalanceImportModal from "@/components/finance/AccountBalanceImportModal";
 import TransferModal from "@/components/finance/TransferModal";
+import DebtModal from "@/components/finance/DebtModal";
 import LiabilityLedger from "@/components/finance/LiabilityLedger";
 import AccountHistory from "@/components/finance/AccountHistory";
 import { useForecast } from "@/lib/forecast-context";
@@ -40,6 +41,7 @@ export default function AccountsManager({ onChanged }) {
   const [editBal, setEditBal] = React.useState("");
   const [scanOpen, setScanOpen] = React.useState(false);
   const [transferOpen, setTransferOpen] = React.useState(false);
+  const [debtOpen, setDebtOpen] = React.useState(false);
 
   const load = React.useCallback(async () => {
     const [a, s, d, tx] = await Promise.all([
@@ -250,11 +252,19 @@ export default function AccountsManager({ onChanged }) {
             </button>
             <button
               type="button"
+              onClick={() => setDebtOpen(true)}
+              title="Add a liability"
+              className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest border px-2.5 py-1.5 rounded-md transition-colors border-rose-500/40 text-rose-300 bg-rose-500/10 hover:bg-rose-500/20"
+            >
+              <Plus className="h-3.5 w-3.5" /> Liability
+            </button>
+            <button
+              type="button"
               onClick={() => setScanOpen(true)}
               title="Scan balance from a photo"
               className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest border px-2.5 py-1.5 rounded-md transition-colors border-emerald-500/40 text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20"
             >
-              <ScanLine className="h-3.5 w-3.5" /> Scan
+              <ScanLine className="h-3.5 w-3.5" /> Update Balance
             </button>
             <span className={`text-sm font-bold font-mono tabular-nums tracking-tight ${dispTotal < 0 ? "text-rose-400" : "text-emerald-400"}`}>
               {fmt(dispTotal)}
@@ -363,6 +373,13 @@ export default function AccountsManager({ onChanged }) {
         accounts={accounts}
         debts={debts}
         onSaved={load}
+      />
+
+      <DebtModal
+        open={debtOpen}
+        onOpenChange={setDebtOpen}
+        accounts={accounts}
+        onSaved={() => { load(); onChanged?.(); }}
       />
     </div>
   );
