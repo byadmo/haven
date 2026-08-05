@@ -292,7 +292,7 @@ export default function TransactionExplorerModal({ open, onOpenChange, transacti
 
           {accounts.length > 0 &&
           <Select value={accountFilter} onValueChange={setAccountFilter}>
-              <SelectTrigger className="h-8 w-[150px] shrink-0 bg-black border-white/10 text-zinc-200 text-xs normal-case">
+              <SelectTrigger className="h-8 w-[150px] shrink-0 bg-black border-white/10 text-zinc-200 text-xs normal-case no-underline">
                 <SelectValue placeholder="All accounts" />
               </SelectTrigger>
               <SelectContent className="bg-black border-white/10">
