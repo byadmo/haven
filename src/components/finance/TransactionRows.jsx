@@ -25,9 +25,14 @@ function flowText(t, map) {
   return null;
 }
 
+function isCardPayment(text) {
+  return /payment\s*-\s*thank you|payment\s*thank you|thank\s*you/i.test(text || "");
+}
+
 export function TransactionRow({ t, accountsMap, onChanged, categories, bulkMode, selected, onToggleSelect }) {
   const { fmtMoney: fmt } = useCurrency();
   const isIncome = t.type === "income";
+  const isPay = isCardPayment(t.description);
   const isSelected = !!selected;
   const [edit, setEdit] = React.useState(null);
   const [saving, setSaving] = React.useState(false);
@@ -78,9 +83,29 @@ export function TransactionRow({ t, accountsMap, onChanged, categories, bulkMode
         if (oldFrom) await adjustTransferInOut(oldFrom, t.amount, "in");
         if (oldTo) await adjustTransferInOut(oldTo, t.amount, "out");
       }
-      if (balanceApplies(newDate)) {
+      if (balanceApplies(newDate) && newType !== "debt_payment") {
         if (newFrom) await adjustTransferInOut(newFrom, newAmount, "out");
         if (newTo) await adjustTransferInOut(newTo, newAmount, "in");
+      }
+
+      // "Debt Payment" type: pay down the "To" liability and log a DebtPayment,
+      // removing the old income/expense transaction entirely.
+      if (newType === "debt_payment") {
+        if (balanceApplies(newDate)) {
+          if (newFrom) await adjustTransferInOut(newFrom, newAmount, "out");
+          if (newTo) {
+            try {
+              const rec = await base44.entities.Debt.get(newTo);
+              const nb = Math.max(0, (rec.current_balance || 0) - newAmount);
+              await base44.entities.Debt.update(newTo, { current_balance: nb, status: nb <= 0 ? "paid_off" : "active" });
+              await base44.entities.DebtPayment.create({ debt_id: newTo, amount: newAmount, date: newDate, note: payload.description ?? t.description });
+            } catch { /* newTo is not a liability */ }
+          }
+        }
+        await base44.entities.Transaction.delete(t.id);
+        setEdit(null);
+        onChanged?.();
+        return;
       }
 
       const accountId = newType === "expense" ? newFrom : newTo;
@@ -160,8 +185,8 @@ export function TransactionRow({ t, accountsMap, onChanged, categories, bulkMode
               save(e, {
                 description: ev.description ?? t.description,
                 amount: ev.amount ?? t.amount,
-                type: ev.type ?? t.type,
-                category: ev.category ?? t.category,
+                type: ev.type ?? (isPay ? "debt_payment" : t.type),
+                category: ev.category ?? (isPay ? "Debt Payment" : t.category),
                 date: ev.date ?? format(parseISO(t.date), "yyyy-MM-dd"),
                 fromId: ev.from !== undefined ? ev.from : (t.type === "expense" ? (t.account_id || "") : (t.transfer_account_id || "")),
                 toId: ev.to !== undefined ? ev.to : (t.type === "expense" ? (t.transfer_account_id || "") : (t.account_id || "")),
@@ -193,21 +218,22 @@ export function TransactionRow({ t, accountsMap, onChanged, categories, bulkMode
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-zinc-400">Type</Label>
-                <Select defaultValue={t.type} onValueChange={(v)=>setEdit(p=>({...p,type:v}))}>
+                <Select defaultValue={isPay ? "debt_payment" : t.type} onValueChange={(v)=>setEdit(p=>({...p,type:v}))}>
                   <SelectTrigger className="bg-zinc-950 border-zinc-800 text-zinc-100"><SelectValue /></SelectTrigger>
                   <SelectContent className="bg-zinc-900 border-zinc-800">
                     <SelectItem value="income">Income</SelectItem>
                     <SelectItem value="expense">Expense</SelectItem>
+                    <SelectItem value="debt_payment">Debt Payment</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5">
                 <Label className="text-zinc-400">Category</Label>
-                <Select defaultValue={t.category || "__none"} onValueChange={(v)=>setEdit(p=>({...p,category:v==="__none"?"":v}))}>
+                <Select defaultValue={isPay ? "Debt Payment" : (t.category || "__none")} onValueChange={(v)=>setEdit(p=>({...p,category:v==="__none"?"":v}))}>
                   <SelectTrigger className="bg-zinc-950 border-zinc-800 text-zinc-100"><SelectValue /></SelectTrigger>
                   <SelectContent className="bg-zinc-900 border-zinc-800">
                     <SelectItem value="__none">No category</SelectItem>
-                    {Array.from(new Set([t.category, ...categories])).filter(Boolean).map((c)=><SelectItem key={c} value={c}>{c}</SelectItem>)}
+                    {Array.from(new Set([isPay ? "Debt Payment" : t.category, ...categories])).filter(Boolean).map((c)=><SelectItem key={c} value={c}>{c}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>

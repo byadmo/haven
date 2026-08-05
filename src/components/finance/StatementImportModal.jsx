@@ -102,14 +102,19 @@ function normalizeRow(r, knownCategories = []) {
   const rawDesc = r.description || "";
   const description = cleanMerchant(rawDesc) || rawDesc;
   const amount = Math.abs(Number(r.amount) || 0);
-  const type = r.type === "income" ? "income" : "expense";
-  const is_debt_payment = isCardPayment(description + " " + rawDesc);
-  let category = r.category && knownCategories.includes(r.category) ? r.category : null;
-  if (!category) {
-    if (type === "income" && knownCategories.includes("Income")) category = "Income";
-    else category = guessCategory(description + " " + rawDesc, knownCategories);
+  const isPayment = isCardPayment(description + " " + rawDesc);
+  const type = isPayment ? "debt_payment" : (r.type === "income" ? "income" : "expense");
+  let category;
+  if (isPayment) {
+    category = "Debt Payment";
+  } else {
+    category = r.category && knownCategories.includes(r.category) ? r.category : null;
+    if (!category) {
+      if (type === "income" && knownCategories.includes("Income")) category = "Income";
+      else category = guessCategory(description + " " + rawDesc, knownCategories);
+    }
+    if (category && !knownCategories.includes(category)) category = "";
   }
-  if (category && !knownCategories.includes(category)) category = "";
   return {
     description, amount, type, category,
     date: parseDate(r.date),
@@ -117,7 +122,6 @@ function normalizeRow(r, knownCategories = []) {
     source_card_name: "",
     source_card_last4: "",
     included: true,
-    is_debt_payment,
   };
 }
 
@@ -328,8 +332,9 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
     setDone(0);
     try {
       const debtIds = new Set(debts.map((d) => d.id));
-      const paymentRows = toCreate.filter((r) => r.is_debt_payment && debtIds.has(r.account_id));
-      const txRows = toCreate.filter((r) => !(r.is_debt_payment && debtIds.has(r.account_id)));
+      const isPay = (r) => r.type === "debt_payment" && debtIds.has(r.account_id);
+      const paymentRows = toCreate.filter(isPay);
+      const txRows = toCreate.filter((r) => !isPay(r)).map((r) => r.type === "debt_payment" ? { ...r, type: "expense" } : r);
 
       // One bulk create instead of a per-row loop.
       if (txRows.length) {
@@ -576,6 +581,7 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
                             <SelectContent className="bg-zinc-900 border-zinc-800">
                               <SelectItem value="expense">Expense</SelectItem>
                               <SelectItem value="income">Income</SelectItem>
+                              <SelectItem value="debt_payment">Debt Payment</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
