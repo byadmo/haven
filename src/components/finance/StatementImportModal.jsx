@@ -18,6 +18,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { balanceApplies, txEffect } from "@/lib/accounts";
+import { hasAmountWindowMatch } from "@/lib/duplicates";
 import { useCategories, categoryOptions } from "@/lib/categories";
 import { format } from "date-fns";
 import { UploadCloud, Loader2, Trash2, Check, FileText, ImageIcon, X, FileCheck, AlertTriangle } from "lucide-react";
@@ -79,13 +80,15 @@ function buildSchema(categoryList = []) {
   const catHint = categoryList.length
     ? ` Pick the single best-matching category for this transaction from EXACTLY this list: ${JSON.stringify(categoryList)}. If none of them fit the description well, return an empty string.`
     : "";
+  const todayStr = today();
   return {
     type: "object",
     description:
-      "Extract ONLY the transaction rows and the current/new balance. Ignore interest rate charts, APR/fee tables, terms pages, marketing, and any non-transaction summary.",
+      `Extract ONLY the transaction rows and the current/new balance from this bank/credit-card statement. Today's date is ${todayStr}. Ignore interest rate charts, APR/fee tables, terms pages, marketing, and any non-transaction summary.`,
     properties: {
       card_name: { type: "string", description: "Card or account name shown, if visible." },
       card_last4: { type: "string", description: "Last 4 digits of the card, if shown." },
+      statement_date: { type: "string", description: `The statement issue/period date in yyyy-MM-dd if visible anywhere on the document; otherwise empty. Use it to infer the correct year for transaction dates that show only month/day.` },
       new_balance: { type: "number", description: "Current/new balance after these transactions. 0 if not visible." },
       transactions: {
         type: "array",
@@ -96,7 +99,7 @@ function buildSchema(categoryList = []) {
             description: { type: "string", description: "Merchant/memo text exactly as shown." },
             amount: { type: "number", description: "Absolute dollar amount as a positive number, no symbols." },
             type: { type: "string", enum: ["income", "expense"], description: "'expense' for charges/purchases/bills. 'income' for refunds/deposits/payroll." },
-            date: { type: "string", description: "Date in yyyy-MM-dd. 'Today'→today, 'Yesterday'→yesterday." },
+            date: { type: "string", description: `The EXACT transaction date in yyyy-MM-dd, taken from that row. If the row shows only month/day, use the year from the statement period/statement date; a date later than today (${todayStr}) means the previous calendar year. 'Today'→${todayStr}, 'Yesterday'→the day before. Never guess or invent a value; if no date is visible, use ${todayStr}.` },
             category: { type: "string", description: "The category that best fits this transaction based on its description." + catHint },
           },
           required: ["description", "amount", "type", "date"],
@@ -240,14 +243,9 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
   // an already-imported transaction or an earlier row in the same import batch.
   const duplicateFlags = React.useMemo(() => {
     const flags = {};
-    const exKeys = new Set(existingTxns.map((t) =>
-      `${(t.date || "").slice(0, 10)}|${(t.description || "").trim().toLowerCase()}|${t.account_id || ""}|${Number(t.amount) || 0}`));
-    const seen = {};
     rows.forEach((r, i) => {
-      const k = `${(r.date || "").slice(0, 10)}|${(r.description || "").trim().toLowerCase()}|${r.account_id || ""}|${Number(r.amount) || 0}`;
-      const dup = exKeys.has(k) || seen[k] !== undefined;
+      const dup = hasAmountWindowMatch(r, existingTxns) || hasAmountWindowMatch(r, rows.slice(0, i));
       if (dup) flags[i] = true;
-      if (seen[k] === undefined) seen[k] = i;
     });
     return flags;
   }, [rows, existingTxns]);
@@ -298,8 +296,6 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
     if (!existing.length) {
       try { existing = await base44.entities.Transaction.list("-updated_date", 5000); setExistingTxns(existing); } catch { /* ignore */ }
     }
-    const dupKey = (r) => `${(r.date || "").slice(0, 10)}|${(r.description || "").trim().toLowerCase()}|${r.account_id || ""}|${Number(r.amount) || 0}`;
-    const exKeys = new Set(existing.map(dupKey));
     const accountOptions = [
       ...accounts.map((a) => ({ id: a.id, name: a.name, kind: "account" })),
       ...debts.map((d) => ({ id: d.id, name: d.name, kind: "debt" })),
@@ -335,12 +331,9 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
             if (n.description || n.amount) rows.push(n);
           }
           if (rows.length) {
-            const seen = new Set();
-            rows.forEach((n) => {
-              const k = dupKey(n);
-              n.duplicate = exKeys.has(k) || seen.has(k);
+            rows.forEach((n, idx) => {
+              n.duplicate = hasAmountWindowMatch(n, existing) || hasAmountWindowMatch(n, rows.slice(0, idx));
               if (n.duplicate) n.included = false;
-              seen.add(k);
             });
             valid++;
             setGroups((gs) => [...gs, { fileName: f.name, rows }]);
@@ -643,7 +636,7 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
                       <div className="flex-1 grid grid-cols-12 gap-2">
                         {duplicateFlags[i] && (
                           <div className="col-span-12 mb-1 flex items-center gap-1 text-[10px] text-amber-400">
-                            <AlertTriangle className="h-3 w-3" /> Possible duplicate — same day, name, amount &amp; account as an existing or earlier row (unchecked)
+                            <AlertTriangle className="h-3 w-3" /> Possible duplicate — same amount &amp; account within 3 days of an existing or earlier row (unchecked)
                           </div>
                         )}
                         <div className="col-span-12 sm:col-span-5">

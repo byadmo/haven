@@ -12,6 +12,7 @@ import { base44 } from "@/api/base44Client";
 import { adjustTransferInOut, balanceApplies } from "@/lib/accounts";
 import { useCategories, categoryOptions } from "@/lib/categories";
 import { TransactionRow, DebtPaymentRow } from "@/components/finance/TransactionRows";
+import { detectAmountWindowDuplicates } from "@/lib/duplicates";
 import QuickAddModal from "@/components/finance/QuickAddModal";
 
 const DATE_FILTERS = [
@@ -87,20 +88,7 @@ export default function TransactionExplorerModal({ open, onOpenChange, transacti
   const clearAll = () => setSelected(new Set());
 
   const detectDuplicates = () => {
-    const groups = {};
-    for (const t of transactions) {
-      const key = `${t.date}|${(t.description || "").toLowerCase().trim()}|${Number(t.amount) || 0}|${t.account_id || ""}`;
-      (groups[key] ||= []).push(t);
-    }
-    const gIds = new Set();
-    const dups = new Set();
-    for (const group of Object.values(groups)) {
-      if (group.length > 1) {
-        group.forEach((t) => gIds.add(t.id));
-        const keep = [...group].sort((a, b) => new Date(a.date) - new Date(b.date))[0];
-        group.forEach((t) => { if (t.id !== keep.id) dups.add(t.id); });
-      }
-    }
+    const { groupIds: gIds, dupIds: dups } = detectAmountWindowDuplicates(transactions);
     setGroupIds(gIds);
     setDupIds(dups);
     setBulkMode(true);
