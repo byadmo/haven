@@ -2,10 +2,10 @@ import React, { useEffect, useState } from "react";
 import { invokeFunc, money, pct, moneyCompact } from "@/lib/dashboard";
 import { Loader, Card3 } from "@/components/dashboard/ui";
 import { Calendar, RefreshCw, Repeat, Activity } from "lucide-react";
+import RecurringList from "@/components/finance/RecurringList";
 
-export default function CashFlowTab({ refreshKey }) {
+export default function CashFlowTab({ refreshKey, transactions = [], onRefresh }) {
   const [cal, setCal] = useState(null);
-  const [recur, setRecur] = useState(null);
   const [adapt, setAdapt] = useState(null);
   const [recurringLoading, setRecurringLoading] = useState(false);
 
@@ -15,14 +15,13 @@ export default function CashFlowTab({ refreshKey }) {
   useEffect(() => {
     loadCalendar();
     loadAdapt();
-    invokeFunc("detectRecurringTransactions", {}).then(setRecur).catch(() => {});
   }, [refreshKey]);
 
   async function runDetection() {
     setRecurringLoading(true);
-    await invokeFunc("detectRecurringTransactions", {}).then(setRecur).catch(() => {});
+    await invokeFunc("detectRecurringTransactions", {}).catch(() => {});
     setRecurringLoading(false);
-    loadCalendar();
+    onRefresh?.();
   }
 
   const now = new Date();
@@ -71,26 +70,12 @@ export default function CashFlowTab({ refreshKey }) {
       </Card3>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card3 title="Recurring Transactions">
+        <Card3 title="Recurring Transactions" subtitle="Auto-detected from your history">
           <button onClick={runDetection} disabled={recurringLoading}
             className="mb-3 text-[11px] flex items-center gap-1 text-white/60 hover:text-white border border-white/10 rounded px-2 py-1">
             <RefreshCw className={`h-3 w-3 ${recurringLoading ? "animate-spin" : ""}`} /> Re-run detection
           </button>
-          {!recur ? <Loader /> : recur.count === 0 ? (
-            <p className="text-xs text-white/40">No recurring patterns detected with 3+ consistent occurrences.</p>
-          ) : (
-            <div className="space-y-2">
-              {recur.detected.map((r) => (
-                <div key={r.normalized} className="flex items-center justify-between border-b border-white/5 last:border-0 py-1.5">
-                  <div>
-                    <p className="text-xs text-white capitalize">{r.description}</p>
-                    <p className="text-[10px] text-white/40 font-mono">{r.frequency} · {r.occurrences} occurrences · next {r.predicted_next_date}</p>
-                  </div>
-                  <p className="text-sm font-mono tabular-nums text-emerald-400">{money(r.average_amount)}</p>
-                </div>
-              ))}
-            </div>
-          )}
+          <RecurringList transactions={transactions} />
         </Card3>
 
         <Card3 title="Variable Income Adaptation">

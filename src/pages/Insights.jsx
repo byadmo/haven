@@ -13,9 +13,9 @@ import InsightsStrategyCompare from "@/components/finance/InsightsStrategyCompar
 import { OverviewSavings, OverviewHeatmap, useOverviewData } from "@/components/dashboard/OverviewTab";
 
 export default function Insights() {
-  const { transactions: txns, refreshKey } = useFinanceData();
+  const { transactions: txns, accounts, debts, stocks, refreshKey } = useFinanceData();
   const [anchor, setAnchor] = React.useState(new Date());
-  const { saving, heat } = useOverviewData(refreshKey);
+  const { saving } = useOverviewData(refreshKey, { accounts, debts, stocks });
 
   const months = React.useMemo(() => {
     const arr = [];
@@ -94,7 +94,7 @@ export default function Insights() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Reveal><OverviewSavings saving={saving} /></Reveal>
-          <Reveal delay={0.03}><OverviewHeatmap heat={heat} /></Reveal>
+          <Reveal delay={0.03}><OverviewHeatmap transactions={txns} /></Reveal>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

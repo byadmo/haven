@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
 
 export default function CashFlow() {
-  const { refresh } = useFinanceData();
+  const { transactions: txns, refresh } = useFinanceData();
   const [refreshKey, setRefreshKey] = React.useState(0);
 
   return (
@@ -26,7 +26,7 @@ export default function CashFlow() {
       />
       <main className="relative max-w-6xl mx-auto px-5 sm:px-6 py-8 sm:py-6">
         <div className="mb-6"><PageTitle title="Cash Flow" subtitle="Upcoming recurring payments and balance projections" /></div>
-        <CashFlowTab refreshKey={refreshKey} />
+        <CashFlowTab refreshKey={refreshKey} transactions={txns} onRefresh={refresh} />
       </main>
     </div>
   );

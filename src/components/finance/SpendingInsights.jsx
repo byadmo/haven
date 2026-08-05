@@ -1,6 +1,6 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Loader2, CheckCircle2, AlertTriangle, TrendingUp, DollarSign, Target, Activity } from "lucide-react";
+import { Sparkles, Loader2, CheckCircle2, AlertTriangle, TrendingUp, DollarSign, Target, Activity, ChevronDown } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { isWithinInterval, parseISO } from "date-fns";
 import { useCurrency } from "@/lib/currency-context";
@@ -44,6 +44,12 @@ export default function SpendingInsights({ monthLabel, start, end, transactions 
   const storageKey = `dd:insights:${monthLabel}`;
   const [data, setData] = React.useState(null);
   const [loading, setLoading] = React.useState(false);
+  const [collapsed, setCollapsed] = React.useState(() => {
+    try { return localStorage.getItem("haven:diagnostic:collapsed") === "1"; } catch { return false; }
+  });
+  React.useEffect(() => {
+    try { localStorage.setItem("haven:diagnostic:collapsed", collapsed ? "1" : "0"); } catch {}
+  }, [collapsed]);
 
   // Load cached feedback for this month on mount / month change.
   React.useEffect(() => {
@@ -112,7 +118,7 @@ ${catLines || "(no spending recorded)"}`;
   return (
     <div className="rounded-2xl border border-white/10 bg-black p-5">
       <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
-        <div className="flex items-center gap-2">
+        <button type="button" onClick={() => setCollapsed((c) => !c)} className="flex items-center gap-2 text-left" aria-expanded={!collapsed}>
           <div className="h-7 w-7 flex items-center justify-center bg-violet-500/10">
             <Sparkles className="h-3.5 w-3.5 text-violet-400" />
           </div>
@@ -120,19 +126,22 @@ ${catLines || "(no spending recorded)"}`;
             <h2 className="font-semibold text-sm text-zinc-100">Sno · Monthly Diagnostic</h2>
             <p className="text-[10px] uppercase tracking-widest text-white/50">{monthLabel} · spending audit</p>
           </div>
-        </div>
-        <Button
-          onClick={generate}
-          disabled={loading}
-          size="sm"
-          className="bg-violet-600 text-white hover:bg-violet-500"
-        >
-          {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-          {loading ? "Analyzing…" : data ? "Regenerate" : "Generate AI Feedback"}
-        </Button>
+          <ChevronDown className={`h-4 w-4 text-white/40 transition-transform ${collapsed ? "" : "rotate-180"}`} />
+        </button>
+        {!collapsed && (
+          <Button
+            onClick={generate}
+            disabled={loading}
+            size="sm"
+            className="bg-violet-600 text-white hover:bg-violet-500"
+          >
+            {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+            {loading ? "Analyzing…" : data ? "Regenerate" : "Generate AI Feedback"}
+          </Button>
+        )}
       </div>
 
-      {data && (
+      {!collapsed && data && (
         <div className="p-4 rounded-xl border border-violet-500/20 bg-violet-500/5">
           <div className="flex items-center gap-2 mb-2">
             <Activity className="h-4 w-4 text-violet-300" />

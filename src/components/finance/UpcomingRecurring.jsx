@@ -1,6 +1,6 @@
 import React from "react";
-import { parseISO, format, isFuture, add, addDays } from "date-fns";
-import { CalendarClock, Repeat, Pencil, X } from "lucide-react";
+import { parseISO, format, isFuture } from "date-fns";
+import { CalendarClock, Pencil, X } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,34 +13,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import RecurringFields from "@/components/finance/RecurringFields";
+import RecurringList from "@/components/finance/RecurringList";
 import { useCategories, categoryOptions } from "@/lib/categories";
 import { useCurrency } from "@/lib/currency-context";
-
-// Only true recurring cadences count as "recurring" for this section.
-const RECUR_FREQ = ["weekly", "biweekly", "monthly", "yearly"];
-
-function advance(d, f) {
-  if (f === "weekly") return addDays(d, 7);
-  if (f === "biweekly") return addDays(d, 14);
-  if (f === "monthly") return add(d, { months: 1 });
-  if (f === "yearly") return add(d, { years: 1 });
-  return addDays(d, 30);
-}
-
-// Next upcoming occurrence for a recurring transaction, computed from
-// next_date (or the record date) by rolling forward until it's today or later.
-function nextDue(t) {
-  let base = t.next_date ? parseISO(t.next_date) : parseISO(t.date);
-  const now = new Date(); now.setHours(0, 0, 0, 0);
-  let guard = 0;
-  while (base < now && guard < 600) { base = advance(base, t.frequency); guard++; }
-  return base;
-}
-
-function freqLabel(t) {
-  if (t.frequency === "custom" && t.custom_interval) return `every ${t.custom_interval} ${t.custom_unit || "wks"}`;
-  return (t.frequency || "").replace(/_/g, " ");
-}
+import { getRecurring, normalizeDesc } from "@/lib/recurring";
 
 function Row({ t, accountsMap, categories, onChanged, dueLabel }) {
   const { fmtMoney: fmt } = useCurrency();
@@ -110,11 +86,7 @@ function Row({ t, accountsMap, categories, onChanged, dueLabel }) {
     <div className="border-b border-zinc-800/60 last:border-0">
       <div className="group flex items-center gap-2.5 py-2">
         <div className={`h-6 w-6 rounded-md flex items-center justify-center ${isIncome ? "bg-emerald-500/15" : "bg-rose-500/15"}`}>
-          {t.is_scheduled ? (
-            <Repeat className={`h-3 w-3 ${isIncome ? "text-emerald-400" : "text-rose-400"}`} />
-          ) : (
-            <CalendarClock className={`h-3 w-3 ${isIncome ? "text-emerald-400" : "text-rose-400"}`} />
-          )}
+          <CalendarClock className={`h-3 w-3 ${isIncome ? "text-emerald-400" : "text-rose-400"}`} />
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-sm text-zinc-200 truncate">{t.description}</p>
@@ -122,11 +94,6 @@ function Row({ t, accountsMap, categories, onChanged, dueLabel }) {
             <span className="whitespace-nowrap">{dueLabel || format(due, "EEE, MMM d")}</span>
             <span className="text-white/20">·</span>
             <span className="truncate text-white/40">{t.category || "uncategorized"}</span>
-            {t.is_scheduled && (
-              <span className="px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 uppercase tracking-wider text-[9px] whitespace-nowrap">
-                {freqLabel(t)}
-              </span>
-            )}
           </p>
         </div>
         <span className={`text-sm font-semibold tabular-nums whitespace-nowrap ${isIncome ? "text-emerald-400" : "text-rose-400"}`}>
@@ -261,23 +228,21 @@ export default function UpcomingRecurring({ transactions, accounts = [], onChang
   const options = categoryOptions(cats);
   const accountsMap = React.useMemo(() => Object.fromEntries(accounts.map((a) => [a.id, a])), [accounts]);
 
-  // TRUE recurring transactions only (is_scheduled + a repeating cadence).
-  const recurring = React.useMemo(
-    () => transactions
-      .filter((t) => t.is_scheduled && RECUR_FREQ.includes(t.frequency))
-      .map((t) => ({ t, next: nextDue(t) }))
-      .sort((a, b) => a.next - b.next)
-      .slice(0, 10),
-    [transactions]
-  );
+  // Single source of truth: combined auto-detected + manually-flagged recurring.
+  const recurring = React.useMemo(() => getRecurring(transactions), [transactions]);
+  const recurringKeys = React.useMemo(() => new Set(recurring.map((r) => r.normalized)), [recurring]);
 
-  // One-time upcoming (future-dated, not recurring) — shown in a separate section.
+  // One-time upcoming: future-dated, NOT part of any recurring pattern.
   const oneTime = React.useMemo(
     () => transactions
-      .filter((t) => isFuture(parseISO(t.date)) && !(t.is_scheduled && RECUR_FREQ.includes(t.frequency)))
+      .filter((t) => {
+        try { if (!isFuture(parseISO(t.date))) return false; } catch { return false; }
+        if (t.is_scheduled) return false;
+        return !recurringKeys.has(`${t.type || "expense"}::${normalizeDesc(t.description)}`);
+      })
       .sort((a, b) => new Date(a.date) - new Date(b.date))
       .slice(0, 8),
-    [transactions]
+    [transactions, recurringKeys]
   );
 
   return (
@@ -291,15 +256,7 @@ export default function UpcomingRecurring({ transactions, accounts = [], onChang
         </div>
       </div>
 
-      {recurring.length === 0 ? (
-        <p className="text-sm text-zinc-500 text-center py-6">No recurring payments scheduled.</p>
-      ) : (
-        <div className="space-y-1">
-          {recurring.map(({ t, next }) => (
-            <Row key={t.id} t={t} accountsMap={accountsMap} categories={options} onChanged={onChanged} dueLabel={format(next, "EEE, MMM d")} />
-          ))}
-        </div>
-      )}
+      <RecurringList items={recurring} />
 
       {oneTime.length > 0 && (
         <div className="mt-4 pt-3 border-t border-white/10">
