@@ -17,10 +17,10 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { applyTxAccountEffect } from "@/lib/accounts";
+import { balanceApplies, txEffect } from "@/lib/accounts";
 import { useCategories, categoryOptions } from "@/lib/categories";
 import { format } from "date-fns";
-import { UploadCloud, Loader2, Trash2, Check, FileText, ImageIcon, X } from "lucide-react";
+import { UploadCloud, Loader2, Trash2, Check, FileText, ImageIcon, X, FileCheck } from "lucide-react";
 import confetti from "canvas-confetti";
 
 const today = () => format(new Date(), "yyyy-MM-dd");
@@ -77,36 +77,27 @@ function parseDate(raw) {
   return today();
 }
 
-// Focus ONLY on: account name, transaction rows (description/amount/type/date),
-// and the current/new balance. Everything else (interest charts, fee tables,
-// terms pages, marketing, back-of-PDF info) is ignored for speed.
+// Parse ONLY: account/card name, transaction rows, and the current/new balance.
+// Everything else (interest charts, APR/fee tables, terms pages, marketing,
+// back-of-PDF info) is ignored for speed.
 const EXTRACT_SCHEMA = {
   type: "object",
   description:
-    "Extract ONLY: the account/card name, the transaction rows (description, amount, type, date), and the current/new balance. IGNORE everything else — interest rate charts, APR/fee tables, terms & conditions pages, card-benefit pages, payment-due-date boxes, the last informational pages of a PDF, marketing text, and any non-transaction summary. Do not read or describe those.",
+    "Extract ONLY the transaction rows and the current/new balance. Ignore interest rate charts, APR/fee tables, terms pages, marketing, and any non-transaction summary.",
   properties: {
-    card_name: {
-      type: "string",
-      description: "Name of the card or account shown (e.g. 'RBC Cash Back Mastercard'). Leave empty if not visible.",
-    },
-    card_last4: {
-      type: "string",
-      description: "Last 4 digits of the card if shown. Leave empty otherwise.",
-    },
-    new_balance: {
-      type: "number",
-      description: "The current/new account or card balance shown (the balance after the listed transactions), as a positive number. Use 0 if not visible.",
-    },
+    card_name: { type: "string", description: "Card or account name shown, if visible." },
+    card_last4: { type: "string", description: "Last 4 digits of the card, if shown." },
+    new_balance: { type: "number", description: "Current/new balance after these transactions. 0 if not visible." },
     transactions: {
       type: "array",
-      description: "Every transaction row visible — description, amount, type, and date only. Skip totals rows, fee-detail pages, and interest lines.",
+      description: "Every transaction row: description, amount, type, date. Skip totals and fee-detail rows.",
       items: {
         type: "object",
         properties: {
           description: { type: "string", description: "Merchant/memo text exactly as shown." },
           amount: { type: "number", description: "Absolute dollar amount as a positive number, no symbols." },
           type: { type: "string", enum: ["income", "expense"], description: "'expense' for charges/purchases/bills. 'income' for refunds/deposits/payroll." },
-          date: { type: "string", description: "Transaction date in yyyy-MM-dd. Relative labels resolve to today: 'Today' → today, 'Yesterday' → yesterday." },
+          date: { type: "string", description: "Date in yyyy-MM-dd. 'Today'→today, 'Yesterday'→yesterday." },
         },
         required: ["description", "amount", "type", "date"],
       },
@@ -124,10 +115,7 @@ function normalizeRow(r) {
   if (!category) category = type === "income" ? "Income" : guessCategory(description + " " + rawDesc);
   if (!KNOWN_CATEGORIES.includes(category)) category = "Other";
   return {
-    description,
-    amount,
-    type,
-    category,
+    description, amount, type, category,
     date: parseDate(r.date),
     account_id: "",
     source_card_name: "",
@@ -164,8 +152,8 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
   const [files, setFiles] = React.useState([]);
   const [previews, setPreviews] = React.useState([]);
   const [parsing, setParsing] = React.useState(false);
-  const [parseIndex, setParseIndex] = React.useState(0);
-  const [rows, setRows] = React.useState([]);
+  const [groups, setGroups] = React.useState([]); // [{ fileName, rows: [] }]
+  const [gi, setGi] = React.useState(0);
   const [error, setError] = React.useState("");
   const [importing, setImporting] = React.useState(false);
   const [done, setDone] = React.useState(0);
@@ -181,11 +169,11 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
     previews.forEach((p) => p && URL.revokeObjectURL(p));
     setFiles([]);
     setPreviews([]);
-    setRows([]);
+    setGroups([]);
+    setGi(0);
     setError("");
     setDone(0);
     setBulkAccountId("");
-    setParseIndex(0);
   }
 
   function handleFiles(fileList) {
@@ -198,7 +186,8 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
       setPreviews((pp) => [...pp, ...added.map((f) => (f.type.startsWith("image/") ? URL.createObjectURL(f) : null))]);
       return [...prev, ...added];
     });
-    setRows([]);
+    setGroups([]);
+    setGi(0);
     setError("");
   }
 
@@ -208,35 +197,49 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
       return prev.filter((_, idx) => idx !== i);
     });
     setFiles((prev) => prev.filter((_, idx) => idx !== i));
-    setRows([]);
+    setGroups([]);
+    setGi(0);
     setError("");
   }
 
+  const current = groups[gi];
+  const rows = current?.rows || [];
+
   function updateRow(i, patch) {
-    setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
+    setGroups((gs) => gs.map((g, idx) => {
+      if (idx !== gi) return g;
+      const nextRows = g.rows.map((r, j) => (j === i ? { ...r, ...patch } : r));
+      return { ...g, rows: nextRows };
+    }));
+  }
+
+  function removeRow(i) {
+    setGroups((gs) => gs.map((g, idx) => idx === gi
+      ? { ...g, rows: g.rows.filter((_, j) => j !== i) }
+      : g));
   }
 
   function applyBulkAccount() {
     if (!bulkAccountId) return;
-    setRows((prev) => prev.map((r) => (r.included ? { ...r, account_id: bulkAccountId } : r)));
+    setGroups((gs) => gs.map((g, idx) => idx === gi
+      ? { ...g, rows: g.rows.map((r) => (r.included ? { ...r, account_id: bulkAccountId } : r)) }
+      : g));
   }
 
   async function handleParse() {
     if (!files.length || parsing) return;
     setParsing(true);
     setError("");
-    setRows([]);
+    setGroups([]);
     const accountOptions = [
       ...accounts.map((a) => ({ id: a.id, name: a.name, kind: "account" })),
       ...debts.map((d) => ({ id: d.id, name: d.name, kind: "debt" })),
     ];
-    const all = [];
-    let failures = 0;
     try {
-      for (let i = 0; i < files.length; i++) {
-        setParseIndex(i + 1);
+      // Parse every file in parallel for speed.
+      const results = await Promise.all(files.map(async (f) => {
         try {
-          const up = await base44.integrations.Core.UploadFile({ file: files[i] });
+          const up = await base44.integrations.Core.UploadFile({ file: f });
           const res = await base44.integrations.Core.ExtractDataFromUploadedFile({
             file_url: up.file_url,
             json_schema: EXTRACT_SCHEMA,
@@ -251,31 +254,59 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
             cardLast4 = res.output.card_last4 || "";
           }
           if (!Array.isArray(list)) list = [];
+          const rows = [];
           for (const r of list) {
             const n = normalizeRow(r);
             n.source_card_name = r.card_name || cardName;
             n.source_card_last4 = r.card_last4 || cardLast4;
             n.account_id = autoMatchAccount(n, accountOptions);
-            if (n.description || n.amount) all.push(n);
+            if (n.description || n.amount) rows.push(n);
           }
+          return { fileName: f.name, rows };
         } catch {
-          failures++;
+          return { fileName: f.name, rows: null }; // null = parse failed
         }
-      }
-      if (!all.length) {
-        setError(failures === files.length
+      }));
+      const valid = results.filter((r) => r.rows && r.rows.length);
+      const failed = results.filter((r) => r.rows === null);
+      if (!valid.length) {
+        setError(failed.length === files.length
           ? "Could not parse — AI may be busy, please retry."
           : "No transactions found in those files. Try clearer screenshots or PDFs.");
       } else {
-        setRows(all);
-        if (failures > 0) setError(`${failures} of ${files.length} file(s) could not be parsed and were skipped.`);
+        setGroups(valid);
+        setGi(0);
+        if (failed.length > 0) setError(`${failed.length} of ${files.length} file(s) could not be parsed and were skipped.`);
       }
     } catch {
       setError("Could not parse these files — AI may be busy, please retry.");
     } finally {
       setParsing(false);
-      setParseIndex(0);
     }
+  }
+
+  // Apply balance effects for a batch of transactions in as few calls as
+  // possible: one get + one update per unique linked account/liability.
+  async function applyBatchEffects(txs) {
+    const deltas = {}; // id -> signed bank-style delta (income +, expense -)
+    for (const t of txs) {
+      if (!t.account_id || !balanceApplies(t.date)) continue;
+      deltas[t.account_id] = (deltas[t.account_id] || 0) + txEffect(t);
+    }
+    const acctIds = new Set(accounts.map((a) => a.id));
+    await Promise.all(Object.entries(deltas).map(async ([id, d]) => {
+      if (!d) return;
+      try {
+        if (acctIds.has(id)) {
+          const rec = await base44.entities.Account.get(id);
+          await base44.entities.Account.update(id, { balance: (rec.balance || 0) + d });
+        } else {
+          // liability: income pays down, expense borrows more → invert the bank delta
+          const rec = await base44.entities.Debt.get(id);
+          await base44.entities.Debt.update(id, { current_balance: (rec.current_balance || 0) - d });
+        }
+      } catch { /* ignore balance update failure */ }
+    }));
   }
 
   async function handleImport() {
@@ -285,21 +316,30 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
     setImporting(true);
     setDone(0);
     try {
-      for (const r of toCreate) {
-        await base44.entities.Transaction.create({
+      // One bulk create instead of a per-row loop.
+      await base44.entities.Transaction.bulkCreate(
+        toCreate.map((r) => ({
           description: r.description,
           amount: r.amount,
           type: r.type,
           category: r.category,
           date: r.date,
           account_id: r.account_id || undefined,
-        });
-        if (r.account_id) await applyTxAccountEffect(r);
-        setDone((d) => d + 1);
+        }))
+      );
+      await applyBatchEffects(toCreate);
+      setDone(toCreate.length);
+      confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } });
+
+      // Advance to the next file's group, or finish.
+      if (gi < groups.length - 1) {
+        setGi(gi + 1);
+        setBulkAccountId("");
+        setImporting(false);
+      } else {
+        onSaved?.();
+        onOpenChange?.(false);
       }
-      confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } });
-      onSaved?.();
-      onOpenChange?.(false);
     } catch {
       setError("Import stopped partway — some transactions may not have saved.");
     } finally {
@@ -311,7 +351,9 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
     ...accounts.map((a) => ({ id: a.id, name: a.name, kind: "account" })),
     ...debts.map((d) => ({ id: d.id, name: d.name, kind: "debt" })),
   ];
-  const includedCount = rows.filter((r) => r.included).length;
+  const includedCount = rows.filter((r) => r.included && r.amount > 0).length;
+  const totalGroups = groups.length;
+  const isLastGroup = gi >= totalGroups - 1;
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!importing) onOpenChange?.(v); }}>
@@ -319,12 +361,12 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
         <DialogHeader className="px-5 pt-5 pb-2">
           <DialogTitle className="text-zinc-50">Import Bank Statement</DialogTitle>
           <DialogDescription className="text-zinc-500">
-            Upload screenshots or PDFs — AI reads the transactions from every file and lets you fix category, account, and type before importing.
+            Upload screenshots or PDFs — AI reads the transactions from every file. Review each file one at a time before importing.
           </DialogDescription>
         </DialogHeader>
 
         <div className="px-5 pb-5 space-y-4">
-          {rows.length === 0 && (
+          {groups.length === 0 && (
             <>
               <div
                 onClick={() => !parsing && fileRef.current?.click()}
@@ -336,9 +378,9 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
                   <>
                     <Loader2 className="h-8 w-8 text-indigo-400 animate-spin" />
                     <p className="text-sm text-zinc-400 font-mono">
-                      Reading {parseIndex > 0 ? `file ${parseIndex} of ${files.length}…` : "your statement…"}
+                      Reading {files.length} file{files.length === 1 ? "" : "s"}…
                       <br />
-                      <span className="text-[11px] text-zinc-600">extracting one at a time</span>
+                      <span className="text-[11px] text-zinc-600">extracting transactions & balance only</span>
                     </p>
                   </>
                 ) : previews.length > 0 ? (
@@ -402,19 +444,30 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
             </>
           )}
 
-          {rows.length > 0 && (
+          {groups.length > 0 && current && (
             <>
+              {/* Per-file header — file name top-left + position counter */}
+              <div className="flex items-center justify-between gap-2 rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <FileCheck className="h-4 w-4 text-indigo-400 shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-[10px] uppercase tracking-wider text-white/40">File {gi + 1} of {totalGroups}</p>
+                    <p className="text-sm text-zinc-100 truncate font-mono" title={current.fileName}>{current.fileName}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={reset}
+                  disabled={importing}
+                  className="text-[11px] font-mono uppercase tracking-widest text-white/40 hover:text-white disabled:opacity-40 shrink-0"
+                >
+                  Start over
+                </button>
+              </div>
+
               <div className="flex items-center justify-between">
                 <p className="text-xs font-mono uppercase tracking-widest text-white/50">
                   {includedCount} transaction{includedCount === 1 ? "" : "s"} ready to import
                 </p>
-                <button
-                  onClick={reset}
-                  disabled={importing}
-                  className="text-[11px] font-mono uppercase tracking-widest text-white/40 hover:text-white disabled:opacity-40"
-                >
-                  Start over
-                </button>
               </div>
 
               <div className="flex flex-wrap items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-950/60 p-2">
@@ -516,7 +569,7 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
                         </div>
                         <div className="col-span-4 sm:col-span-3 flex items-end">
                           <button
-                            onClick={() => setRows((prev) => prev.filter((_, idx) => idx !== i))}
+                            onClick={() => removeRow(i)}
                             disabled={importing}
                             className="h-10 sm:h-8 w-full rounded-md border border-zinc-800 text-zinc-500 hover:text-rose-400 hover:border-rose-500/40 flex items-center justify-center transition-colors disabled:opacity-40"
                           >
@@ -537,9 +590,9 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
                 className="w-full h-11 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold"
               >
                 {importing ? (
-                  <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> Importing… {done}/{includedCount}</>
+                  <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> Importing…</>
                 ) : (
-                  <><Check className="h-4 w-4 mr-1.5" /> Import {includedCount} transaction{includedCount === 1 ? "" : "s"}</>
+                  <><Check className="h-4 w-4 mr-1.5" /> Import {includedCount} transaction{includedCount === 1 ? "" : "s"}{!isLastGroup ? ` · next: ${groups[gi + 1].fileName}` : ""}</>
                 )}
               </Button>
             </>
