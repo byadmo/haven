@@ -17,6 +17,7 @@ import Budgeting from '@/pages/Budgeting';
 import Assistant from '@/pages/Assistant';
 import Accounts from '@/pages/Accounts';
 import Dashboard from '@/pages/Dashboard';
+import Splash from '@/pages/Splash';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { FinanceLayout } from '@/lib/FinanceDataContext';
 import { Navigate } from 'react-router-dom';
@@ -51,11 +52,12 @@ const AuthenticatedApp = () => {
   // Render the main app
   return (
     <Routes>
+      <Route path="/splash" element={<Splash />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
-      <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
+      <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/splash" replace />} />}>
         <Route element={<FinanceLayout />}>
         {/* Add your page Route elements here */}
         <Route path="/" element={<Home />} />

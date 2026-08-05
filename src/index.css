@@ -128,6 +128,20 @@
   @media (prefers-reduced-motion: reduce) { .dd-page-enter { animation: none; } }
 }
 
+/* Splash / landing animations (CSS-only, no animation libraries). */
+@keyframes splash-logo-in { from { opacity: 0; transform: scale(0.92); } to { opacity: 1; transform: scale(1); } }
+@keyframes splash-fade-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes splash-slide-in { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes splash-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes splash-float { 0% { transform: translate(0,0); opacity: .5; } 50% { transform: translate(10px,-22px); opacity: .85; } 100% { transform: translate(0,0); opacity: .5; } }
+.splash-logo-in { animation: splash-logo-in 0.7s cubic-bezier(0.22,1,0.36,1) both; }
+.splash-fade-up { animation: splash-fade-up 0.6s ease-out both; }
+.splash-slide-in { animation: splash-slide-in 0.34s cubic-bezier(0.22,1,0.36,1) both; }
+.splash-fade-in { animation: splash-fade-in 0.4s ease-out both; }
+@media (prefers-reduced-motion: reduce) {
+  .splash-logo-in, .splash-fade-up, .splash-slide-in, .splash-fade-in { animation: none !important; opacity: 1; transform: none; }
+}
+
 /* Mobile: zoom out 20% so everything is smaller and more readable. */
 @media (max-width: 639px) {
   html { zoom: 0.8; }
