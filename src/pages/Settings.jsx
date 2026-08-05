@@ -61,7 +61,8 @@ export default function Settings() {
     try {
       await base44.entities.Transaction.deleteMany({});
       await base44.entities.Account.updateMany({}, { $set: { balance: 0 } });
-      toast({ title: "Data reset", description: "All transactions deleted and account balances set to $0." });
+      await base44.entities.Debt.updateMany({}, { $set: { current_balance: 0 } });
+      toast({ title: "Data reset", description: "All transactions deleted and account/debt balances set to $0." });
       setShowReset(false);
       setResetText("");
       refresh();
@@ -202,13 +203,13 @@ export default function Settings() {
           <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-5">
             <h2 className="text-xs uppercase tracking-widest text-amber-400/80">Data Management</h2>
             <p className="text-lg font-semibold font-mono tracking-tight text-zinc-100 mt-1">Delete Transactions &amp; Reset Accounts</p>
-            <p className="text-xs text-white/40 mt-1 mb-4">Removes every transaction and sets all account balances to $0. Debts, investments, goals, and your profile are not affected. This cannot be undone.</p>
+            <p className="text-xs text-white/40 mt-1 mb-4">Removes every transaction and zeros out all account and debt balances to $0. Investments, goals, and your profile are not affected. This cannot be undone.</p>
             <Button
               variant="outline"
               onClick={() => setShowReset(true)}
               className="border-amber-500/40 text-amber-400 hover:bg-amber-500/10 hover:border-amber-500/60"
             >
-              <RotateCcw className="h-4 w-4 mr-1.5" /> Delete All Transactions &amp; Reset Accounts to $0
+              <RotateCcw className="h-4 w-4 mr-1.5" /> Delete All Transactions &amp; Reset Balances to $0
             </Button>
           </div>
         </Reveal>
@@ -263,9 +264,9 @@ export default function Settings() {
       <Dialog open={showReset} onOpenChange={(v) => { setShowReset(v); if (!v) setResetText(""); }}>
         <DialogContent className="bg-zinc-900 border-amber-500/30 text-zinc-100">
           <DialogHeader>
-            <DialogTitle className="text-zinc-100">Delete Transactions &amp; Reset Accounts</DialogTitle>
+            <DialogTitle className="text-zinc-100">Delete Transactions &amp; Reset Balances</DialogTitle>
             <DialogDescription className="text-zinc-500">
-              This permanently deletes all your transactions and sets every account balance to $0. Debts, investments, goals, and your profile are not affected. Type <span className="text-amber-400 font-mono">RESET</span> to confirm.
+              This permanently deletes all your transactions and sets every account and debt balance to $0. Investments, goals, and your profile are not affected. Type <span className="text-amber-400 font-mono">RESET</span> to confirm.
             </DialogDescription>
           </DialogHeader>
           <Input
