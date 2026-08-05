@@ -60,12 +60,15 @@ export default function Settings() {
     setResetting(true);
     try {
       await base44.entities.Transaction.deleteMany({});
+      await base44.entities.DebtPayment.deleteMany({});
       await base44.entities.Account.updateMany({}, { $set: { balance: 0 } });
       await base44.entities.Debt.updateMany({}, { $set: { current_balance: 0 } });
       toast({ title: "Data reset", description: "All transactions deleted and account/debt balances set to $0." });
       setShowReset(false);
       setResetText("");
-      refresh();
+      // Force a full app reload so every cached list (including debt payments
+      // surfaced in Recent Transactions) clears — not just the in-memory state.
+      window.location.reload();
     } catch {
       toast({ title: "Reset failed", description: "Something went wrong — please try again." });
     } finally {
