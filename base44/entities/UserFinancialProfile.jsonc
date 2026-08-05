@@ -1,0 +1,60 @@
+{
+  "name": "UserFinancialProfile",
+  "type": "object",
+  "properties": {
+    "income_type": {
+      "type": "string",
+      "enum": [
+        "fixed",
+        "variable"
+      ],
+      "default": "fixed"
+    },
+    "baseline_monthly_income": {
+      "type": "number",
+      "default": 0
+    },
+    "risk_tolerance": {
+      "type": "string",
+      "enum": [
+        "conservative",
+        "moderate",
+        "aggressive"
+      ],
+      "default": "moderate"
+    },
+    "emergency_buffer_target": {
+      "type": "number",
+      "default": 2000
+    },
+    "monthly_discretionary_limit": {
+      "type": "number",
+      "default": 500
+    },
+    "trailing_3m_min_income": {
+      "type": "number",
+      "default": 0
+    },
+    "last_adaptation_date": {
+      "type": "string",
+      "format": "date"
+    }
+  },
+  "required": [
+    "income_type"
+  ],
+  "rls": {
+    "read": {
+      "created_by_id": "{{user.id}}"
+    },
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}

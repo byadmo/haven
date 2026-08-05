@@ -51,6 +51,11 @@
       "type": "boolean",
       "default": false,
       "description": "Whether this debt is surfaced in the Accounts section"
+    },
+    "credit_limit": {
+      "type": "number",
+      "default": 0,
+      "description": "Credit limit for utilization tracking. Falls back to original_balance when 0."
     }
   },
   "required": [

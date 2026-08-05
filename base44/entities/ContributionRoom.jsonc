@@ -1,0 +1,51 @@
+{
+  "name": "ContributionRoom",
+  "type": "object",
+  "properties": {
+    "account_type": {
+      "type": "string",
+      "enum": [
+        "TFSA",
+        "RRSP",
+        "FHSA"
+      ]
+    },
+    "annual_limit": {
+      "type": "number",
+      "default": 0
+    },
+    "current_year_contribution": {
+      "type": "number",
+      "default": 0
+    },
+    "total_contribution_room": {
+      "type": "number",
+      "default": 0
+    },
+    "tax_year": {
+      "type": "string"
+    },
+    "last_updated": {
+      "type": "string",
+      "format": "date"
+    }
+  },
+  "required": [
+    "account_type",
+    "tax_year"
+  ],
+  "rls": {
+    "read": {
+      "created_by_id": "{{user.id}}"
+    },
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}
