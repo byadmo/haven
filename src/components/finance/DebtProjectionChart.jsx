@@ -97,6 +97,9 @@ export default function DebtProjectionChart({ debts, surplus }) {
             <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
             <XAxis
               dataKey="month"
+              type="number"
+              domain={[0, maxMonths]}
+              allowDecimals={false}
               stroke="#52525b"
               fontSize={11}
               tickFormatter={(m) => `${m}mo`}

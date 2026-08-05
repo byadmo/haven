@@ -58,6 +58,7 @@ export default function DebtStrategyEngine({ debts, monthlySurplus, forcedSurplu
     return out;
   }, [baseRun, optRun]);
 
+  const maxMonth = chartData.length ? chartData[chartData.length - 1].month : 0;
   const years = Math.floor(projection.months / 12);
   const remainMonths = projection.months % 12;
   const payoffLabel = projection.months
@@ -247,7 +248,7 @@ export default function DebtStrategyEngine({ debts, monthlySurplus, forcedSurplu
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
-                <XAxis dataKey="month" stroke="#52525b" fontSize={10} tickFormatter={(m) => `${m}mo`} tickLine={false} axisLine={false} />
+                <XAxis dataKey="month" type="number" domain={[0, maxMonth]} allowDecimals={false} stroke="#52525b" fontSize={10} tickFormatter={(m) => `${m}mo`} tickLine={false} axisLine={false} />
                 <YAxis stroke="#52525b" fontSize={10} width={44} tickFormatter={(v) => fmtAxis(v)} tickLine={false} axisLine={false} />
                 <Tooltip contentStyle={{ background: "#18181b", border: "1px solid #27272a", borderRadius: 8, fontSize: 11 }} labelFormatter={(m) => `Month ${m}`} formatter={(v) => fmt(v)} />
                 <Line type="monotone" dataKey="base" stroke="#f43f5e" strokeWidth={2} dot={false} isAnimationActive={false} />

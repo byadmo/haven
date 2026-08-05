@@ -16,6 +16,12 @@ const axisProps = {
   tickLine: false,
   axisLine: { stroke: "rgba(255,255,255,0.1)" },
 };
+const xAxisProps = {
+  ...axisProps,
+  type: "number",
+  domain: ["dataMin", "dataMax"],
+  allowDecimals: false,
+};
 const tooltipProps = {
   contentStyle: { background: "#000", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 12 },
   labelStyle: { color: "rgba(255,255,255,0.5)" },
@@ -55,7 +61,7 @@ export default function ForecastCharts({ series, order }) {
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <Card title="Debt Remaining" subtitle="Total balance over time — drops to $0 at payoff">
         <AreaChart data={series.map((p) => ({ m: p.month, dr: p.debtRemaining }))} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-          <XAxis dataKey="m" tickFormatter={fmtDate} {...axisProps} />
+          <XAxis dataKey="m" tickFormatter={fmtDate} {...xAxisProps} />
           <YAxis tickFormatter={fmtAxis} width={56} {...axisProps} axisLine={false} />
           <Tooltip formatter={(v) => fmtMoney(v)} {...tooltipProps} />
           <ReferenceLine x={index} stroke="#f43f5e" strokeDasharray="3 3" />
@@ -65,7 +71,7 @@ export default function ForecastCharts({ series, order }) {
 
       <Card title="Net Worth" subtitle="Cash minus debt — your financial health">
         <LineChart data={netWorthData} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-          <XAxis dataKey="m" tickFormatter={fmtDate} {...axisProps} />
+          <XAxis dataKey="m" tickFormatter={fmtDate} {...xAxisProps} />
           <YAxis tickFormatter={fmtAxis} width={56} {...axisProps} axisLine={false} />
           <Tooltip formatter={(v) => fmtMoney(v)} {...tooltipProps} />
           <ReferenceLine x={index} stroke="#10b981" strokeDasharray="3 3" />
@@ -75,7 +81,7 @@ export default function ForecastCharts({ series, order }) {
 
       <Card title="Monthly Cash Flow" subtitle="Recurring income vs expenses you've logged">
         <AreaChart data={cashFlowData} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-          <XAxis dataKey="m" tickFormatter={fmtDate} {...axisProps} />
+          <XAxis dataKey="m" tickFormatter={fmtDate} {...xAxisProps} />
           <YAxis tickFormatter={fmtAxis} width={56} {...axisProps} axisLine={false} />
           <Tooltip formatter={(v) => fmtMoney(v)} {...tooltipProps} />
           <Legend wrapperStyle={{ fontSize: 10 }} iconType="plainline" />
@@ -88,7 +94,7 @@ export default function ForecastCharts({ series, order }) {
       <div className="lg:col-span-2">
         <Card title="Each Debt to Zero" subtitle="Individual liability balances over time" height={260}>
           <LineChart data={liabData} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-            <XAxis dataKey="m" tickFormatter={fmtDate} {...axisProps} />
+            <XAxis dataKey="m" tickFormatter={fmtDate} {...xAxisProps} />
             <YAxis tickFormatter={fmtAxis} width={56} {...axisProps} axisLine={false} />
             <Tooltip formatter={(v) => fmtMoney(v)} {...tooltipProps} />
             <ReferenceLine x={index} stroke="rgba(255,255,255,0.3)" strokeDasharray="3 3" />

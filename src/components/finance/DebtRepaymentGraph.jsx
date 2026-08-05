@@ -58,7 +58,7 @@ export default function DebtRepaymentGraph({ debts }) {
       .filter((s) => Object.values(s.map).some((v) => v > 0));
 
     const data = dates.map((dt) => {
-      const row = { date: dt };
+      const row = { date: dt, t: new Date(dt).getTime() };
       series.forEach((s) => { row[s.id] = s.map[dt] || 0; });
       return row;
     });
@@ -93,8 +93,11 @@ export default function DebtRepaymentGraph({ debts }) {
         <ResponsiveContainer width="100%" height={240}>
           <LineChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
             <XAxis
-              dataKey="date"
-              tickFormatter={(d) => format(parseISO(d), "MMM yy")}
+              dataKey="t"
+              type="number"
+              domain={["dataMin", "dataMax"]}
+              allowDecimals={false}
+              tickFormatter={(t) => format(new Date(t), "MMM yy")}
               stroke="rgba(255,255,255,0.3)"
               tick={{ fontSize: 10 }}
               tickLine={false}
@@ -116,7 +119,7 @@ export default function DebtRepaymentGraph({ debts }) {
                 fontSize: 12,
               }}
               labelStyle={{ color: "rgba(255,255,255,0.5)" }}
-              labelFormatter={(l) => format(parseISO(l), "MMM d, yyyy")}
+              labelFormatter={(t) => format(new Date(t), "MMM d, yyyy")}
               formatter={(v) => fmt(v)}
             />
             <Legend

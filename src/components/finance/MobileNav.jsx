@@ -5,7 +5,7 @@ import {
   Home,
   ArrowLeftRight,
   TrendingUp,
-  Target,
+  PiggyBank,
   Ellipsis,
   Activity,
   LineChart,
@@ -25,7 +25,7 @@ const primary = [
   { to: "/insights", label: "Insights", icon: PieChart },
   { to: "/strategy", label: "Debts", icon: ArrowLeftRight },
   { to: "/portfolio", label: "Investments", icon: TrendingUp },
-  { to: "/budgeting", label: "Goals", icon: Target },
+  { to: "/budgeting", label: "Goals", icon: PiggyBank },
 ];
 
 const secondary = [
