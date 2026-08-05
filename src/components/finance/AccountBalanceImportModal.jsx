@@ -1,5 +1,4 @@
 import React from "react";
-import { Button } from "@/components/ui/button";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
@@ -44,7 +43,15 @@ export default function AccountBalanceImportModal({ open, onOpenChange, accounts
     });
   }
 
-  const pending = entries.filter((e) => !e._done).length;
+  function markDone(id) {
+    setEntries((e) => e.map((x) => (x.id === id ? { ...x, _done: true } : x)));
+  }
+
+  const allDone = entries.length > 0 && entries.every((e) => e._done);
+
+  React.useEffect(() => {
+    if (open && allDone) onOpenChange?.(false);
+  }, [open, allDone, onOpenChange]);
 
   return (
     <Dialog open={open} onOpenChange={(v) => { onOpenChange?.(v); }}>
@@ -103,6 +110,7 @@ export default function AccountBalanceImportModal({ open, onOpenChange, accounts
                 debts={debts}
                 onSaved={onSaved}
                 onRemove={removeEntry}
+                onDone={() => markDone(e.id)}
               />
             ))}
             {entries.length === 0 && (
@@ -110,11 +118,7 @@ export default function AccountBalanceImportModal({ open, onOpenChange, accounts
             )}
           </div>
 
-          {entries.length > 0 && pending > 0 && (
-            <Button onClick={() => onOpenChange?.(false)} variant="outline" className="w-full border-white/10 text-white/70 hover:text-white hover:border-white/30">
-              Done later
-            </Button>
-          )}
+
         </div>
       </DialogContent>
     </Dialog>

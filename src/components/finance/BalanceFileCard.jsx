@@ -63,7 +63,7 @@ const fmt = (v) => (v || 0).toLocaleString(undefined, {
   style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2,
 });
 
-export default function BalanceFileCard({ entryId, file, initialPreview, accounts = [], debts = [], onSaved, onRemove }) {
+export default function BalanceFileCard({ entryId, file, initialPreview, accounts = [], debts = [], onSaved, onRemove, onDone }) {
   const [preview, setPreview] = React.useState(initialPreview || null);
   const [parsing, setParsing] = React.useState(false);
   const [parsed, setParsed] = React.useState(null);
@@ -208,6 +208,7 @@ export default function BalanceFileCard({ entryId, file, initialPreview, account
       }
       onSaved?.();
       setDone(true);
+      onDone?.();
     } catch (e) {
       setError("Could not save — please try again.");
     } finally {
@@ -247,6 +248,7 @@ export default function BalanceFileCard({ entryId, file, initialPreview, account
       }
       onSaved?.();
       setDone(true);
+      onDone?.();
     } catch (e) {
       setError("Could not save all accounts — please try again.");
     } finally {
