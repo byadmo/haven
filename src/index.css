@@ -103,7 +103,10 @@
        keep the main content columns at ~their original pixel width, so the
        layout becomes denser (more info per screen) instead of just smaller
        with bigger gutters. */
-    font-size: 9.8px;
+    /* --ui-scale is set by the Settings "Display Size" slider (see uiScale.js).
+       Default 1 keeps the compact baseline; 0.85–1.15 scales every rem-based
+       utility (fonts, padding, gaps, rem chart heights) in real time. */
+    font-size: calc(9.8px * var(--ui-scale, 1));
   }
 }
 

@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Plus, Trash2, RotateCcw, ChevronLeft, ShieldCheck, ArrowRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import MonthlyReport from "@/components/finance/MonthlyReport";
+import UiSizeSetting from "@/components/finance/UiSizeSetting";
 import AutomatedReportSettings from "@/components/finance/AutomatedReportSettings";
 import CalendarSyncSettings from "@/components/finance/CalendarSyncSettings";
 import CurrencySettings from "@/components/finance/CurrencySettings";
@@ -90,6 +91,8 @@ export default function Settings() {
             </div>
           </button>
         </Reveal>
+
+        <Reveal><UiSizeSetting /></Reveal>
 
         <div>
           <h2 className="text-xs uppercase tracking-widest text-white/50">Categories</h2>

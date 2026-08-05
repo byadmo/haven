@@ -132,7 +132,7 @@ export default function NetWorthChart({ transactions, accounts, debts }) {
         </Select>
       </div>
 
-      <div className="h-[200px] mb-4">
+      <div className="h-[20rem] mb-4">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data} margin={{ top: 6, right: 6, left: -10, bottom: 0 }}>
             <defs>

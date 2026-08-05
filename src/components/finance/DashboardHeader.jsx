@@ -25,7 +25,7 @@ export default function DashboardHeader({ actions }) {
   return (
     <>
     <header className="sticky top-0 z-30 bg-black/90 backdrop-blur-md border-b border-white/10 select-none" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
-      <div className="max-w-6xl mx-auto px-5 sm:px-6 h-14 flex items-center gap-3">
+      <div className="max-w-6xl mx-auto px-6 sm:px-8 h-16 flex items-center gap-3">
         <Link to="/" className="flex items-center gap-2.5 shrink-0">
           <div className="flex items-center justify-center rounded-xl border border-emerald-400/30 bg-emerald-500/10" style={{ height: 30, width: 30 }}>
             <ShieldCheck className="text-emerald-400" style={{ height: 16, width: 16 }} />
@@ -38,7 +38,7 @@ export default function DashboardHeader({ actions }) {
           <NavDropdown label="Planning" items={planningGroup} />
         </nav>
 
-        <div className="flex items-center gap-1.5 ml-auto shrink-0">
+        <div className="flex items-center gap-2.5 ml-auto shrink-0">
           <BackupModal />
           <div className="hidden xl:block"><CommandPalette /></div>
           <Link to="/settings" className="h-8 w-8 rounded-md flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/5 transition-colors" aria-label="Settings">

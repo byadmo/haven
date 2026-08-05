@@ -13,6 +13,7 @@ import {
   Sparkles,
   Wallet,
   Gauge,
+  Settings as SettingsIcon,
 } from "lucide-react";
 import {
   Drawer,
@@ -34,6 +35,7 @@ const secondary = [
   { to: "/cashflow", label: "Cash Flow", icon: Activity },
   { to: "/forecast", label: "Forecast", icon: LineChart },
   { to: "/assistant", label: "Ask Wei", icon: Sparkles },
+  { to: "/settings", label: "Settings", icon: SettingsIcon },
 ];
 
 export default function MobileNav() {
