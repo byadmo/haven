@@ -29,7 +29,7 @@ function isCardPayment(text) {
   return /payment\s*-\s*thank you|payment\s*thank you|thank\s*you/i.test(text || "");
 }
 
-export function TransactionRow({ t, accountsMap, onChanged, categories, bulkMode, selected, onToggleSelect }) {
+export function TransactionRow({ t, accountsMap, onChanged, categories, bulkMode, selected, onToggleSelect, flagged }) {
   const { fmtMoney: fmt } = useCurrency();
   const isIncome = t.type === "income";
   const isPay = isCardPayment(t.description);
@@ -132,7 +132,7 @@ export function TransactionRow({ t, accountsMap, onChanged, categories, bulkMode
   }
 
   return (
-    <div className="group flex items-center gap-2.5 py-2 border-b border-zinc-800/60 last:border-0">
+    <div className={`group flex items-center gap-2.5 py-2 border-b border-zinc-800/60 last:border-0 ${flagged ? "bg-amber-500/5 ring-1 ring-amber-500/30 rounded-md" : ""}`}>
       {bulkMode && (
         <button
           type="button"
@@ -149,6 +149,7 @@ export function TransactionRow({ t, accountsMap, onChanged, categories, bulkMode
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium text-zinc-200 truncate">{t.description}</p>
         <p className="text-[11px] text-zinc-500 flex items-center gap-1.5 flex-wrap">
+          {flagged && <span className="text-amber-400 font-medium">Duplicate</span>}
           {t.category}
           {(() => {
             const flow = flowText(t, accountsMap);

@@ -256,7 +256,7 @@ export default function TransactionExplorerModal({ open, onOpenChange, transacti
             filtered.map((t) =>
               t._kind === "debt_payment"
                 ? <DebtPaymentRow key={t.id} t={t} />
-                : <TransactionRow key={t.id} t={t} accountsMap={accountsMap || {}} onChanged={onChanged} categories={options} bulkMode={bulkMode} selected={selected.has(t.id)} onToggleSelect={toggle} />
+                : <TransactionRow key={t.id} t={t} accountsMap={accountsMap || {}} onChanged={onChanged} categories={options} bulkMode={bulkMode} selected={selected.has(t.id)} onToggleSelect={toggle} flagged={dupIds.has(t.id)} />
             )
           )}
         </div>
