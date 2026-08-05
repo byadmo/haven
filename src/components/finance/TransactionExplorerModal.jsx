@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { base44 } from "@/api/base44Client";
 import { adjustTransferInOut, balanceApplies } from "@/lib/accounts";
 import { useCategories, categoryOptions } from "@/lib/categories";
@@ -55,11 +56,13 @@ export default function TransactionExplorerModal({ open, onOpenChange, transacti
   const [dupClusters, setDupClusters] = React.useState([]);
   const [keeping, setKeeping] = React.useState(false);
   const [byAccount, setByAccount] = React.useState(!!groupByAccount);
+  const [accountFilter, setAccountFilter] = React.useState("all");
 
   const allRows = React.useMemo(() => [...transactions, ...debtRows], [transactions, debtRows]);
 
   const filtered = React.useMemo(() => {
     return allRows
+      .filter((t) => (accountFilter === "all" ? true : t.account_id === accountFilter || t.transfer_account_id === accountFilter))
       .filter((t) => (typeFilter === "all" ? true : t.type === typeFilter))
       .filter((t) => matchesDateFilter(t.date, dateFilter, customStart, customEnd))
       .filter((t) =>
@@ -68,7 +71,7 @@ export default function TransactionExplorerModal({ open, onOpenChange, transacti
           : true
       )
       .sort((a, b) => new Date(b.date) - new Date(a.date));
-  }, [allRows, typeFilter, dateFilter, customStart, customEnd, query]);
+  }, [allRows, accountFilter, typeFilter, dateFilter, customStart, customEnd, query]);
 
   const totalIn = filtered.filter((t) => t.type === "income").reduce((s, t) => s + (t.amount || 0), 0);
   const totalOut = filtered.filter((t) => t.type === "expense").reduce((s, t) => s + (t.amount || 0), 0);
@@ -286,6 +289,20 @@ export default function TransactionExplorerModal({ open, onOpenChange, transacti
           >
             By account
           </button>
+
+          {accounts.length > 0 && (
+            <Select value={accountFilter} onValueChange={setAccountFilter}>
+              <SelectTrigger className="h-8 w-[150px] shrink-0 bg-black border-white/10 text-xs text-zinc-200">
+                <SelectValue placeholder="All accounts" />
+              </SelectTrigger>
+              <SelectContent className="bg-black border-white/10">
+                <SelectItem value="all">All accounts</SelectItem>
+                {accounts.map((a) => (
+                  <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
 
           <div className="relative flex-1 min-w-[120px]">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/30" />
