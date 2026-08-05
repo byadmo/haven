@@ -14,6 +14,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import AccountBalanceImportModal from "@/components/finance/AccountBalanceImportModal";
 import TransferModal from "@/components/finance/TransferModal";
 import LiabilityLedger from "@/components/finance/LiabilityLedger";
+import AccountHistory from "@/components/finance/AccountHistory";
 import { useForecast } from "@/lib/forecast-context";
 import { useCurrency } from "@/lib/currency-context";
 
@@ -28,6 +29,7 @@ export default function AccountsManager({ onChanged }) {
   const [accounts, setAccounts] = React.useState([]);
   const [stocks, setStocks] = React.useState([]);
   const [debts, setDebts] = React.useState([]);
+  const [transactions, setTransactions] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
   const [name, setName] = React.useState("");
   const [type, setType] = React.useState("chequing");
@@ -40,14 +42,16 @@ export default function AccountsManager({ onChanged }) {
   const [transferOpen, setTransferOpen] = React.useState(false);
 
   const load = React.useCallback(async () => {
-    const [a, s, d] = await Promise.all([
+    const [a, s, d, tx] = await Promise.all([
       base44.entities.Account.list("-created_date"),
       base44.entities.Stock.list("-created_date").catch(() => []),
       base44.entities.Debt.list("-created_date").catch(() => []),
+      base44.entities.Transaction.list("-date", 500).catch(() => []),
     ]);
     setAccounts(a);
     setStocks(s);
     setDebts(d);
+    setTransactions(tx);
     setLoading(false);
   }, []);
 
@@ -59,7 +63,10 @@ export default function AccountsManager({ onChanged }) {
     const unsubAcct = base44.entities.Account.subscribe(() => {
       base44.entities.Account.list("-created_date").then(setAccounts).catch(() => {});
     });
-    return () => { unsubDebt(); unsubAcct(); };
+    const unsubTx = base44.entities.Transaction.subscribe(() => {
+      base44.entities.Transaction.list("-date", 500).then(setTransactions).catch(() => {});
+    });
+    return () => { unsubDebt(); unsubAcct(); unsubTx(); };
   }, [load]);
 
   async function toggleVisibility(a) {
@@ -339,6 +346,8 @@ export default function AccountsManager({ onChanged }) {
           </Button>
         </form>
       </div>
+
+      <AccountHistory accounts={accounts} debts={debts} transactions={transactions} onChanged={onChanged} />
 
       <AccountBalanceImportModal
         open={scanOpen}
