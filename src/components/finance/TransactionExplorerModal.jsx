@@ -1,8 +1,12 @@
 import React from "react";
 import { parseISO, format, isToday, isThisWeek, isThisMonth, isWithinInterval, startOfDay, endOfDay } from "date-fns";
-import { ArrowDownLeft, ArrowUpRight, Search, CreditCard, CalendarClock } from "lucide-react";
+import { Search, Plus } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { useCategories, categoryOptions } from "@/lib/categories";
+import { TransactionRow, DebtPaymentRow } from "@/components/finance/TransactionRows";
+import QuickAddModal from "@/components/finance/QuickAddModal";
 
 const DATE_FILTERS = [
   { id: "all", label: "All" },
@@ -26,43 +30,15 @@ function matchesDateFilter(dateStr, filter, customStart, customEnd) {
   }
 }
 
-function ExplorerRow({ t, accountsMap }) {
-  const isIncome = t.type === "income";
-  return (
-    <div className="flex items-center gap-2.5 py-2 border-b border-zinc-800/60 last:border-0">
-      <div className={`h-7 w-7 rounded-full flex items-center justify-center shrink-0 ${isIncome ? "bg-emerald-500/15" : "bg-rose-500/15"}`}>
-        {t._kind === "debt_payment"
-          ? <CreditCard className="h-3.5 w-3.5 text-emerald-400" />
-          : isIncome
-            ? <ArrowDownLeft className="h-3.5 w-3.5 text-emerald-400" />
-            : <ArrowUpRight className="h-3.5 w-3.5 text-rose-400" />}
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium text-zinc-200 truncate">{t.description}</p>
-        <p className="text-[11px] text-zinc-500 flex items-center gap-1.5 flex-wrap">
-          {t.category}
-          {accountsMap[t.account_id] && <span>· {accountsMap[t.account_id].name}</span>}
-          <span>· {format(parseISO(t.date), "MMM d, yyyy")}</span>
-          {t.is_scheduled && (
-            <span className="inline-flex items-center gap-0.5 text-emerald-400/80">
-              <CalendarClock className="h-3 w-3" />{t.frequency || "recurring"}
-            </span>
-          )}
-        </p>
-      </div>
-      <span className={`text-sm font-semibold tabular-nums ${isIncome ? "text-emerald-400" : "text-rose-400"}`}>
-        {isIncome ? "+" : "-"}${t.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-      </span>
-    </div>
-  );
-}
-
-export default function TransactionExplorerModal({ open, onOpenChange, transactions, debtRows, accountsMap }) {
+export default function TransactionExplorerModal({ open, onOpenChange, transactions, debtRows, accountsMap, accounts = [], debts = [], onChanged }) {
+  const { categories } = useCategories();
+  const options = categoryOptions(categories);
   const [dateFilter, setDateFilter] = React.useState("all");
   const [typeFilter, setTypeFilter] = React.useState("all");
   const [query, setQuery] = React.useState("");
   const [customStart, setCustomStart] = React.useState("");
   const [customEnd, setCustomEnd] = React.useState("");
+  const [addOpen, setAddOpen] = React.useState(false);
 
   const allRows = React.useMemo(() => [...transactions, ...debtRows], [transactions, debtRows]);
 
@@ -90,8 +66,13 @@ export default function TransactionExplorerModal({ open, onOpenChange, transacti
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-black border-white/10 text-zinc-100 max-w-2xl">
-        <DialogTitle className="text-sm font-semibold text-zinc-100">All Transactions</DialogTitle>
+      <DialogContent className="bg-black border-white/10 text-zinc-100 max-w-3xl">
+        <div className="flex items-center justify-between gap-2">
+          <DialogTitle className="text-sm font-semibold text-zinc-100">All Transactions</DialogTitle>
+          <Button size="sm" onClick={() => setAddOpen(true)} className="h-8 bg-indigo-600 hover:bg-indigo-500 text-white">
+            <Plus className="h-3.5 w-3.5 mr-1" /> Add
+          </Button>
+        </div>
 
         <div className="grid grid-cols-3 gap-2">
           <div className="rounded-lg border border-white/10 bg-black p-2.5">
@@ -176,16 +157,26 @@ export default function TransactionExplorerModal({ open, onOpenChange, transacti
           {filtered.length} {filtered.length === 1 ? "transaction" : "transactions"}
         </p>
 
-        <div className="max-h-[55vh] overflow-y-auto -mx-1 px-1">
+        <div>
           {filtered.length === 0 ? (
             <p className="text-sm text-zinc-500 text-center py-8">No transactions match.</p>
           ) : (
-            filtered.map((t) => (
-              <ExplorerRow key={t.id} t={t} accountsMap={accountsMap || {}} />
-            ))
+            filtered.map((t) =>
+              t._kind === "debt_payment"
+                ? <DebtPaymentRow key={t.id} t={t} />
+                : <TransactionRow key={t.id} t={t} accountsMap={accountsMap || {}} onChanged={onChanged} categories={options} />
+            )
           )}
         </div>
       </DialogContent>
+
+      <QuickAddModal
+        open={addOpen}
+        onOpenChange={setAddOpen}
+        accounts={accounts}
+        debts={debts}
+        onSaved={onChanged}
+      />
     </Dialog>
   );
 }
