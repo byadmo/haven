@@ -188,7 +188,9 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
   const [bulkAccountId, setBulkAccountId] = React.useState("");
   const [existingTxns, setExistingTxns] = React.useState([]);
   const [aiBusy, setAiBusy] = React.useState(false);
+  const [failedFiles, setFailedFiles] = React.useState([]);
   const fileRef = React.useRef(null);
+  const retryRef = React.useRef(null);
   const { toast } = useToast();
 
   React.useEffect(() => {
@@ -209,12 +211,13 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
   // When background parsing ends and the current index points past every
   // ready group (the user already imported the last one), close the modal.
   React.useEffect(() => {
-    if (!parsing && groups.length > 0 && gi >= groups.length) {
+    // Don't close if there are still failed files waiting to be re-uploaded.
+    if (!parsing && groups.length > 0 && gi >= groups.length && failedFiles.length === 0) {
       onSaved?.();
       onOpenChange?.(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [parsing, groups.length, gi]);
+  }, [parsing, groups.length, gi, failedFiles.length]);
 
   function reset() {
     previews.forEach((p) => p && URL.revokeObjectURL(p));
@@ -225,6 +228,7 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
     setError("");
     setDone(0);
     setBulkAccountId("");
+    setFailedFiles([]);
   }
 
   function handleFiles(fileList) {
@@ -304,11 +308,46 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
       : g));
   }
 
+  // Parse a single file into a review group. Throws on upload/extract failure
+  // or when no transaction rows were found (both treated as "failed").
+  async function parseOneFile(f, accountOptions, existing) {
+    const up = await base44.integrations.Core.UploadFile({ file: f });
+    const res = await base44.integrations.Core.ExtractDataFromUploadedFile({
+      file_url: up.file_url,
+      json_schema: buildSchema(categoryList),
+    });
+    let list = [];
+    let cardName = "";
+    let cardLast4 = "";
+    if (Array.isArray(res?.output)) list = res.output;
+    else if (res?.output?.transactions) {
+      list = res.output.transactions;
+      cardName = res.output.card_name || "";
+      cardLast4 = res.output.card_last4 || "";
+    }
+    if (!Array.isArray(list)) list = [];
+    const rows = [];
+    for (const r of list) {
+      const n = normalizeRow(r, categoryList);
+      n.source_card_name = r.card_name || cardName;
+      n.source_card_last4 = r.card_last4 || cardLast4;
+      n.account_id = autoMatchAccount(n, accountOptions);
+      if (n.description || n.amount) rows.push(n);
+    }
+    if (!rows.length) throw new Error("no transactions");
+    rows.forEach((n, idx) => {
+      n.duplicate = isLikelyImportDuplicate(n, existing, 1) || isLikelyImportDuplicate(n, rows.slice(0, idx), 1);
+      if (n.duplicate) n.included = false;
+    });
+    return { fileName: f.name, rows };
+  }
+
   async function handleParse() {
     if (!files.length || parsing) return;
     setParsing(true);
     setError("");
     setGroups([]);
+    setFailedFiles([]);
     let existing = existingTxns;
     if (!existing.length) {
       try { existing = await base44.entities.Transaction.list("-updated_date", 5000); setExistingTxns(existing); } catch { /* ignore */ }
@@ -317,58 +356,76 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
       ...accounts.map((a) => ({ id: a.id, name: a.name, kind: "account" })),
       ...debts.map((d) => ({ id: d.id, name: d.name, kind: "debt" })),
     ];
-    let failed = 0;
+    const failedArr = [];
     let valid = 0;
     try {
       // Parse files one at a time, surfacing each group the moment it's ready
       // so the user can start reviewing file 1 while file 2+ keep loading.
       for (const f of files) {
         try {
-          const up = await base44.integrations.Core.UploadFile({ file: f });
-          const res = await base44.integrations.Core.ExtractDataFromUploadedFile({
-            file_url: up.file_url,
-            json_schema: buildSchema(categoryList),
-          });
-          let list = [];
-          let cardName = "";
-          let cardLast4 = "";
-          if (Array.isArray(res?.output)) list = res.output;
-          else if (res?.output?.transactions) {
-            list = res.output.transactions;
-            cardName = res.output.card_name || "";
-            cardLast4 = res.output.card_last4 || "";
-          }
-          if (!Array.isArray(list)) list = [];
-          const rows = [];
-          for (const r of list) {
-            const n = normalizeRow(r, categoryList);
-            n.source_card_name = r.card_name || cardName;
-            n.source_card_last4 = r.card_last4 || cardLast4;
-            n.account_id = autoMatchAccount(n, accountOptions);
-            if (n.description || n.amount) rows.push(n);
-          }
-          if (rows.length) {
-            rows.forEach((n, idx) => {
-              n.duplicate = isLikelyImportDuplicate(n, existing, 1) || isLikelyImportDuplicate(n, rows.slice(0, idx), 1);
-              if (n.duplicate) n.included = false;
-            });
-            valid++;
-            setGroups((gs) => [...gs, { fileName: f.name, rows }]);
-          } else {
-            failed++;
-          }
+          const g = await parseOneFile(f, accountOptions, existing);
+          valid++;
+          setGroups((gs) => [...gs, g]);
         } catch {
-          failed++;
+          failedArr.push(f);
         }
       }
+      setFailedFiles(failedArr);
       if (!valid) {
-        setError(failed === files.length
+        setError(failedArr.length === files.length
           ? "Could not parse — AI may be busy, please retry."
           : "No transactions found in those files. Try clearer screenshots or PDFs.");
-      } else if (failed > 0) {
-        setError(`${failed} of ${files.length} file(s) could not be parsed and were skipped.`);
+      } else if (failedArr.length > 0) {
+        setError(`${failedArr.length} of ${files.length} file(s) could not be parsed — re-upload them at the end.`);
       }
     } catch {
+      setError("Could not parse these files — AI may be busy, please retry.");
+    } finally {
+      setParsing(false);
+    }
+  }
+
+  // Re-upload path: only accept files whose name matches a previously failed
+  // file, then retry parsing just those. Non-matching files are rejected.
+  async function retryParseFiles(fileList) {
+    const arr = Array.from(fileList || []);
+    if (!arr.length || parsing) return;
+    const matching = arr.filter((f) => failedFiles.some((ff) => ff.name === f.name));
+    const rejected = arr.length - matching.length;
+    if (rejected > 0) {
+      toast({ title: "File rejected", description: `${rejected} file(s) not accepted — the file name must match a failed file.` });
+    }
+    if (!matching.length) return;
+    setParsing(true);
+    setError("");
+    const matchingNames = new Set(matching.map((f) => f.name));
+    setFailedFiles((prev) => prev.filter((ff) => !matchingNames.has(ff.name)));
+    let existing = existingTxns;
+    const accountOptions = [
+      ...accounts.map((a) => ({ id: a.id, name: a.name, kind: "account" })),
+      ...debts.map((d) => ({ id: d.id, name: d.name, kind: "debt" })),
+    ];
+    const failedAgain = [];
+    let recovered = 0;
+    try {
+      for (const f of matching) {
+        try {
+          const g = await parseOneFile(f, accountOptions, existing);
+          recovered++;
+          setGroups((gs) => [...gs, g]);
+        } catch {
+          failedAgain.push(f);
+        }
+      }
+      setFailedFiles((prev) => [...prev, ...failedAgain]);
+      if (failedAgain.length === 0) {
+        toast({ title: "Re-upload successful", description: `${recovered} file(s) parsed.` });
+        setError("");
+      } else {
+        setError(`${failedAgain.length} of ${matching.length} re-uploaded file(s) still could not be parsed — try again.`);
+      }
+    } catch {
+      setFailedFiles((prev) => [...prev, ...failedAgain]);
       setError("Could not parse these files — AI may be busy, please retry.");
     } finally {
       setParsing(false);
@@ -448,18 +505,25 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
     return toCreate.length;
   }
 
-  // AI Auto-Approve: send the pending review rows to the deterministic backend
-  // reviewer. The approved rows are committed through the shared commit path
-  // (so account/liability balances stay consistent); the flagged rows stay in
-  // the review list, amber-highlighted and unchecked, with an explanatory
-  // tooltip so the user can override before finalizing.
+  // AI Auto-Approve: the user must first pick which account this file's
+  // transactions go into (Bulk assign). We then send the pending review rows to
+  // the deterministic backend reviewer, commit the approved rows through the
+  // shared commit path (so balances stay consistent), leave the flagged rows
+  // in the review list for manual override, and — when nothing was flagged —
+  // automatically advance to the next file.
   async function handleAiAutoApprove() {
     if (aiBusy || importing) return;
+    if (!bulkAccountId) {
+      toast({ title: "Choose an account", description: "Pick which account this file's transactions go into before running AI Auto-Approve." });
+      return;
+    }
     const reviewRows = rows.filter((r) => r.included && r.amount > 0);
     if (!reviewRows.length) return;
     setAiBusy(true);
     try {
-      const pending = reviewRows.map((r) => ({
+      // Force every reviewed row into the chosen account before reviewing.
+      const preparedRows = reviewRows.map((r) => ({ ...r, account_id: bulkAccountId }));
+      const pending = preparedRows.map((r) => ({
         description: r.description, amount: r.amount, type: r.type,
         date: r.date, account_id: r.account_id || "", category: r.category || "",
       }));
@@ -481,15 +545,15 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
         const rowIdx = reviewToRowIdx[f.index];
         rowReason[rowIdx] = f.reason || "Likely duplicate import";
       });
-      const approvedRowIdxs = [];
-      const flaggedRowIdxs = [];
+      const approvedPending = [];
+      const flaggedRowIdx = [];
       reviewRows.forEach((_r, p) => {
-        const rowIdx = reviewToRowIdx[p];
-        if (flaggedPendingIdx.has(p)) flaggedRowIdxs.push(rowIdx);
-        else approvedRowIdxs.push(rowIdx);
+        if (flaggedPendingIdx.has(p)) flaggedRowIdx.push(reviewToRowIdx[p]);
+        else approvedPending.push(p);
       });
 
-      const approvedRows = approvedRowIdxs.map((i) => rows[i]);
+      const approvedRows = approvedPending.map((p) => preparedRows[p]);
+      const approvedRowIdx = approvedPending.map((p) => reviewToRowIdx[p]);
       const committed = await commitBatch(approvedRows);
       onSaved?.();
 
@@ -497,11 +561,11 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
         if (idx !== gi) return g;
         const nextRows = [];
         g.rows.forEach((r, j) => {
-          if (approvedRowIdxs.includes(j)) return; // committed — drop from review
-          if (flaggedRowIdxs.includes(j)) {
-            nextRows.push({ ...r, included: false, aiFlagReason: rowReason[j] || "Likely duplicate import" });
+          if (approvedRowIdx.includes(j)) return; // committed — drop from review
+          if (flaggedRowIdx.includes(j)) {
+            nextRows.push({ ...r, included: false, account_id: bulkAccountId, aiFlagReason: rowReason[j] || "Likely duplicate import" });
           } else {
-            nextRows.push(r);
+            nextRows.push({ ...r, account_id: bulkAccountId });
           }
         });
         return { ...g, rows: nextRows };
@@ -510,14 +574,43 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
       // Keep the in-memory existing list fresh so a second pass is accurate.
       setExistingTxns((prev) => [...approvedRows, ...prev]);
 
-      toast({
-        title: "AI Auto-Approve",
-        description: `Approved ${committed} transaction${committed === 1 ? "" : "s"}, flagged ${flaggedList.length} as likely duplicate${flaggedList.length === 1 ? "" : "s"}.`,
-      });
+      if (flaggedRowIdx.length === 0) {
+        // Clean file — auto-advance to the next one.
+        toast({
+          title: "AI Auto-Approve",
+          description: `Approved and imported ${committed} transaction${committed === 1 ? "" : "s"}.`,
+        });
+        advanceAfterFile();
+      } else {
+        // Flagged rows remain for manual override — don't advance yet.
+        toast({
+          title: "AI Auto-Approve",
+          description: `Approved ${committed}, flagged ${flaggedRowIdx.length} as likely duplicate${flaggedRowIdx.length === 1 ? "" : "s"}. Review flagged rows, then Import or Disregard.`,
+        });
+      }
     } catch {
       toast({ title: "AI Auto-Approve failed", description: "Please try again." });
     } finally {
       setAiBusy(false);
+    }
+  }
+
+  // Advance to the next group after a file is fully handled. If another group
+  // is ready (or still parsing in the background), move to it; otherwise, when
+  // there are failed files waiting, park past the end so the failed-files
+  // re-upload panel shows instead of closing the modal.
+  function advanceAfterFile() {
+    const moreReady = gi + 1 < groups.length;
+    const moreComing = parsing;
+    if (moreReady || moreComing) {
+      setGi(gi + 1);
+      setBulkAccountId("");
+    } else if (failedFiles.length > 0) {
+      setGi(gi + 1);
+      setBulkAccountId("");
+    } else {
+      onSaved?.();
+      onOpenChange?.(false);
     }
   }
 
@@ -533,18 +626,7 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
       setDone(count);
       confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } });
 
-      // Advance to the next group — if it isn't ready yet, a loading screen
-      // shows while the background parse finishes; when parsing is already
-      // done and nothing is left, close out.
-      const moreReady = gi + 1 < groups.length;
-      const moreComing = parsing;
-      if (moreReady || moreComing) {
-        setGi(gi + 1);
-        setBulkAccountId("");
-      } else {
-        onSaved?.();
-        onOpenChange?.(false);
-      }
+      advanceAfterFile();
     } catch {
       setError("Import stopped partway — some transactions may not have saved.");
     } finally {
@@ -559,6 +641,7 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
   const includedCount = rows.filter((r) => r.included && r.amount > 0).length;
   const hasDuplicates = Object.keys(duplicateFlags).length > 0;
   const totalFiles = files.length;
+  const showFailed = failedFiles.length > 0 && !parsing && !current;
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!importing) onOpenChange?.(v); }}>
@@ -571,7 +654,7 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
         </DialogHeader>
 
         <div className="px-5 pb-5 space-y-4">
-          {groups.length === 0 && (
+          {groups.length === 0 && !showFailed && (
             <>
               <div
                 onClick={() => !parsing && fileRef.current?.click()}
@@ -836,6 +919,51 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
             <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
               <Loader2 className="h-8 w-8 text-indigo-400 animate-spin" />
               <p className="text-sm text-zinc-400 font-mono">Reading the next file…</p>
+            </div>
+          )}
+
+          {showFailed && (
+            <div className="space-y-3">
+              <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4">
+                <p className="text-xs uppercase tracking-widest text-amber-400/80">Failed to parse</p>
+                <p className="text-sm text-zinc-200 mt-1">Re-upload each file by the same name — only matching file names are accepted, then we retry automatically.</p>
+                <ul className="mt-3 space-y-1.5">
+                  {failedFiles.map((f, i) => (
+                    <li key={i} className="flex items-center gap-2 text-xs text-amber-300 font-mono truncate">
+                      <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                      <span className="truncate" title={f.name}>{f.name}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div
+                onClick={() => !parsing && retryRef.current?.click()}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => { e.preventDefault(); if (!parsing) retryParseFiles(e.dataTransfer.files); }}
+                className={`cursor-pointer rounded-lg border border-dashed border-amber-500/40 bg-amber-500/5 transition-colors p-5 flex flex-col items-center justify-center gap-2 text-center touch-manipulation ${parsing ? "pointer-events-none" : "hover:border-amber-500/60"}`}
+              >
+                {parsing ? (
+                  <><Loader2 className="h-6 w-6 text-amber-400 animate-spin" /><p className="text-xs text-zinc-400 font-mono">Retrying…</p></>
+                ) : (
+                  <>
+                    <UploadCloud className="h-6 w-6 text-amber-400" />
+                    <p className="text-sm text-zinc-300">Re-upload failed files</p>
+                    <p className="text-[11px] text-zinc-600">File name must match a failed file above</p>
+                  </>
+                )}
+              </div>
+              <input
+                ref={retryRef}
+                type="file"
+                accept="image/*,application/pdf"
+                multiple
+                className="hidden"
+                onChange={(e) => { retryParseFiles(e.target.files); e.target.value = ""; }}
+              />
+              {error && <p className="text-xs text-rose-400">{error}</p>}
+              <Button variant="outline" onClick={reset} disabled={parsing} className="w-full h-10 border-zinc-800 text-zinc-300 hover:text-white">
+                Start over
+              </Button>
             </div>
           )}
         </div>
