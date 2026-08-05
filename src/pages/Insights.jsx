@@ -3,6 +3,7 @@ import { useFinanceData } from "@/lib/FinanceDataContext";
 import { startOfMonth, endOfMonth, subMonths, format, isWithinInterval, parseISO } from "date-fns";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import DashboardHeader from "@/components/finance/DashboardHeader";
+import PageTitle from "@/components/finance/PageTitle";
 import Reveal from "@/components/finance/Reveal";
 import InsightMetrics from "@/components/finance/InsightMetrics";
 import IncomeVsSpendingChart from "@/components/finance/IncomeVsSpendingChart";
@@ -60,11 +61,9 @@ export default function Insights() {
     <div className="dd-page-enter dark min-h-screen bg-black text-zinc-100 selection:bg-emerald-500/30">
       <DashboardHeader />
       <main className="relative max-w-6xl mx-auto px-5 sm:px-6 py-8 sm:py-6 space-y-8 sm:space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-xs uppercase tracking-widest text-white/50">Monthly Insights</h2>
-            <p className="text-lg font-semibold font-mono tracking-tight text-zinc-100 mt-1">{format(anchor, "MMMM yyyy")}</p>
-          </div>
+        <PageTitle title="Insights" subtitle="Spending patterns and category breakdowns over time" />
+        <div className="flex items-center justify-between mt-4">
+          <p className="text-sm font-mono tracking-tight text-zinc-200">{format(anchor, "MMMM yyyy")}</p>
           <div className="flex items-center gap-2">
             <button onClick={() => setAnchor((a) => subMonths(a, 1))} className="h-8 w-8 rounded-lg border border-white/10 bg-black flex items-center justify-center text-zinc-300 hover:border-white/30 hover:text-white transition-colors duration-150" aria-label="Previous month">
               <ChevronLeft className="h-4 w-4" />

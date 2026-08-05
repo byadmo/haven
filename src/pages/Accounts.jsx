@@ -1,5 +1,6 @@
 import React from "react";
 import DashboardHeader from "@/components/finance/DashboardHeader";
+import PageTitle from "@/components/finance/PageTitle";
 import AccountsManager from "@/components/finance/AccountsManager";
 import { useFinanceData } from "@/lib/FinanceDataContext";
 import { computeTrajectory } from "@/lib/trajectory";
@@ -25,10 +26,7 @@ export default function Accounts() {
             <Link to="/" className="flex items-center gap-1 text-xs uppercase tracking-widest text-white/50 hover:text-white transition-colors shrink-0">
               <ArrowLeft className="h-4 w-4" /> Back
             </Link>
-            <div>
-              <h1 className="font-semibold text-lg text-zinc-100">Accounts</h1>
-              <p className="text-xs text-white/50">Manage all your accounts, investments, and liabilities</p>
-            </div>
+            <PageTitle title="Accounts" subtitle="Manage all your accounts, investments, and liabilities" />
           </div>
           <Reveal><AccountsManager onChanged={refresh} /></Reveal>
         </main>

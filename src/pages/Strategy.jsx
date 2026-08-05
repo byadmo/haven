@@ -3,6 +3,7 @@ import { useFinanceData } from "@/lib/FinanceDataContext";
 import { startOfMonth, endOfMonth, isWithinInterval, parseISO } from "date-fns";
 import { base44 } from "@/api/base44Client";
 import DashboardHeader from "@/components/finance/DashboardHeader";
+import PageTitle from "@/components/finance/PageTitle";
 import DebtStrategyEngine from "@/components/finance/DebtStrategyEngine";
 import DebtProjectionChart from "@/components/finance/DebtProjectionChart";
 import GoalPlanner from "@/components/finance/GoalPlanner";
@@ -58,6 +59,7 @@ export default function Strategy() {
       } />
 
       <main className="relative max-w-6xl mx-auto px-5 sm:px-6 py-8 sm:py-6 space-y-8 sm:space-y-6">
+        <Reveal><PageTitle title="Debt Strategy" subtitle="Simulate payoff plans and hit your debt-free date sooner" /></Reveal>
         <Reveal>
           <StrategyAdvisor
             debts={debts}

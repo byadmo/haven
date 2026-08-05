@@ -2,6 +2,7 @@ import React from "react";
 import { useFinanceData } from "@/lib/FinanceDataContext";
 import { format } from "date-fns";
 import DashboardHeader from "@/components/finance/DashboardHeader";
+import PageTitle from "@/components/finance/PageTitle";
 import { ForecastProvider } from "@/lib/forecast-context";
 import { computeTrajectory } from "@/lib/trajectory";
 import TelemetryReadout from "@/components/finance/TelemetryReadout";
@@ -53,6 +54,7 @@ export default function Forecast() {
       <DashboardHeader />
       <ForecastProvider forecastData={series}>
         <main className="max-w-6xl mx-auto px-5 sm:px-6 py-8 sm:py-6 space-y-6 sm:space-y-5">
+          <Reveal><PageTitle title="Forecast" subtitle="Project your debt-free date and tune your plan" /></Reveal>
 
           {/* Hero Summary */}
           <Reveal>

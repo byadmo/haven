@@ -22,6 +22,7 @@ import {
   OverviewAlerts,
 } from "@/components/dashboard/OverviewTab";
 import LaunchIntro from "@/components/finance/LaunchIntro";
+import PageTitle from "@/components/finance/PageTitle";
 import { useFinanceData } from "@/lib/FinanceDataContext";
 
 export default function Dashboard() {
@@ -29,8 +30,14 @@ export default function Dashboard() {
   const [quickAdd, setQuickAdd] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [intro, setIntro] = useState(true);
+  const [intro, setIntro] = useState(() => {
+    try { return sessionStorage.getItem("haven_splash_shown") !== "1"; } catch { return true; }
+  });
   const { net, saving, heat, alerts } = useOverviewData(refreshKey);
+
+  React.useEffect(() => {
+    try { sessionStorage.setItem("haven_splash_shown", "1"); } catch {}
+  }, []);
 
   const doRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -104,11 +111,16 @@ export default function Dashboard() {
 
   return (
     <div className="dd-page-enter dark min-h-screen bg-black text-zinc-100 selection:bg-emerald-500/30">
-      {intro && <LaunchIntro onDone={() => setIntro(false)} />}
+      {intro && <LaunchIntro onDone={() => {
+        setIntro(false);
+        try { sessionStorage.setItem("haven_splash_shown", "1"); } catch {}
+      }} />}
       <DashboardHeader actions={headerActions} />
 
       <ForecastProvider forecastData={forecastData}>
         <main className="relative max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-8 sm:space-y-6">
+          <Reveal><PageTitle title="Overview" subtitle="Your net worth, cash flow, and accounts at a glance" /></Reveal>
+
           {/* Row 1 — headline metrics (Net Worth · Monthly Income · Monthly Spend) */}
           <Reveal>
             <MetricsRow

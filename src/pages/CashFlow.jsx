@@ -1,5 +1,6 @@
 import React from "react";
 import DashboardHeader from "@/components/finance/DashboardHeader";
+import PageTitle from "@/components/finance/PageTitle";
 import CashFlowTab from "@/components/dashboard/CashFlowTab";
 import { useFinanceData } from "@/lib/FinanceDataContext";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ export default function CashFlow() {
         }
       />
       <main className="relative max-w-6xl mx-auto px-5 sm:px-6 py-8 sm:py-6">
+        <div className="mb-6"><PageTitle title="Cash Flow" subtitle="Upcoming recurring payments and balance projections" /></div>
         <CashFlowTab refreshKey={refreshKey} />
       </main>
     </div>

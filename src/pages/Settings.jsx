@@ -1,5 +1,6 @@
 import React from "react";
 import DashboardHeader from "@/components/finance/DashboardHeader";
+import PageTitle from "@/components/finance/PageTitle";
 import Reveal from "@/components/finance/Reveal";
 import { useCategories } from "@/lib/categories";
 import { Button } from "@/components/ui/button";
@@ -70,8 +71,9 @@ export default function Settings() {
       </div>
 
       <main className="relative max-w-3xl mx-auto px-5 sm:px-6 py-8 sm:py-6 space-y-8 sm:space-y-6">
+        <Reveal><PageTitle title="Settings" subtitle="Categories, currency, reports, and account controls" /></Reveal>
         <div>
-          <h2 className="text-xs uppercase tracking-widest text-white/50">Settings</h2>
+          <h2 className="text-xs uppercase tracking-widest text-white/50">Categories</h2>
           <p className="text-lg font-semibold font-mono tracking-tight text-zinc-100 mt-1">Transaction Categories</p>
           <p className="text-xs text-white/40 mt-1">Add or remove the categories available when creating and editing transactions.</p>
         </div>

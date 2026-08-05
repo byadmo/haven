@@ -3,7 +3,7 @@ import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   Home,
-  Search,
+  Landmark,
   ArrowLeftRight,
   TrendingUp,
   Target,
@@ -24,7 +24,7 @@ import {
 
 const primary = [
   { to: "/", label: "Overview", icon: Home, end: true },
-  { to: "/accounts", label: "Transactions", icon: Search },
+  { to: "/accounts", label: "Accounts", icon: Landmark },
   { to: "/strategy", label: "Debts", icon: ArrowLeftRight },
   { to: "/portfolio", label: "Investments", icon: TrendingUp },
   { to: "/budgeting", label: "Goals", icon: Target },

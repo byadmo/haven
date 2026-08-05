@@ -1,5 +1,6 @@
 import React from "react";
 import DashboardHeader from "@/components/finance/DashboardHeader";
+import PageTitle from "@/components/finance/PageTitle";
 import BudgetChart from "@/components/finance/BudgetChart";
 import BudgetAdvisor from "@/components/finance/BudgetAdvisor";
 import GoalsTab from "@/components/dashboard/GoalsTab";
@@ -96,15 +97,7 @@ export default function Budgeting() {
     <div className="dd-page-enter dark min-h-screen bg-black text-zinc-100">
       <DashboardHeader />
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6 space-y-5">
-        <div className="flex items-center gap-2">
-          <div className="h-8 w-8 flex items-center justify-center bg-purple-500/10">
-            <PiggyBank className="h-4 w-4 text-purple-400" />
-          </div>
-          <div>
-            <h1 className="text-base font-semibold text-zinc-50">Budgeting</h1>
-            <p className="text-[10px] uppercase tracking-widest text-white/50">Plan a budget cycle and see what's left of every paycheque</p>
-          </div>
-        </div>
+        <PageTitle icon={PiggyBank} title="Budgeting" subtitle="Plan a budget cycle and see what's left of every paycheque" />
 
         {/* Timeframe selector */}
         <div className="rounded-2xl border border-white/10 bg-black p-4">
