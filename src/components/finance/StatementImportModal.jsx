@@ -20,7 +20,7 @@ import {
 import { applyTxAccountEffect } from "@/lib/accounts";
 import { useCategories, categoryOptions } from "@/lib/categories";
 import { format } from "date-fns";
-import { UploadCloud, Loader2, Trash2, Check, FileText, ImageIcon, Camera } from "lucide-react";
+import { UploadCloud, Loader2, Trash2, Check, FileText, ImageIcon, Camera, X } from "lucide-react";
 import confetti from "canvas-confetti";
 
 const today = () => format(new Date(), "yyyy-MM-dd");
@@ -256,6 +256,16 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
     setError("");
   }
 
+  function removeFile(i) {
+    setPreviews((prev) => {
+      if (prev[i]) URL.revokeObjectURL(prev[i]);
+      return prev.filter((_, idx) => idx !== i);
+    });
+    setFiles((prev) => prev.filter((_, idx) => idx !== i));
+    setRows([]);
+    setError("");
+  }
+
   function updateRow(i, patch) {
     setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
   }
@@ -379,17 +389,31 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
                   <p className="text-sm text-zinc-400 font-mono">Reading {files.length > 1 ? `${files.length} files…` : "your statement…"}<br/><span className="text-[11px] text-zinc-600">extracting one at a time</span></p>
                 </>
               ) : previews.length > 0 ? (
-                <div className="flex flex-col items-center gap-2">
-                  {previews[0] && (
-                    <img src={previews[0]} alt="preview" className="max-h-32 rounded border border-zinc-800" />
-                  )}
-                  <p className="text-sm text-zinc-300 flex items-center gap-2">
-                    {previews[0] && !files[0].type.startsWith("image/")
-                      ? <FileText className="h-4 w-4" />
-                      : null}
-                    {files.length > 1
-                      ? `${files.length} files selected · ${previews[0] ? files[0].name + " " : ""}+${files.length - 1} more`
-                      : files[0].name}
+                <div className="w-full space-y-2">
+                  <div className="flex flex-wrap justify-center gap-2">
+                    {files.map((f, i) => (
+                      <div key={i} className="relative rounded-lg border border-zinc-700 bg-zinc-950/60 p-1.5 w-28 flex flex-col items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); removeFile(i); }}
+                          className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-400 hover:text-rose-400 hover:bg-rose-500/10"
+                          aria-label="Remove file"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                        {previews[i] ? (
+                          <img src={previews[i]} alt={f.name} className="h-20 w-full object-cover rounded" />
+                        ) : (
+                          <div className="h-20 w-full rounded flex items-center justify-center bg-zinc-900">
+                            <FileText className="h-6 w-6 text-zinc-500" />
+                          </div>
+                        )}
+                        <p className="text-[10px] text-zinc-400 truncate w-full text-center" title={f.name}>{f.name}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-xs text-zinc-500 text-center">
+                    {files.length} file{files.length === 1 ? "" : "s"} ready · tap to add more
                   </p>
                 </div>
               ) : (
