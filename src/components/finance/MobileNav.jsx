@@ -12,6 +12,7 @@ import {
   PieChart,
   Sparkles,
   Wallet,
+  Gauge,
 } from "lucide-react";
 import {
   Drawer,
@@ -29,6 +30,7 @@ const primary = [
 ];
 
 const secondary = [
+  { to: "/credit-utilization", label: "Credit Util.", icon: Gauge },
   { to: "/cashflow", label: "Cash Flow", icon: Activity },
   { to: "/forecast", label: "Forecast", icon: LineChart },
   { to: "/assistant", label: "Ask Wei", icon: Sparkles },

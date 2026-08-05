@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { invokeFunc, money, pct } from "@/lib/dashboard";
+import { invokeFunc, money, pct, moneyCompact } from "@/lib/dashboard";
 import { Loader, Card3 } from "@/components/dashboard/ui";
 import { Calendar, RefreshCw, Repeat, Activity } from "lucide-react";
 
@@ -50,13 +50,13 @@ export default function CashFlowTab({ refreshKey }) {
                 const crunch = d?.is_crunch_day;
                 return (
                   <div key={key}
-                    className={`aspect-square rounded border p-1 text-[9px] font-mono tabular-nums flex flex-col justify-between ${crunch ? "border-rose-500/50 bg-rose-500/10" : d ? "border-white/10 bg-black" : "border-white/5 bg-white/[0.02]"}`}>
+                    className={`aspect-square rounded border p-1 text-[9px] font-mono tabular-nums flex flex-col justify-between overflow-hidden ${crunch ? "border-rose-500/50 bg-rose-500/10" : d ? "border-white/10 bg-black" : "border-white/5 bg-white/[0.02]"}`}>
                     <span className="text-white/40">{day}</span>
                     {d && (
-                      <div>
-                        {d.income > 0 && <p className="text-emerald-400">+{money(d.income)}</p>}
-                        {d.expenses > 0 && <p className="text-rose-400">-{money(d.expenses)}</p>}
-                        <p className={`tabular-nums ${d.running_balance < 0 ? "text-rose-400" : "text-white/40"}`}>{money(d.running_balance)}</p>
+                      <div className="overflow-hidden">
+                        {d.income > 0 && <p className="text-emerald-400 whitespace-nowrap truncate leading-none" title={money(d.income)}>+{moneyCompact(d.income)}</p>}
+                        {d.expenses > 0 && <p className="text-rose-400 whitespace-nowrap truncate leading-none" title={money(d.expenses)}>-{moneyCompact(d.expenses)}</p>}
+                        <p className={`whitespace-nowrap truncate leading-none ${d.running_balance < 0 ? "text-rose-400" : "text-white/40"}`} title={money(d.running_balance)}>{moneyCompact(d.running_balance)}</p>
                       </div>
                     )}
                   </div>
@@ -123,7 +123,7 @@ function Row({ label, value, accent = "white" }) {
   return (
     <div className="flex justify-between">
       <span className="text-[11px] text-white/50">{label}</span>
-      <span className={`text-xs font-mono tabular-nums ${c}`}>{value}</span>
+      <span className={`text-xs font-mono tabular-nums whitespace-nowrap ${c}`}>{value}</span>
     </div>
   );
 }

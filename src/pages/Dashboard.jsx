@@ -32,7 +32,7 @@ export default function Dashboard() {
   const [intro, setIntro] = useState(() => {
     try { return sessionStorage.getItem("haven_splash_shown") !== "1"; } catch { return true; }
   });
-  const { net, saving, heat, alerts } = useOverviewData(refreshKey, { accounts, debts, stocks });
+  const { net, saving, alerts } = useOverviewData(refreshKey, { accounts, debts, stocks });
 
   React.useEffect(() => {
     try { sessionStorage.setItem("haven_splash_shown", "1"); } catch {}
@@ -148,7 +148,7 @@ export default function Dashboard() {
           {/* Row 5 — savings rate + spending heatmap */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Reveal><OverviewSavings saving={saving} /></Reveal>
-            <Reveal delay={0.03}><OverviewHeatmap heat={heat} /></Reveal>
+            <Reveal delay={0.03}><OverviewHeatmap transactions={txns} /></Reveal>
           </div>
 
           {/* Row 6 — recent transactions */}

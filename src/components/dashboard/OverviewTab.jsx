@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { invokeFunc, money, pct } from "@/lib/dashboard";
 import { Loader, Card3, Bar } from "@/components/dashboard/ui";
 import { TrendingUp, TrendingDown, Wallet, AlertTriangle } from "lucide-react";
@@ -8,12 +8,10 @@ import { TrendingUp, TrendingDown, Wallet, AlertTriangle } from "lucide-react";
 // which contributed to rate-limit bursts on dashboard load).
 export function useOverviewData(refreshKey, { accounts = [], debts = [], stocks = [] } = {}) {
   const [saving, setSaving] = useState(null);
-  const [heat, setHeat] = useState(null);
   const [alerts, setAlerts] = useState(null);
 
   useEffect(() => {
     invokeFunc("calculateSavingsRate", {}).then(setSaving).catch(() => {});
-    invokeFunc("getSpendingHeatmap", {}).then(setHeat).catch(() => {});
     invokeFunc("checkAccountAlerts", {}).then(setAlerts).catch(() => {});
   }, [refreshKey]);
 
@@ -22,7 +20,7 @@ export function useOverviewData(refreshKey, { accounts = [], debts = [], stocks 
   const inv = stocks.reduce((s, x) => s + (x.shares || 0) * (x.avg_buy_price || 0), 0);
   const net = { cash, debt, inv, total: cash + inv - debt };
 
-  return { net, saving, heat, alerts };
+  return { net, saving, alerts };
 }
 
 export function Stat({ label, value, accent }) {
@@ -66,33 +64,129 @@ export function OverviewSavings({ saving }) {
   );
 }
 
-export function OverviewHeatmap({ heat }) {
-  const heatMax = heat ? Math.max(1, ...heat.matrix.flat()) : 1;
-  const dow = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const FRAMES = [["day", "Day"], ["week", "Week"], ["month", "Month"], ["year", "Year"]];
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function dateKey(d) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; }
+function heatColor(v, max) {
+  return v > 0 ? `rgba(16,185,129,${0.12 + (v / Math.max(max, 1)) * 0.85})` : "rgba(255,255,255,0.04)";
+}
+
+export function OverviewHeatmap({ transactions = [] }) {
+  // Default "Week", remembered across sessions.
+  const [frame, setFrame] = useState(() => {
+    try { return sessionStorage.getItem("haven-heat-frame") || "week"; } catch { return "week"; }
+  });
+  useEffect(() => { try { sessionStorage.setItem("haven-heat-frame", frame); } catch {} }, [frame]);
+
+  const expenses = useMemo(
+    () => transactions.filter((t) => t.type === "expense").map((t) => ({ date: t.date, amt: Math.abs(t.amount || 0) })),
+    [transactions]
+  );
+
+  // Day: hourly buckets for today. Transactions have no time of day, so totals land at noon.
+  const day = useMemo(() => {
+    const today = dateKey(new Date());
+    const hours = Array(24).fill(0);
+    expenses.forEach((e) => { if (e.date === today) hours[12] += e.amt; });
+    return { cells: hours.map((v, h) => ({ label: `${h}:00`, v })), max: Math.max(1, ...hours), subtitle: "Today · by hour" };
+  }, [expenses]);
+
+  // Week: 7 daily totals (Mon–Sun) for the current calendar week.
+  const week = useMemo(() => {
+    const now = new Date();
+    const dow = now.getDay();
+    const monday = new Date(now); monday.setDate(now.getDate() - ((dow + 6) % 7)); monday.setHours(0, 0, 0, 0);
+    const labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    const cells = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(monday); d.setDate(monday.getDate() + i); return { key: dateKey(d), label: labels[i] };
+    });
+    const totals = Array(7).fill(0);
+    expenses.forEach((e) => { const idx = cells.findIndex((c) => c.key === e.date); if (idx >= 0) totals[idx] += e.amt; });
+    return { cells: cells.map((c, i) => ({ label: c.label, v: totals[i] })), max: Math.max(1, ...totals), subtitle: "This week · daily totals" };
+  }, [expenses]);
+
+  // Month: calendar grid for the current month (rows of weeks, Sun–Sat cols).
+  const month = useMemo(() => {
+    const now = new Date(); const y = now.getFullYear(), m = now.getMonth();
+    const firstDow = new Date(y, m, 1).getDay();
+    const days = new Date(y, m + 1, 0).getDate();
+    const totals = {};
+    const prefix = `${y}-${String(m + 1).padStart(2, "0")}-`;
+    expenses.forEach((e) => { if (e.date.startsWith(prefix)) totals[e.date] = (totals[e.date] || 0) + e.amt; });
+    const cells = [];
+    for (let i = 0; i < firstDow; i++) cells.push(null);
+    for (let d = 1; d <= days; d++) {
+      const key = `${prefix}${String(d).padStart(2, "0")}`;
+      cells.push({ label: String(d), v: totals[key] || 0, key });
+    }
+    const all = cells.filter(Boolean).map((c) => c.v);
+    return { cells, max: Math.max(1, ...all), subtitle: `${MONTHS[m]} ${y} · daily intensity` };
+  }, [expenses]);
+
+  // Year: 12 monthly totals (Jan–Dec) for the current year.
+  const year = useMemo(() => {
+    const y = new Date().getFullYear();
+    const totals = Array(12).fill(0);
+    expenses.forEach((e) => { const d = new Date(e.date + "T00:00:00"); if (d.getFullYear() === y) totals[d.getMonth()] += e.amt; });
+    return { cells: totals.map((v, i) => ({ label: MONTHS[i], v })), max: Math.max(1, ...totals), subtitle: `${y} · monthly totals` };
+  }, [expenses]);
+
+  const data = { day, week, month, year }[frame];
+
   return (
-    <Card3 title="Spending Heatmap" subtitle={heat ? `Peak: ${heat.peak_spending_day} · Quietest: ${heat.quietest_day}` : ""}>
-      {heat ? (
-        <div className="space-y-1">
-          {heat.matrix.map((row, i) => (
-            <div key={i} className="flex items-center gap-1">
-              <span className="w-8 text-[10px] text-white/40 font-mono">{dow[i]}</span>
-              <div className="flex gap-px flex-1">
-                {row.map((v, h) => {
-                  const intensity = v / heatMax;
-                  return (
-                    <div key={h} title={`${dow[i]} ${h}:00 — ${money(v)}`}
-                      className="h-3 flex-1 rounded-[2px]"
-                      style={{ background: v > 0 ? `rgba(16,185,129,${0.15 + intensity * 0.85})` : "rgba(255,255,255,0.04)" }} />
-                  );
-                })}
+    <Card3 title="Spending Heatmap" subtitle={data.subtitle}>
+      <div className="flex items-center gap-1 mb-3">
+        {FRAMES.map(([val, lbl]) => (
+          <button key={val} onClick={() => setFrame(val)}
+            className={`px-2 py-1 text-[10px] uppercase tracking-wider rounded-md transition-colors ${frame === val ? "bg-emerald-500/20 text-emerald-300" : "text-white/40 hover:text-white hover:bg-white/5"}`}>
+            {lbl}
+          </button>
+        ))}
+      </div>
+
+      {frame === "month" ? (
+        <div>
+          <div className="grid grid-cols-7 gap-1 text-[9px] text-white/30 font-mono mb-1">
+            {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => <div key={i} className="text-center">{d}</div>)}
+          </div>
+          <div className="grid grid-cols-7 gap-1">
+            {data.cells.map((c, i) => c == null ? (
+              <div key={`b${i}`} className="aspect-square rounded bg-white/[0.02]" />
+            ) : (
+              <div key={c.key || i} title={`${c.label} — ${money(c.v)}`}
+                className="aspect-square rounded text-[8px] font-mono tabular-nums flex items-center justify-center"
+                style={{ background: heatColor(c.v, data.max) }}>
+                <span className="text-white/40">{c.label}</span>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
+        </div>
+      ) : frame === "day" ? (
+        <div>
+          <div className="flex gap-1 h-10 items-end">
+            {data.cells.map((c, i) => (
+              <div key={i} title={`${c.label} — ${money(c.v)}`}
+                className="flex-1 rounded-sm"
+                style={{ height: `${8 + (c.v / data.max) * 32}px`, background: heatColor(c.v, data.max) }} />
+            ))}
+          </div>
           <div className="flex justify-between text-[9px] text-white/30 font-mono pt-1">
             <span>0h</span><span>6h</span><span>12h</span><span>18h</span><span>23h</span>
           </div>
+          <p className="text-[9px] text-white/30 pt-1">Transactions don't record time of day, so daily totals land at noon.</p>
         </div>
-      ) : <Loader />}
+      ) : (
+        <div className="flex gap-1">
+          {data.cells.map((c, i) => (
+            <div key={i} className="flex-1 flex flex-col items-center gap-1">
+              <div title={`${c.label} — ${money(c.v)}`}
+                className="w-full rounded-sm"
+                style={{ height: frame === "year" ? 28 : 20, background: heatColor(c.v, data.max) }} />
+              <span className="text-[9px] text-white/30 font-mono">{c.label}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </Card3>
   );
 }
@@ -122,7 +216,7 @@ export function OverviewAlerts({ alerts }) {
 // Standalone tab composition (kept for compatibility — Dashboard now composes
 // the pieces directly above the tab bar).
 export default function OverviewTab({ refreshKey }) {
-  const { net, saving, heat, alerts } = useOverviewData(refreshKey);
+  const { net, saving, alerts } = useOverviewData(refreshKey);
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
@@ -133,7 +227,7 @@ export default function OverviewTab({ refreshKey }) {
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <OverviewSavings saving={saving} />
-        <OverviewHeatmap heat={heat} />
+        <OverviewHeatmap />
       </div>
       <OverviewAlerts alerts={alerts} />
     </div>

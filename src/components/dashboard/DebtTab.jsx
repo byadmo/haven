@@ -1,18 +1,16 @@
 import React, { useEffect, useState } from "react";
 import { invokeFunc, money, pct } from "@/lib/dashboard";
-import { Loader, Card3, Bar } from "@/components/dashboard/ui";
-import { Flame, CalendarClock, CreditCard, Trophy } from "lucide-react";
+import { Loader, Card3 } from "@/components/dashboard/ui";
+import { Flame, CalendarClock, Trophy } from "lucide-react";
 
 export default function DebtTab({ refreshKey }) {
   const [interest, setInterest] = useState(null);
-  const [util, setUtil] = useState(null);
   const [strat, setStrat] = useState(null);
   const [extra, setExtra] = useState(0);
   const [proj, setProj] = useState(null);
 
   useEffect(() => {
     invokeFunc("calculateInterestAccrual", {}).then(setInterest).catch(() => {});
-    invokeFunc("calculateCreditUtilization", {}).then(setUtil).catch(() => {});
   }, [refreshKey]);
 
   // Debounced so dragging the "extra/month" slider doesn't fire two backend
@@ -24,8 +22,6 @@ export default function DebtTab({ refreshKey }) {
     }, 350);
     return () => clearTimeout(t);
   }, [refreshKey, extra]);
-
-  const utilColor = (u) => u == null ? "bg-zinc-500" : u < 10 ? "bg-emerald-500" : u < 30 ? "bg-lime-500" : u < 50 ? "bg-amber-500" : u < 75 ? "bg-orange-500" : "bg-rose-500";
 
   return (
     <div className="space-y-4">
@@ -79,32 +75,7 @@ export default function DebtTab({ refreshKey }) {
         )}
       </Card3>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card3 title="Credit Utilization">
-          {!util ? <Loader /> : util.cards.length === 0 ? (
-            <p className="text-xs text-white/40">No credit card debts detected.</p>
-          ) : (
-            <>
-              <div className="mb-3">
-                <p className="text-[11px] text-white/50">Overall utilization</p>
-                <p className={`text-2xl font-bold font-mono tabular-nums ${util.overall_health_rating === "excellent" || util.overall_health_rating === "good" ? "text-emerald-400" : util.overall_health_rating === "warning" ? "text-amber-400" : "text-rose-400"}`}>{util.overall_utilization == null ? "—" : pct(util.overall_utilization)}</p>
-                <p className="text-[10px] uppercase tracking-widest text-white/40">{util.overall_health_rating}</p>
-              </div>
-              {util.cards.map((c) => (
-                <div key={c.id} className="mb-2 p-2 rounded-lg border border-white/10">
-                  <div className="flex justify-between">
-                    <p className="text-xs text-white flex items-center gap-1"><CreditCard className="h-3 w-3" /> {c.name}</p>
-                    {c.health_rating === "poor" || c.health_rating === "critical" ? <span className="text-[9px] px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-400">ALERT {pct(c.utilization)}</span> : <span className="text-[10px] font-mono text-white/50">{pct(c.utilization)}</span>}
-                  </div>
-                  <div className="my-1.5"><Bar value={c.utilization || 0} max={100} color={utilColor(c.utilization)} /></div>
-                  <p className="text-[10px] text-white/40 font-mono">Limit {money(c.credit_limit)} · Pay {money(c.recommended_payment_to_30)} to reach 30%</p>
-                </div>
-              ))}
-            </>
-          )}
-        </Card3>
-
-        <Card3 title="Snowball vs Avalanche">
+      <Card3 title="Snowball vs Avalanche">
           {!strat ? <Loader /> : (
             <>
               <div className="grid grid-cols-2 gap-3">
@@ -118,7 +89,6 @@ export default function DebtTab({ refreshKey }) {
             </>
           )}
         </Card3>
-      </div>
     </div>
   );
 }
