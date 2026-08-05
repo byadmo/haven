@@ -9,10 +9,13 @@ import InsightMetrics from "@/components/finance/InsightMetrics";
 import IncomeVsSpendingChart from "@/components/finance/IncomeVsSpendingChart";
 import CategoryBreakdownChart from "@/components/finance/CategoryBreakdownChart";
 import SpendingInsights from "@/components/finance/SpendingInsights";
+import InsightsStrategyCompare from "@/components/finance/InsightsStrategyCompare";
+import { OverviewSavings, OverviewHeatmap, useOverviewData } from "@/components/dashboard/OverviewTab";
 
 export default function Insights() {
-  const { transactions: txns } = useFinanceData();
+  const { transactions: txns, refreshKey } = useFinanceData();
   const [anchor, setAnchor] = React.useState(new Date());
+  const { saving, heat } = useOverviewData(refreshKey);
 
   const months = React.useMemo(() => {
     const arr = [];
@@ -61,8 +64,9 @@ export default function Insights() {
     <div className="dd-page-enter dark min-h-screen bg-black text-zinc-100 selection:bg-emerald-500/30">
       <DashboardHeader />
       <main className="relative max-w-6xl mx-auto px-5 sm:px-6 py-8 sm:py-6 space-y-8 sm:space-y-6">
-        <PageTitle title="Insights" subtitle="Spending patterns and category breakdowns over time" />
-        <div className="flex items-center justify-between mt-4">
+        <PageTitle title="Insights" subtitle="Analytics across spending, savings, and debt strategy" />
+
+        <div className="flex items-center justify-between mt-1">
           <p className="text-sm font-mono tracking-tight text-zinc-200">{format(anchor, "MMMM yyyy")}</p>
           <div className="flex items-center gap-2">
             <button onClick={() => setAnchor((a) => subMonths(a, 1))} className="h-8 w-8 rounded-lg border border-white/10 bg-black flex items-center justify-center text-zinc-300 hover:border-white/30 hover:text-white transition-colors duration-150" aria-label="Previous month">
@@ -89,9 +93,16 @@ export default function Insights() {
         </Reveal>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Reveal><OverviewSavings saving={saving} /></Reveal>
+          <Reveal delay={0.03}><OverviewHeatmap heat={heat} /></Reveal>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Reveal><IncomeVsSpendingChart data={monthlyData} /></Reveal>
           <Reveal delay={0.05}><CategoryBreakdownChart data={categoryData} monthLabel={format(anchor, "MMM yyyy")} /></Reveal>
         </div>
+
+        <Reveal><InsightsStrategyCompare /></Reveal>
       </main>
     </div>
   );

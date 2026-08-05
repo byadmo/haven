@@ -3,7 +3,6 @@ import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   Home,
-  Landmark,
   ArrowLeftRight,
   TrendingUp,
   Target,
@@ -12,7 +11,6 @@ import {
   LineChart,
   PieChart,
   Sparkles,
-  Settings as SettingsIcon,
   Wallet,
 } from "lucide-react";
 import {
@@ -24,7 +22,7 @@ import {
 
 const primary = [
   { to: "/", label: "Overview", icon: Home, end: true },
-  { to: "/accounts", label: "Accounts", icon: Landmark },
+  { to: "/insights", label: "Insights", icon: PieChart },
   { to: "/strategy", label: "Debts", icon: ArrowLeftRight },
   { to: "/portfolio", label: "Investments", icon: TrendingUp },
   { to: "/budgeting", label: "Goals", icon: Target },
@@ -33,9 +31,7 @@ const primary = [
 const secondary = [
   { to: "/cashflow", label: "Cash Flow", icon: Activity },
   { to: "/forecast", label: "Forecast", icon: LineChart },
-  { to: "/insights", label: "Insights", icon: PieChart },
   { to: "/assistant", label: "Ask Wei", icon: Sparkles },
-  { to: "/settings", label: "Settings", icon: SettingsIcon },
 ];
 
 export default function MobileNav() {
