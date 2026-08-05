@@ -391,7 +391,7 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
                             <FileText className="h-6 w-6 text-zinc-500" />
                           </div>
                         )}
-                        <p className="text-[10px] text-zinc-400 truncate w-full text-center" title={f.name}>{f.name}</p>
+                        <p className="text-[10px] text-zinc-400 truncate w-full text-left" title={f.name}>{f.name}</p>
                       </div>
                     ))}
                   </div>
