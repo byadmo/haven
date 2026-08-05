@@ -188,8 +188,33 @@ function normalizeRow(r) {
     category,
     date: parseDate(r.date),
     account_id: "",
+    source_card_name: "",
+    source_card_last4: "",
     included: true,
   };
+}
+
+// Match an AI-read card/account identity to one of the user's existing accounts.
+// Scores by exact substring (card name / last-4) plus token overlap. Returns "" if no match.
+function autoMatchAccount(row, opts) {
+  if (!opts || !opts.length) return "";
+  const cand = (row.source_card_name || "").toLowerCase();
+  const last4 = (row.source_card_last4 || "").replace(/\s/g, "");
+  if (!cand && !last4) return "";
+  let best = null;
+  let bestScore = 0;
+  for (const a of opts) {
+    const an = (a.name || "").toLowerCase();
+    let score = 0;
+    if (last4 && an.includes(last4)) score += 5;
+    if (cand && an.includes(cand)) score += 4;
+    if (cand) {
+      const ct = cand.split(/[\s\-/]+/).filter((t) => t.length > 2);
+      for (const t of ct) if (an.includes(t)) score += 1;
+    }
+    if (score > bestScore) { bestScore = score; best = a.id; }
+  }
+  return best && bestScore > 0 ? best : "";
 }
 
 export default function StatementImportModal({ open, onOpenChange, accounts = [], debts = [], onSaved }) {
@@ -203,6 +228,7 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
   const [error, setError] = React.useState("");
   const [importing, setImporting] = React.useState(false);
   const [done, setDone] = React.useState(0);
+  const [bulkAccountId, setBulkAccountId] = React.useState("");
   const fileRef = React.useRef(null);
 
   React.useEffect(() => {
@@ -217,6 +243,7 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
     setRows([]);
     setError("");
     setDone(0);
+    setBulkAccountId("");
   }
 
   function handleFiles(fileList) {
@@ -231,6 +258,11 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
 
   function updateRow(i, patch) {
     setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
+  }
+
+  function applyBulkAccount() {
+    if (!bulkAccountId) return;
+    setRows((prev) => prev.map((r) => (r.included ? { ...r, account_id: bulkAccountId } : r)));
   }
 
   async function handleParse() {
@@ -249,11 +281,20 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
             json_schema: EXTRACT_SCHEMA,
           });
           let list = [];
+          let cardName = "";
+          let cardLast4 = "";
           if (Array.isArray(res?.output)) list = res.output;
-          else if (res?.output?.transactions) list = res.output.transactions;
+          else if (res?.output?.transactions) {
+            list = res.output.transactions;
+            cardName = res.output.card_name || "";
+            cardLast4 = res.output.card_last4 || "";
+          }
           if (!Array.isArray(list)) list = [];
           for (const r of list) {
             const n = normalizeRow(r);
+            n.source_card_name = r.card_name || cardName;
+            n.source_card_last4 = r.card_last4 || cardLast4;
+            n.account_id = autoMatchAccount(n, accountOptions);
             if (n.description || n.amount) all.push(n);
           }
         } catch {
@@ -397,7 +438,23 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
                 </button>
               </div>
 
-              <div className="max-h-[44vh] overflow-y-auto space-y-2 pr-1">
+              <div className="flex flex-wrap items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-950/60 p-2">
+                <span className="text-[10px] uppercase tracking-wider text-white/50 shrink-0">Bulk assign</span>
+                <Select value={bulkAccountId || "none"} onValueChange={(v) => setBulkAccountId(v === "none" ? "" : v)}>
+                  <SelectTrigger className="h-8 flex-1 min-w-[140px] bg-zinc-950 border-zinc-800 text-sm">
+                    <SelectValue placeholder="Choose account" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-zinc-900 border-zinc-800">
+                    <SelectItem value="none">No account</SelectItem>
+                    {accountOptions.map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Button size="sm" onClick={applyBulkAccount} disabled={!bulkAccountId || importing} className="bg-indigo-600 hover:bg-indigo-500 text-white">
+                  Apply to all
+                </Button>
+              </div>
+
+              <div className="max-h-[40vh] overflow-y-auto space-y-2 pr-1">
                 {rows.map((r, i) => (
                   <div
                     key={i}
