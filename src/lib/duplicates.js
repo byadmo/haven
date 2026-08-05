@@ -93,5 +93,19 @@ export function getDuplicateClusters(rows, windowDays = DUP_WINDOW_DAYS) {
     }
     flush();
   }
-  return clusters;
+  // Drop a cluster the user already chose to keep: every member carries the
+  // same dup_keep_hash, so it should not surface as a duplicate again.
+  return clusters.filter((cl, _i) => {
+    const hashes = cl.map((r) => r.dup_keep_hash || "");
+    const first = hashes[0];
+    return !(first && hashes.every((h) => h === first));
+  });
+}
+
+// Stable unique id for a kept group.
+export function newKeepHash() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `keep-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }

@@ -1,6 +1,6 @@
 import React from "react";
 import { parseISO, format, isToday, isThisWeek, isThisMonth, isWithinInterval, startOfDay, endOfDay } from "date-fns";
-import { Search, Plus, Trash2, Check } from "lucide-react";
+import { Search, Plus, Trash2, Check, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
@@ -12,7 +12,7 @@ import { base44 } from "@/api/base44Client";
 import { adjustTransferInOut, balanceApplies } from "@/lib/accounts";
 import { useCategories, categoryOptions } from "@/lib/categories";
 import { TransactionRow, DebtPaymentRow } from "@/components/finance/TransactionRows";
-import { getDuplicateClusters } from "@/lib/duplicates";
+import { getDuplicateClusters, newKeepHash } from "@/lib/duplicates";
 import QuickAddModal from "@/components/finance/QuickAddModal";
 
 const DATE_FILTERS = [
@@ -53,6 +53,7 @@ export default function TransactionExplorerModal({ open, onOpenChange, transacti
   const [dupIds, setDupIds] = React.useState(new Set());
   const [groupIds, setGroupIds] = React.useState(new Set());
   const [dupClusters, setDupClusters] = React.useState([]);
+  const [keeping, setKeeping] = React.useState(false);
 
   const allRows = React.useMemo(() => [...transactions, ...debtRows], [transactions, debtRows]);
 
@@ -129,12 +130,24 @@ export default function TransactionExplorerModal({ open, onOpenChange, transacti
     }
   }
 
-  function keepDuplicateGroup(cluster) {
+  async function keepDuplicateGroup(cluster) {
     const ids = new Set(cluster.map((r) => r.id));
-    setDupClusters((cs) => cs.filter((cl) => cl !== cluster));
-    setGroupIds((s) => { const n = new Set(s); ids.forEach((id) => n.delete(id)); return n; });
-    setDupIds((s) => { const n = new Set(s); ids.forEach((id) => n.delete(id)); return n; });
-    setSelected((s) => { const n = new Set(s); ids.forEach((id) => n.delete(id)); return n; });
+    setKeeping(true);
+    try {
+      const hash = newKeepHash();
+      await Promise.all(
+        cluster.filter((r) => r._kind !== "debt_payment").map((r) =>
+          base44.entities.Transaction.update(r.id, { dup_keep_hash: hash })
+        )
+      );
+      setDupClusters((cs) => cs.filter((cl) => cl !== cluster));
+      setGroupIds((s) => { const n = new Set(s); ids.forEach((id) => n.delete(id)); return n; });
+      setDupIds((s) => { const n = new Set(s); ids.forEach((id) => n.delete(id)); return n; });
+      setSelected((s) => { const n = new Set(s); ids.forEach((id) => n.delete(id)); return n; });
+      onChanged?.();
+    } finally {
+      setKeeping(false);
+    }
   }
 
   async function deleteDuplicateGroup(cluster) {
@@ -312,8 +325,8 @@ export default function TransactionExplorerModal({ open, onOpenChange, transacti
                       Group {ci + 1} · {cl.length} charges · same amount &amp; account within 3 days
                     </p>
                     <div className="flex items-center gap-1.5">
-                      <button type="button" onClick={() => keepDuplicateGroup(cl)} disabled={deleting} className="h-7 px-2 rounded-md border border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/20 flex items-center gap-1 text-[10px] uppercase tracking-widest disabled:opacity-40">
-                        <Check className="h-3 w-3" /> Keep
+                      <button type="button" onClick={() => keepDuplicateGroup(cl)} disabled={deleting || keeping} className="h-7 px-2 rounded-md border border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/20 flex items-center gap-1 text-[10px] uppercase tracking-widest disabled:opacity-40">
+                        {keeping ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />} {keeping ? "Keeping…" : "Keep"}
                       </button>
                       <button type="button" onClick={() => deleteDuplicateGroup(cl)} disabled={deleting} className="h-7 px-2 rounded-md border border-rose-500/40 text-rose-400 hover:bg-rose-500/20 flex items-center gap-1 text-[10px] uppercase tracking-widest disabled:opacity-40">
                         <Trash2 className="h-3 w-3" /> Delete

@@ -65,6 +65,10 @@
     "transfer_account_id": {
       "type": "string",
       "description": "The paired account in a transfer: the opposite side of account_id (FROM for income, TO for expense)"
+    },
+    "dup_keep_hash": {
+      "type": "string",
+      "description": "Unique id assigned to every transaction in a duplicate group the user chose to keep as legitimate; matching groups are suppressed from future duplicate detection"
     }
   },
   "required": [
