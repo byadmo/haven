@@ -73,23 +73,30 @@ export default function MobileNav() {
     });
   };
 
-  // Measure before paint so the indicator never flashes in the wrong spot.
+  // Measure on the next animation frame so the browser has painted the
+  // indicator at its OLD position first — this guarantees the CSS transform
+  // transition fires (the pill slides) instead of snapping to the new spot.
   useLayoutEffect(() => {
-    measure();
+    const raf = requestAnimationFrame(measure);
+    return () => cancelAnimationFrame(raf);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeIndex]);
 
-  // Re-measure on resize/orientation change so the pill stays aligned.
+  // Re-measure (debounced) on resize/orientation change so the pill stays aligned.
   useLayoutEffect(() => {
     let t;
+    let raf;
     const handler = () => {
       clearTimeout(t);
-      t = setTimeout(measure, 200);
+      t = setTimeout(() => {
+        raf = requestAnimationFrame(measure);
+      }, 200);
     };
     window.addEventListener("resize", handler);
     window.addEventListener("orientationchange", handler);
     return () => {
       clearTimeout(t);
+      cancelAnimationFrame(raf);
       window.removeEventListener("resize", handler);
       window.removeEventListener("orientationchange", handler);
     };
