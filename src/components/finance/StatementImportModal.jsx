@@ -25,27 +25,19 @@ import confetti from "canvas-confetti";
 
 const today = () => format(new Date(), "yyyy-MM-dd");
 
-const KNOWN_CATEGORIES = [
-  "Income", "Transit (GO/TTC)", "E39/Civic Maintenance", "Christ Like! Inventory",
-  "Food/Groceries", "Rent", "Utilities", "Dining", "Other",
-];
+// "PAYMENT - THANK YOU" on a credit-card statement is a payment TO the card
+// (a liability pay-down), not income.
+function isCardPayment(text) {
+  return /payment\s*-\s*thank you|payment\s*thank you|thank\s*you/i.test(text || "");
+}
 
-const CATEGORY_FROM_DESCRIPTION = [
-  { test: /presto|ttc|\bgo\b|up express|transit|metrolinx|lyft|uber(\s|trip)?/i, cat: "Transit (GO/TTC)" },
-  { test: /loblaws|no frills|metro|sobeys|farm boy|whole foods|costco|walmart|grocery|superstore/i, cat: "Food/Groceries" },
-  { test: /mcdonald|tim horton|starbucks|subway|doordash|uber\s?eats|skipthedishes|restaurant|grill|pizza|sushi|bar\b|cafe/i, cat: "Dining" },
-  { test: /payroll|salary|deposit|e-transfer in|refund|cashback|interest paid|payment received/i, cat: "Income" },
-  { test: /rent|landlord|property mgmt|condo fee/i, cat: "Rent" },
-  { test: /enbridge|hydro|gas co|bell|rogers|telus|toronto hydro|water utility|internet|mobile plan/i, cat: "Utilities" },
-  { test: /e39|civic|mechanic|auto parts|tire|oil change|bmw|honda|toyota/i, cat: "E39/Civic Maintenance" },
-  { test: /inventory|wholesale|stock\b|resale/i, cat: "Christ Like! Inventory" },
-];
-
-function guessCategory(text) {
-  for (const { test, cat } of CATEGORY_FROM_DESCRIPTION) {
-    if (test.test(text)) return cat;
+// Match the description against the user's own categories (managed in Settings).
+function guessCategory(text, knownCategories) {
+  const lc = (text || "").toLowerCase();
+  for (const name of knownCategories || []) {
+    if (name && lc.includes(name.toLowerCase())) return name;
   }
-  return "Other";
+  return "";
 }
 
 function cleanMerchant(raw) {
@@ -106,14 +98,18 @@ const EXTRACT_SCHEMA = {
   required: ["transactions"],
 };
 
-function normalizeRow(r) {
+function normalizeRow(r, knownCategories = []) {
   const rawDesc = r.description || "";
   const description = cleanMerchant(rawDesc) || rawDesc;
   const amount = Math.abs(Number(r.amount) || 0);
   const type = r.type === "income" ? "income" : "expense";
-  let category = r.category && KNOWN_CATEGORIES.includes(r.category) ? r.category : null;
-  if (!category) category = type === "income" ? "Income" : guessCategory(description + " " + rawDesc);
-  if (!KNOWN_CATEGORIES.includes(category)) category = "Other";
+  const is_debt_payment = isCardPayment(description + " " + rawDesc);
+  let category = r.category && knownCategories.includes(r.category) ? r.category : null;
+  if (!category) {
+    if (type === "income" && knownCategories.includes("Income")) category = "Income";
+    else category = guessCategory(description + " " + rawDesc, knownCategories);
+  }
+  if (category && !knownCategories.includes(category)) category = "";
   return {
     description, amount, type, category,
     date: parseDate(r.date),
@@ -121,6 +117,7 @@ function normalizeRow(r) {
     source_card_name: "",
     source_card_last4: "",
     included: true,
+    is_debt_payment,
   };
 }
 
@@ -269,7 +266,7 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
           if (!Array.isArray(list)) list = [];
           const rows = [];
           for (const r of list) {
-            const n = normalizeRow(r);
+            const n = normalizeRow(r, categoryList);
             n.source_card_name = r.card_name || cardName;
             n.source_card_last4 = r.card_last4 || cardLast4;
             n.account_id = autoMatchAccount(n, accountOptions);
@@ -330,18 +327,53 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
     setImporting(true);
     setDone(0);
     try {
+      const debtIds = new Set(debts.map((d) => d.id));
+      const paymentRows = toCreate.filter((r) => r.is_debt_payment && debtIds.has(r.account_id));
+      const txRows = toCreate.filter((r) => !(r.is_debt_payment && debtIds.has(r.account_id)));
+
       // One bulk create instead of a per-row loop.
-      await base44.entities.Transaction.bulkCreate(
-        toCreate.map((r) => ({
-          description: r.description,
-          amount: r.amount,
-          type: r.type,
-          category: r.category,
-          date: r.date,
-          account_id: r.account_id || undefined,
-        }))
-      );
-      await applyBatchEffects(toCreate);
+      if (txRows.length) {
+        await base44.entities.Transaction.bulkCreate(
+          txRows.map((r) => ({
+            description: r.description,
+            amount: r.amount,
+            type: r.type,
+            category: r.category,
+            date: r.date,
+            account_id: r.account_id || undefined,
+          }))
+        );
+        await applyBatchEffects(txRows);
+      }
+
+      // "PAYMENT - THANK YOU" rows that matched a liability are logged as debt
+      // payments (paying that liability down) — never as income transactions.
+      if (paymentRows.length) {
+        await base44.entities.DebtPayment.bulkCreate(
+          paymentRows.map((r) => ({
+            debt_id: r.account_id,
+            amount: r.amount,
+            date: r.date,
+            note: r.description,
+          }))
+        );
+        const payDeltas = {};
+        for (const r of paymentRows) {
+          if (!balanceApplies(r.date)) continue;
+          payDeltas[r.account_id] = (payDeltas[r.account_id] || 0) + r.amount;
+        }
+        await Promise.all(Object.entries(payDeltas).map(async ([id, amt]) => {
+          try {
+            const rec = await base44.entities.Debt.get(id);
+            const newBalance = Math.max(0, (rec.current_balance || 0) - amt);
+            await base44.entities.Debt.update(id, {
+              current_balance: newBalance,
+              status: newBalance <= 0 ? "paid_off" : "active",
+            });
+          } catch { /* ignore balance update failure */ }
+        }));
+      }
+
       setDone(toCreate.length);
       confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } });
 

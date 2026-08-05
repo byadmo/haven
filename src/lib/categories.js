@@ -1,20 +1,10 @@
 import React from "react";
 import { base44 } from "@/api/base44Client";
 
-export const DEFAULT_CATEGORIES = [
-  "Income",
-  "Transit (GO/TTC)",
-  "E39/Civic Maintenance",
-  "Christ Like! Inventory",
-  "Food/Groceries",
-  "Rent",
-  "Utilities",
-  "Dining",
-  "Other",
-];
+export const DEFAULT_CATEGORIES = [];
 
 export function categoryOptions(categories) {
-  return categories.length ? categories.map((c) => c.name) : DEFAULT_CATEGORIES;
+  return categories.map((c) => c.name);
 }
 
 export function useCategories() {
@@ -46,9 +36,6 @@ export function useCategories() {
   };
 
   const restoreDefaults = async () => {
-    const existing = new Set(categories.map((c) => c.name));
-    const toAdd = DEFAULT_CATEGORIES.filter((n) => !existing.has(n));
-    if (toAdd.length) await base44.entities.Category.bulkCreate(toAdd.map((name) => ({ name })));
     await reload();
   };
 

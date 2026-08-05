@@ -203,10 +203,11 @@ export function TransactionRow({ t, accountsMap, onChanged, categories, bulkMode
               </div>
               <div className="space-y-1.5">
                 <Label className="text-zinc-400">Category</Label>
-                <Select defaultValue={t.category} onValueChange={(v)=>setEdit(p=>({...p,category:v}))}>
+                <Select defaultValue={t.category || "__none"} onValueChange={(v)=>setEdit(p=>({...p,category:v==="__none"?"":v}))}>
                   <SelectTrigger className="bg-zinc-950 border-zinc-800 text-zinc-100"><SelectValue /></SelectTrigger>
                   <SelectContent className="bg-zinc-900 border-zinc-800">
-                    {categories.map((c)=><SelectItem key={c} value={c}>{c}</SelectItem>)}
+                    <SelectItem value="__none">No category</SelectItem>
+                    {Array.from(new Set([t.category, ...categories])).filter(Boolean).map((c)=><SelectItem key={c} value={c}>{c}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>

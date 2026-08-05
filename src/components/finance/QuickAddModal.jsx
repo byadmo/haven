@@ -58,7 +58,7 @@ export default function QuickAddModal({ open, onOpenChange, accounts = [], debts
   const [description, setDescription] = React.useState("");
   const [amount, setAmount] = React.useState("");
   const [type, setType] = React.useState("expense");
-  const [category, setCategory] = React.useState("Other");
+  const [category, setCategory] = React.useState("");
   const [date, setDate] = React.useState(format(new Date(), "yyyy-MM-dd"));
   const [fromId, setFromId] = React.useState("");
   const [toId, setToId] = React.useState("");
@@ -75,7 +75,7 @@ export default function QuickAddModal({ open, onOpenChange, accounts = [], debts
       setDescription("");
       setAmount("");
       setType("expense");
-      setCategory("Other");
+      setCategory("");
       setDate(format(new Date(), "yyyy-MM-dd"));
       const defAcct = accounts.find((a) => a.type === "chequing") || accounts[0];
       setFromId(defAcct ? defAcct.id : "");
@@ -203,9 +203,10 @@ export default function QuickAddModal({ open, onOpenChange, accounts = [], debts
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label className="text-[11px] text-zinc-500 uppercase tracking-wider">Category</Label>
-              <Select value={category} onValueChange={setCategory}>
+              <Select value={category || "__none"} onValueChange={(v) => setCategory(v === "__none" ? "" : v)}>
                 <SelectTrigger className="mt-1 bg-zinc-950 border-zinc-800 text-zinc-100 h-10"><SelectValue /></SelectTrigger>
                 <SelectContent className="bg-zinc-900 border-zinc-800">
+                  <SelectItem value="__none">No category</SelectItem>
                   {options.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                 </SelectContent>
               </Select>
