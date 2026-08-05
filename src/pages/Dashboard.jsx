@@ -21,24 +21,10 @@ import {
   OverviewHeatmap,
   OverviewAlerts,
 } from "@/components/dashboard/OverviewTab";
-import DebtTab from "@/components/dashboard/DebtTab";
-import CashFlowTab from "@/components/dashboard/CashFlowTab";
-import InvestmentsTab from "@/components/dashboard/InvestmentsTab";
-import GoalsTab from "@/components/dashboard/GoalsTab";
 import { useFinanceData } from "@/lib/FinanceDataContext";
-
-// The Overview analytics now live permanently above the tab bar, so the tab
-// rail surfaces the specialized command-center views only.
-const TABS = [
-  { id: "debt", label: "Debt" },
-  { id: "cashflow", label: "Cash Flow" },
-  { id: "investments", label: "Investments" },
-  { id: "goals", label: "Goals" },
-];
 
 export default function Dashboard() {
   const { transactions: txns, debts, accounts, refresh, refreshKey } = useFinanceData();
-  const [tab, setTab] = useState("debt");
   const [quickAdd, setQuickAdd] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -162,23 +148,6 @@ export default function Dashboard() {
           {/* Row 7 — account balance alerts (footer) */}
           <Reveal><OverviewAlerts alerts={alerts} /></Reveal>
 
-          {/* Tabbed command center */}
-          <div className="flex gap-1 border-b border-white/10 overflow-x-auto">
-            {TABS.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => setTab(t.id)}
-                className={`px-3 py-2 text-xs font-medium whitespace-nowrap transition-colors border-b-2 ${tab === t.id ? "text-emerald-400 border-emerald-400" : "text-white/50 hover:text-white border-transparent"}`}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-
-          {tab === "debt" && <DebtTab refreshKey={refreshKey} />}
-          {tab === "cashflow" && <CashFlowTab refreshKey={refreshKey} />}
-          {tab === "investments" && <InvestmentsTab refreshKey={refreshKey} />}
-          {tab === "goals" && <GoalsTab refreshKey={refreshKey} />}
         </main>
       </ForecastProvider>
 

@@ -1,10 +1,11 @@
 import React from "react";
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, Target, LineChart, PieChart, TrendingUp, Sparkles, PiggyBank } from "lucide-react";
+import { LayoutDashboard, Target, LineChart, PieChart, TrendingUp, Sparkles, PiggyBank, Activity } from "lucide-react";
 
 const items = [
   { to: "/", label: "Overview", icon: LayoutDashboard, end: true },
   { to: "/budgeting", label: "Budget", icon: PiggyBank },
+  { to: "/cashflow", label: "Flow", icon: Activity },
   { to: "/forecast", label: "Forecast", icon: TrendingUp },
   { to: "/strategy", label: "Strategy", icon: Target },
   { to: "/portfolio", label: "Portfolio", icon: LineChart },

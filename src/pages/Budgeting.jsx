@@ -2,6 +2,7 @@ import React from "react";
 import DashboardHeader from "@/components/finance/DashboardHeader";
 import BudgetChart from "@/components/finance/BudgetChart";
 import BudgetAdvisor from "@/components/finance/BudgetAdvisor";
+import GoalsTab from "@/components/dashboard/GoalsTab";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -45,6 +46,7 @@ const empty = {
 };
 
 export default function Budgeting() {
+  const [refreshKey, setRefreshKey] = React.useState(0);
   const { fmtMoney } = useCurrency();
   const fmt = (v) => fmtMoney(v);
   const [s, setS] = React.useState(() => {
@@ -284,6 +286,8 @@ export default function Budgeting() {
           leftover={leftoverTF}
           fmt={fmt}
         />
+
+        <GoalsTab refreshKey={refreshKey} />
       </main>
     </div>
   );

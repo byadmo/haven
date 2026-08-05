@@ -8,6 +8,7 @@ import DebtProjectionChart from "@/components/finance/DebtProjectionChart";
 import GoalPlanner from "@/components/finance/GoalPlanner";
 import StrategyAdvisor from "@/components/finance/StrategyAdvisor";
 import Reveal from "@/components/finance/Reveal";
+import DebtTab from "@/components/dashboard/DebtTab";
 
 export default function Strategy() {
   const { debts, accounts, transactions: txns, refresh } = useFinanceData();
@@ -15,6 +16,7 @@ export default function Strategy() {
   // re-triggers the engine's effect and resets a slider the user moved.
   const [surplusOverride, setSurplusOverride] = React.useState(null);
   const [methodOverride, setMethodOverride] = React.useState(null);
+  const [refreshKey, setRefreshKey] = React.useState(0);
 
   const now = new Date();
   const mStart = startOfMonth(now);
@@ -48,7 +50,7 @@ export default function Strategy() {
     <div className="dd-page-enter dark min-h-screen bg-black text-zinc-100 selection:bg-emerald-500/30">
       <DashboardHeader actions={
         <button
-          onClick={refresh}
+          onClick={() => { refresh(); setRefreshKey((k) => k + 1); }}
           className="border border-white/10 bg-black px-3 py-1.5 text-xs uppercase tracking-widest text-zinc-300 hover:border-white/30 hover:text-white transition-colors duration-150"
         >
           Refresh
@@ -88,6 +90,9 @@ export default function Strategy() {
             forcedSurplus={surplusOverride}
             forcedMethod={methodOverride}
           />
+        </Reveal>
+        <Reveal delay={0.07}>
+          <DebtTab refreshKey={refreshKey} />
         </Reveal>
       </main>
     </div>
