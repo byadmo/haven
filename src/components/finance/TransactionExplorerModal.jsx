@@ -1,9 +1,15 @@
 import React from "react";
 import { parseISO, format, isToday, isThisWeek, isThisMonth, isWithinInterval, startOfDay, endOfDay } from "date-fns";
-import { Search, Plus } from "lucide-react";
+import { Search, Plus, Trash2 } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { base44 } from "@/api/base44Client";
+import { adjustTransferInOut, balanceApplies } from "@/lib/accounts";
 import { useCategories, categoryOptions } from "@/lib/categories";
 import { TransactionRow, DebtPaymentRow } from "@/components/finance/TransactionRows";
 import QuickAddModal from "@/components/finance/QuickAddModal";
@@ -39,6 +45,10 @@ export default function TransactionExplorerModal({ open, onOpenChange, transacti
   const [customStart, setCustomStart] = React.useState("");
   const [customEnd, setCustomEnd] = React.useState("");
   const [addOpen, setAddOpen] = React.useState(false);
+  const [bulkMode, setBulkMode] = React.useState(false);
+  const [selected, setSelected] = React.useState(new Set());
+  const [deleting, setDeleting] = React.useState(false);
+  const [confirmOpen, setConfirmOpen] = React.useState(false);
 
   const allRows = React.useMemo(() => [...transactions, ...debtRows], [transactions, debtRows]);
 
@@ -64,14 +74,43 @@ export default function TransactionExplorerModal({ open, onOpenChange, transacti
     { id: "expense", label: "Out" },
   ];
 
+  const selectableIds = React.useMemo(() => filtered.filter((t) => t._kind !== "debt_payment").map((t) => t.id), [filtered]);
+
+  const toggle = (id) => setSelected((prev) => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+  const selectAll = () => setSelected(new Set(selectableIds));
+  const clearAll = () => setSelected(new Set());
+
+  async function bulkDelete() {
+    setDeleting(true);
+    try {
+      const rows = filtered.filter((t) => selected.has(t.id) && t._kind !== "debt_payment");
+      for (const t of rows) {
+        if (balanceApplies(t.date)) {
+          const oldFrom = t.type === "expense" ? t.account_id : t.transfer_account_id;
+          const oldTo = t.type === "expense" ? t.transfer_account_id : t.account_id;
+          if (oldFrom) await adjustTransferInOut(oldFrom, t.amount, "in");
+          if (oldTo) await adjustTransferInOut(oldTo, t.amount, "out");
+        }
+        await base44.entities.Transaction.delete(t.id);
+      }
+      setSelected(new Set());
+      setBulkMode(false);
+      setConfirmOpen(false);
+      onChanged?.();
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="bg-black border-white/10 text-zinc-100 max-w-3xl flex flex-col max-h-[90dvh] gap-3 overflow-hidden p-4 sm:p-5">
-        <div className="flex items-center justify-between gap-2 shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           <DialogTitle className="text-sm font-semibold text-zinc-100">All Transactions</DialogTitle>
-          <Button size="sm" onClick={() => setAddOpen(true)} className="h-8 bg-indigo-600 hover:bg-indigo-500 text-white">
-            <Plus className="h-3.5 w-3.5 mr-1" /> Add
-          </Button>
         </div>
 
         <div className="grid grid-cols-3 gap-2 shrink-0">
@@ -96,6 +135,26 @@ export default function TransactionExplorerModal({ open, onOpenChange, transacti
         </div>
 
         <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <Button size="sm" onClick={() => setAddOpen(true)} className="h-8 bg-indigo-600 hover:bg-indigo-500 text-white">
+            <Plus className="h-3.5 w-3.5 mr-1" /> Add
+          </Button>
+          <button
+            type="button"
+            onClick={() => { setBulkMode((v) => !v); setSelected(new Set()); }}
+            className={`h-8 px-3 rounded-md text-xs font-medium border transition-colors ${bulkMode ? "bg-white/10 border-white/20 text-zinc-50" : "bg-black border-white/10 text-white/60 hover:text-white/90"}`}
+          >
+            {bulkMode ? "Done" : "Select"}
+          </button>
+          {bulkMode && (
+            <>
+              <button type="button" onClick={selectAll} className="h-8 px-3 rounded-md text-xs font-medium border border-white/10 bg-black text-white/60 hover:text-white/90 transition-colors">
+                Select all
+              </button>
+              <button type="button" onClick={clearAll} disabled={selected.size === 0} className="h-8 px-3 rounded-md text-xs font-medium border border-white/10 bg-black text-white/60 hover:text-white/90 disabled:opacity-40 transition-colors">
+                Clear
+              </button>
+            </>
+          )}
           <div className="flex items-center gap-0.5 rounded-lg bg-black border border-white/10 p-0.5">
             {DATE_FILTERS.map((df) => (
               <button
@@ -153,9 +212,17 @@ export default function TransactionExplorerModal({ open, onOpenChange, transacti
           </div>
         )}
 
-        <p className="text-[10px] uppercase tracking-widest text-white/40 shrink-0">
-          {filtered.length} {filtered.length === 1 ? "transaction" : "transactions"}
-        </p>
+        <div className="flex items-center justify-between gap-2 shrink-0">
+          <p className="text-[10px] uppercase tracking-widest text-white/40">
+            {filtered.length} {filtered.length === 1 ? "transaction" : "transactions"}
+            {bulkMode && selected.size > 0 && <span className="ml-2 text-indigo-400">· {selected.size} selected</span>}
+          </p>
+          {bulkMode && selected.size > 0 && (
+            <Button size="sm" onClick={() => setConfirmOpen(true)} className="h-8 bg-rose-600 hover:bg-rose-500 text-white">
+              <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete {selected.size}
+            </Button>
+          )}
+        </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden -mx-1 px-1 pb-1">
           {filtered.length === 0 ? (
@@ -164,7 +231,7 @@ export default function TransactionExplorerModal({ open, onOpenChange, transacti
             filtered.map((t) =>
               t._kind === "debt_payment"
                 ? <DebtPaymentRow key={t.id} t={t} />
-                : <TransactionRow key={t.id} t={t} accountsMap={accountsMap || {}} onChanged={onChanged} categories={options} />
+                : <TransactionRow key={t.id} t={t} accountsMap={accountsMap || {}} onChanged={onChanged} categories={options} bulkMode={bulkMode} selected={selected.has(t.id)} onToggleSelect={toggle} />
             )
           )}
         </div>
@@ -177,6 +244,27 @@ export default function TransactionExplorerModal({ open, onOpenChange, transacti
         debts={debts}
         onSaved={onChanged}
       />
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent className="bg-black border-white/10 text-zinc-100">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-zinc-100">Delete {selected.size} transaction{selected.size === 1 ? "" : "s"}?</AlertDialogTitle>
+            <AlertDialogDescription className="text-zinc-400">
+              This permanently removes the selected transactions and reverses their balance impact. This can't be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-black border-white/10 text-zinc-200 hover:bg-white/5">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); bulkDelete(); }}
+              disabled={deleting}
+              className="bg-rose-600 hover:bg-rose-500 text-white"
+            >
+              {deleting ? "Deleting…" : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
