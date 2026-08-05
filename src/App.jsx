@@ -7,7 +7,7 @@ import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import ScrollToTop from './components/ScrollToTop';
 // Add page imports here
-import Home from '@/pages/Home';
+import RootGate from '@/pages/RootGate';
 import Strategy from '@/pages/Strategy';
 import Portfolio from '@/pages/Portfolio';
 import Insights from '@/pages/Insights';
@@ -16,8 +16,6 @@ import Forecast from '@/pages/Forecast';
 import Budgeting from '@/pages/Budgeting';
 import Assistant from '@/pages/Assistant';
 import Accounts from '@/pages/Accounts';
-import Dashboard from '@/pages/Dashboard';
-import Splash from '@/pages/Splash';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { FinanceLayout } from '@/lib/FinanceDataContext';
 import { Navigate } from 'react-router-dom';
@@ -52,15 +50,16 @@ const AuthenticatedApp = () => {
   // Render the main app
   return (
     <Routes>
-      <Route path="/splash" element={<Splash />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
-      <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/splash" replace />} />}>
+      {/* The root URL is the single entry point: splash for guests, the full
+          Haven app for authenticated users. */}
+      <Route path="/" element={<RootGate />} />
+      <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/" replace />} />}>
         <Route element={<FinanceLayout />}>
         {/* Add your page Route elements here */}
-        <Route path="/" element={<Home />} />
         <Route path="/strategy" element={<Strategy />} />
         <Route path="/portfolio" element={<Portfolio />} />
         <Route path="/insights" element={<Insights />} />
@@ -69,7 +68,6 @@ const AuthenticatedApp = () => {
         <Route path="/budgeting" element={<Budgeting />} />
         <Route path="/assistant" element={<Assistant />} />
         <Route path="/accounts" element={<Accounts />} />
-        <Route path="/dashboard" element={<Dashboard />} />
         </Route>
       </Route>
       <Route path="*" element={<PageNotFound />} />

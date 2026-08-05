@@ -15,7 +15,7 @@ export default function Splash() {
 
   useEffect(() => {
     const r = safeReturnTo();
-    dest.current = r === "/" ? "/dashboard" : r;
+    dest.current = r === "/dashboard" ? "/" : r;
     (async () => {
       try {
         const ok = await base44.auth.isAuthenticated();

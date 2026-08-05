@@ -51,17 +51,23 @@ export function useFinanceData() {
   return ctx;
 }
 
-export function FinanceLayout() {
+// Reusable provider shell so any component (not just a routed <Outlet/>)
+// can host the finance data context — e.g. RootGate rendering <Home/> directly.
+export function FinanceShell({ children }) {
   return (
     <CurrencyProvider>
       <FinanceDataProvider>
-        <FinanceLayoutInner />
+        <FinanceLayoutInner>{children}</FinanceLayoutInner>
       </FinanceDataProvider>
     </CurrencyProvider>
   );
 }
 
-function FinanceLayoutInner() {
+export function FinanceLayout() {
+  return <FinanceShell><Outlet /></FinanceShell>;
+}
+
+function FinanceLayoutInner({ children }) {
   const { loading } = useFinanceData();
   if (loading) {
     return (
@@ -70,5 +76,5 @@ function FinanceLayoutInner() {
       </div>
     );
   }
-  return <Outlet />;
+  return children ?? <Outlet />;
 }
