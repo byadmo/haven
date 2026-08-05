@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { applyTxAccountEffect, reverseTxAccountEffect } from "@/lib/accounts";
+import { adjustTransferInOut, balanceApplies } from "@/lib/accounts";
 import { CreditCard } from "lucide-react";
 import RecurringFields from "@/components/finance/RecurringFields";
 import { useCurrency } from "@/lib/currency-context";
@@ -37,7 +37,12 @@ export function TransactionRow({ t, accountsMap, onChanged, categories, bulkMode
   async function fullDelete() {
     setRemoving(true);
     try {
-      if (t.account_id) await reverseTxAccountEffect(t);
+      if (balanceApplies(t.date)) {
+        const oldFrom = t.type === "expense" ? t.account_id : t.transfer_account_id;
+        const oldTo = t.type === "expense" ? t.transfer_account_id : t.account_id;
+        if (oldFrom) await adjustTransferInOut(oldFrom, t.amount, "in");
+        if (oldTo) await adjustTransferInOut(oldTo, t.amount, "out");
+      }
       await base44.entities.Transaction.delete(t.id);
       setDelOpen(false);
       onChanged?.();
@@ -63,19 +68,31 @@ export function TransactionRow({ t, accountsMap, onChanged, categories, bulkMode
     try {
       const newType = payload.type ?? t.type;
       const newAmount = parseFloat(payload.amount) || t.amount;
-      const newAcct = payload.account_id !== undefined ? (payload.account_id || "") : t.account_id;
       const newDate = payload.date ?? format(parseISO(t.date), "yyyy-MM-dd");
-      await reverseTxAccountEffect(t);
-      if (newAcct) {
-        await applyTxAccountEffect({ account_id: newAcct, type: newType, amount: newAmount, date: newDate });
+      const oldFrom = t.type === "expense" ? t.account_id : t.transfer_account_id;
+      const oldTo = t.type === "expense" ? t.transfer_account_id : t.account_id;
+      const newFrom = payload.fromId ?? "";
+      const newTo = payload.toId ?? "";
+
+      if (balanceApplies(t.date)) {
+        if (oldFrom) await adjustTransferInOut(oldFrom, t.amount, "in");
+        if (oldTo) await adjustTransferInOut(oldTo, t.amount, "out");
       }
+      if (balanceApplies(newDate)) {
+        if (newFrom) await adjustTransferInOut(newFrom, newAmount, "out");
+        if (newTo) await adjustTransferInOut(newTo, newAmount, "in");
+      }
+
+      const accountId = newType === "expense" ? newFrom : newTo;
+      const transferAccountId = newType === "expense" ? newTo : newFrom;
       await base44.entities.Transaction.update(t.id, {
         description: payload.description ?? t.description,
         amount: newAmount,
         type: newType,
         category: payload.category ?? t.category,
         date: newDate,
-        account_id: newAcct || undefined,
+        account_id: accountId || undefined,
+        transfer_account_id: transferAccountId || undefined,
         is_scheduled: payload.is_scheduled ?? false,
         frequency: payload.frequency ?? "one_time",
         next_date: payload.is_scheduled ? payload.next_date : undefined,
@@ -146,7 +163,8 @@ export function TransactionRow({ t, accountsMap, onChanged, categories, bulkMode
                 type: ev.type ?? t.type,
                 category: ev.category ?? t.category,
                 date: ev.date ?? format(parseISO(t.date), "yyyy-MM-dd"),
-                account_id: ev.account_id ?? t.account_id ?? "",
+                fromId: ev.from !== undefined ? ev.from : (t.type === "expense" ? (t.account_id || "") : (t.transfer_account_id || "")),
+                toId: ev.to !== undefined ? ev.to : (t.type === "expense" ? (t.transfer_account_id || "") : (t.account_id || "")),
                 is_scheduled: sched,
                 frequency: sched ? (ev.frequency ?? t.frequency ?? "monthly") : "one_time",
                 next_date: sched
@@ -193,15 +211,33 @@ export function TransactionRow({ t, accountsMap, onChanged, categories, bulkMode
                 </Select>
               </div>
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-zinc-400">Account</Label>
-              <Select defaultValue={t.account_id||""} onValueChange={(v)=>setEdit(p=>({...p,account_id:v}))}>
-                <SelectTrigger className="bg-zinc-950 border-zinc-800 text-zinc-100"><SelectValue placeholder="No account" /></SelectTrigger>
-                <SelectContent className="bg-zinc-900 border-zinc-800">
-                  <SelectItem value={null}>No account</SelectItem>
-                  {Object.values(accountsMap).map((a)=><SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-zinc-400">From</Label>
+                <Select
+                  defaultValue={(edit?.from !== undefined ? edit.from : (t.type === "expense" ? t.account_id : t.transfer_account_id)) || "__none"}
+                  onValueChange={(v) => setEdit((p) => ({ ...p, from: v === "__none" ? "" : v }))}
+                >
+                  <SelectTrigger className="bg-zinc-950 border-zinc-800 text-zinc-100"><SelectValue placeholder="No account" /></SelectTrigger>
+                  <SelectContent className="bg-zinc-900 border-zinc-800">
+                    <SelectItem value="__none">No account</SelectItem>
+                    {Object.values(accountsMap).map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-zinc-400">To</Label>
+                <Select
+                  defaultValue={(edit?.to !== undefined ? edit.to : (t.type === "expense" ? t.transfer_account_id : t.account_id)) || "__none"}
+                  onValueChange={(v) => setEdit((p) => ({ ...p, to: v === "__none" ? "" : v }))}
+                >
+                  <SelectTrigger className="bg-zinc-950 border-zinc-800 text-zinc-100"><SelectValue placeholder="No account" /></SelectTrigger>
+                  <SelectContent className="bg-zinc-900 border-zinc-800">
+                    <SelectItem value="__none">No account</SelectItem>
+                    {Object.values(accountsMap).map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <RecurringFields
               scheduled={edit?.is_scheduled ?? t.is_scheduled ?? false}
