@@ -21,6 +21,7 @@ import {
   OverviewHeatmap,
   OverviewAlerts,
 } from "@/components/dashboard/OverviewTab";
+import LaunchIntro from "@/components/finance/LaunchIntro";
 import { useFinanceData } from "@/lib/FinanceDataContext";
 
 export default function Dashboard() {
@@ -28,6 +29,7 @@ export default function Dashboard() {
   const [quickAdd, setQuickAdd] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [intro, setIntro] = useState(true);
   const { net, saving, heat, alerts } = useOverviewData(refreshKey);
 
   const doRefresh = useCallback(async () => {
@@ -102,6 +104,7 @@ export default function Dashboard() {
 
   return (
     <div className="dd-page-enter dark min-h-screen bg-black text-zinc-100 selection:bg-emerald-500/30">
+      {intro && <LaunchIntro onDone={() => setIntro(false)} />}
       <DashboardHeader actions={headerActions} />
 
       <ForecastProvider forecastData={forecastData}>

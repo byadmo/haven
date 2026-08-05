@@ -138,6 +138,7 @@
 .splash-fade-up { animation: splash-fade-up 0.6s ease-out both; }
 .splash-slide-in { animation: splash-slide-in 0.34s cubic-bezier(0.22,1,0.36,1) both; }
 .splash-fade-in { animation: splash-fade-in 0.4s ease-out both; }
+@keyframes dd-dot { 0%, 100% { opacity: .25; transform: translateY(0); } 50% { opacity: 1; transform: translateY(-3px); } }
 @media (prefers-reduced-motion: reduce) {
   .splash-logo-in, .splash-fade-up, .splash-slide-in, .splash-fade-in { animation: none !important; opacity: 1; transform: none; }
 }
