@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { safeReturnTo } from "@/lib/authReturnTo";
 import { ArrowLeft, ShieldCheck, Mail, Lock, User } from "lucide-react";
@@ -6,30 +6,15 @@ import { ArrowLeft, ShieldCheck, Mail, Lock, User } from "lucide-react";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function Splash() {
-  const [view, setView] = useState("authcheck");
+  const [view, setView] = useState("splash");
   const [form, setForm] = useState({ name: "", email: "", password: "", confirm: "", code: "" });
   const [error, setError] = useState("");
   const [leaving, setLeaving] = useState(false);
-  const dest = useRef("/dashboard");
-  const go = () => { setLeaving(true); setTimeout(() => { window.location.href = dest.current; }, 280); };
 
-  useEffect(() => {
-    const r = safeReturnTo();
-    dest.current = r === "/" ? "/dashboard" : r;
-    (async () => {
-      try {
-        const ok = await base44.auth.isAuthenticated();
-        if (ok) {
-          setView("authed");
-          setTimeout(() => { go(); }, 1800);
-        } else {
-          setView("splash");
-        }
-      } catch {
-        setView("splash");
-      }
-    })();
-  }, []);
+  const go = () => {
+    setLeaving(true);
+    setTimeout(() => { window.location.href = safeReturnTo(); }, 280);
+  };
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -90,21 +75,11 @@ export default function Splash() {
 
   return (
     <div className={`fixed inset-0 overflow-hidden bg-black transition-opacity duration-300 ${leaving ? "opacity-0" : "opacity-100"}`} style={{ background: "radial-gradient(120% 120% at 50% 0%, #052e25 0%, #000 55%)" }}>
-      {/* drifting ambient blobs */}
       <div className="pointer-events-none absolute -top-24 -left-16 h-72 w-72 rounded-full" style={{ background: "radial-gradient(circle, rgba(16,185,129,0.18), transparent 70%)", animation: "splash-float 9s ease-in-out infinite" }} />
       <div className="pointer-events-none absolute top-1/2 -right-20 h-80 w-80 rounded-full" style={{ background: "radial-gradient(circle, rgba(13,148,136,0.16), transparent 70%)", animation: "splash-float 12s ease-in-out infinite", animationDelay: "1.5s" }} />
       <div className="pointer-events-none absolute -bottom-24 left-1/4 h-72 w-72 rounded-full" style={{ background: "radial-gradient(circle, rgba(45,212,191,0.12), transparent 70%)", animation: "splash-float 11s ease-in-out infinite", animationDelay: "0.8s" }} />
 
       <div className="relative z-10 mx-auto flex w-full max-w-[480px] flex-col items-center justify-center px-6 text-center" style={shellStyle}>
-        {view === "authcheck" && <Spinner label="Starting Haven…" />}
-
-        {view === "authed" && (
-          <div className="splash-fade-in flex flex-col items-center">
-            <Logo />
-            <div className="mt-8"><Spinner label="Loading your finances…" /></div>
-          </div>
-        )}
-
         {view === "loading" && (
           <div className="splash-fade-in flex flex-col items-center">
             <Logo />
@@ -144,9 +119,7 @@ export default function Splash() {
               <ArrowLeft className="h-3.5 w-3.5" /> Back
             </button>
 
-            <div className="flex flex-col items-center mb-6">
-              <Logo small />
-            </div>
+            <div className="flex flex-col items-center mb-6"><Logo small /></div>
 
             {view === "signin" && (
               <form onSubmit={handleSignIn} className="space-y-3.5">
