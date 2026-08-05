@@ -66,15 +66,15 @@ export default function TransactionExplorerModal({ open, onOpenChange, transacti
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-black border-white/10 text-zinc-100 max-w-3xl">
-        <div className="flex items-center justify-between gap-2">
+      <DialogContent className="bg-black border-white/10 text-zinc-100 max-w-3xl flex flex-col max-h-[90dvh] gap-3 overflow-hidden p-4 sm:p-5">
+        <div className="flex items-center justify-between gap-2 shrink-0">
           <DialogTitle className="text-sm font-semibold text-zinc-100">All Transactions</DialogTitle>
           <Button size="sm" onClick={() => setAddOpen(true)} className="h-8 bg-indigo-600 hover:bg-indigo-500 text-white">
             <Plus className="h-3.5 w-3.5 mr-1" /> Add
           </Button>
         </div>
 
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-3 gap-2 shrink-0">
           <div className="rounded-lg border border-white/10 bg-black p-2.5">
             <p className="text-[9px] uppercase tracking-widest text-white/40">Income</p>
             <p className="text-sm font-mono tabular-nums text-emerald-400">
@@ -95,7 +95,7 @@ export default function TransactionExplorerModal({ open, onOpenChange, transacti
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
           <div className="flex items-center gap-0.5 rounded-lg bg-black border border-white/10 p-0.5">
             {DATE_FILTERS.map((df) => (
               <button
@@ -136,7 +136,7 @@ export default function TransactionExplorerModal({ open, onOpenChange, transacti
         </div>
 
         {dateFilter === "custom" && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <Input
               type="date"
               value={customStart}
@@ -153,11 +153,11 @@ export default function TransactionExplorerModal({ open, onOpenChange, transacti
           </div>
         )}
 
-        <p className="text-[10px] uppercase tracking-widest text-white/40">
+        <p className="text-[10px] uppercase tracking-widest text-white/40 shrink-0">
           {filtered.length} {filtered.length === 1 ? "transaction" : "transactions"}
         </p>
 
-        <div>
+        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden -mx-1 px-1 pb-1">
           {filtered.length === 0 ? (
             <p className="text-sm text-zinc-500 text-center py-8">No transactions match.</p>
           ) : (
