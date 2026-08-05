@@ -129,6 +129,21 @@ export default function TransactionExplorerModal({ open, onOpenChange, transacti
     }
   }
 
+  async function deleteDuplicateGroup(cluster) {
+    const ids = new Set(cluster.map((r) => r.id));
+    setDeleting(true);
+    try {
+      await removeTransactions(cluster.filter((t) => t._kind !== "debt_payment"));
+      setDupClusters((cs) => cs.filter((cl) => cl !== cluster));
+      setGroupIds((s) => { const n = new Set(s); ids.forEach((id) => n.delete(id)); return n; });
+      setDupIds((s) => { const n = new Set(s); ids.forEach((id) => n.delete(id)); return n; });
+      setSelected((s) => { const n = new Set(s); ids.forEach((id) => n.delete(id)); return n; });
+      onChanged?.();
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   async function deleteDuplicate(id) {
     const t = transactions.find((x) => x.id === id);
     if (!t || t._kind === "debt_payment") return;
@@ -284,9 +299,14 @@ export default function TransactionExplorerModal({ open, onOpenChange, transacti
             <div className="space-y-3 max-h-56 overflow-y-auto pr-0.5">
               {dupClusters.map((cl, ci) => (
                 <div key={ci} className="rounded-md border border-white/10 bg-black p-2">
-                  <p className="text-[9px] uppercase tracking-widest text-white/40 mb-1.5">
-                    Group {ci + 1} · {cl.length} charges · same amount &amp; account within 3 days
-                  </p>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <p className="text-[9px] uppercase tracking-widest text-white/40">
+                      Group {ci + 1} · {cl.length} charges · same amount &amp; account within 3 days
+                    </p>
+                    <button type="button" onClick={() => deleteDuplicateGroup(cl)} disabled={deleting} className="h-7 px-2 rounded-md border border-rose-500/40 text-rose-400 hover:bg-rose-500/20 flex items-center gap-1 text-[10px] uppercase tracking-widest disabled:opacity-40">
+                      <Trash2 className="h-3 w-3" /> Delete group
+                    </button>
+                  </div>
                   <div className="space-y-1.5">
                     {cl.map((r, ri) => {
                       const keeper = ri === 0;
