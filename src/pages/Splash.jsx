@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { safeReturnTo } from "@/lib/authReturnTo";
 import { ArrowLeft, ShieldCheck, Mail, Lock, User } from "lucide-react";
+import GoogleIcon from "@/components/GoogleIcon";
+import AppleIcon from "@/components/AppleIcon";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -86,6 +88,17 @@ export default function Splash() {
     try { await base44.auth.resendOtp(form.email); } catch {}
   }
 
+  async function handleProvider(provider) {
+    setError("");
+    setView("loading");
+    try {
+      await base44.auth.loginWithProvider(provider, dest.current);
+    } catch (err) {
+      setError(err?.message || "Sign-in was cancelled.");
+      setView("splash");
+    }
+  }
+
   const shellStyle = { height: "100dvh", paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" };
 
   return (
@@ -119,20 +132,25 @@ export default function Splash() {
             <p className="splash-fade-up mt-2 text-sm text-white/40" style={{ animationDelay: "0.65s" }}>Smart debt payoff, cash flow, and net worth — in one place.</p>
 
             <div className="splash-fade-up mt-10 w-full space-y-3" style={{ animationDelay: "0.85s" }}>
-              <button onClick={() => { setError(""); setView("signin"); }}
-                className="w-full rounded-xl px-4 py-3.5 text-sm font-semibold text-white"
-                style={{ background: "linear-gradient(180deg,#10b981,#0d9488)", minHeight: 48, boxShadow: "0 6px 20px -8px rgba(16,185,129,0.6)" }}>
-                Open App
-              </button>
+              <SocialButton onClick={() => handleProvider("google")} icon={GoogleIcon} label="Continue with Google" />
+              <SocialButton onClick={() => handleProvider("apple")} icon={AppleIcon} label="Continue with Apple" />
+              <div className="flex items-center gap-3 py-1">
+                <div className="h-px flex-1 bg-white/10" />
+                <span className="text-[11px] uppercase tracking-widest text-white/40">or</span>
+                <div className="h-px flex-1 bg-white/10" />
+              </div>
               <button onClick={() => { setError(""); setView("signup"); }}
                 className="w-full rounded-xl px-4 py-3.5 text-sm font-semibold text-emerald-300 border border-emerald-400/30 hover:bg-emerald-500/10 transition-colors"
                 style={{ minHeight: 48 }}>
-                Sign Up
+                Sign up with email
               </button>
-              <button onClick={() => { setError(""); setView("signin"); }}
-                className="mx-auto block text-xs text-white/50 hover:text-white transition-colors mt-1">
-                Sign in
-              </button>
+              <p className="text-center text-xs text-white/60 pt-1">
+                Already have an account?{" "}
+                <button onClick={() => { setError(""); setView("signin"); }}
+                  className="text-emerald-300 font-semibold hover:text-emerald-200 transition-colors">
+                  Sign in
+                </button>
+              </p>
             </div>
           </div>
         )}
@@ -254,6 +272,20 @@ function SubmitButton({ label, disabled }) {
       className="w-full rounded-xl px-4 py-3.5 text-sm font-semibold text-white disabled:opacity-50"
       style={{ background: "linear-gradient(180deg,#10b981,#0d9488)", minHeight: 48 }}
     >
+      {label}
+    </button>
+  );
+}
+
+function SocialButton({ icon: Icon, label, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-full flex items-center justify-center gap-3 rounded-xl px-4 py-3.5 text-sm font-semibold text-white bg-white/5 border border-white/15 hover:bg-white/10 hover:border-white/30 active:bg-white/5 transition-colors"
+      style={{ minHeight: 48 }}
+    >
+      <Icon className="h-5 w-5" />
       {label}
     </button>
   );
