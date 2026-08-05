@@ -1,10 +1,19 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { Plus, UploadCloud, RefreshCw } from "lucide-react";
+import { startOfMonth, endOfMonth, isWithinInterval, parseISO, subMonths } from "date-fns";
 import { Button } from "@/components/ui/button";
 import DashboardHeader from "@/components/finance/DashboardHeader";
 import QuickAddModal from "@/components/finance/QuickAddModal";
 import StatementImportModal from "@/components/finance/StatementImportModal";
+import MetricsRow from "@/components/finance/MetricsRow";
+import ChartSwitcher from "@/components/finance/ChartSwitcher";
+import RecentTransactions from "@/components/finance/RecentTransactions";
+import UpcomingRecurring from "@/components/finance/UpcomingRecurring";
+import AccountsSummary from "@/components/finance/AccountsSummary";
+import Reveal from "@/components/finance/Reveal";
+import { ForecastProvider } from "@/lib/forecast-context";
+import { computeTrajectory } from "@/lib/trajectory";
 import OverviewTab from "@/components/dashboard/OverviewTab";
 import DebtTab from "@/components/dashboard/DebtTab";
 import CashFlowTab from "@/components/dashboard/CashFlowTab";
@@ -21,7 +30,7 @@ const TABS = [
 ];
 
 export default function Dashboard() {
-  const { accounts, debts, refresh, refreshKey } = useFinanceData();
+  const { transactions: txns, debts, accounts, refresh, refreshKey } = useFinanceData();
   const [tab, setTab] = useState("overview");
   const [quickAdd, setQuickAdd] = useState(false);
   const [showImport, setShowImport] = useState(false);
@@ -34,12 +43,41 @@ export default function Dashboard() {
     refresh();
   }, [refresh]);
 
-  // ⌘K quick-add trigger from the command palette
+  // ⌘K quick-add trigger from the command palette + ?add=1 deep link
   React.useEffect(() => {
     function open() { setQuickAdd(true); }
     window.addEventListener("dd:quickadd", open);
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("add") === "1") {
+      setQuickAdd(true);
+      params.delete("add");
+      const qs = params.toString();
+      window.history.replaceState({}, "", qs ? `/?${qs}` : "/");
+    }
     return () => window.removeEventListener("dd:quickadd", open);
   }, []);
+
+  // Monthly income/expense rollups for the top overview section
+  const now = new Date();
+  const mStart = startOfMonth(now);
+  const mEnd = endOfMonth(now);
+  const pStart = startOfMonth(subMonths(now, 1));
+  const pEnd = endOfMonth(subMonths(now, 1));
+  const inRange = (date, s, e) => isWithinInterval(parseISO(date), { start: s, end: e });
+  let mIncome = 0, mExpense = 0, pIncome = 0, pExpense = 0;
+  txns.forEach((t) => {
+    if (inRange(t.date, mStart, mEnd)) { t.type === "income" ? (mIncome += t.amount) : (mExpense += t.amount); }
+    else if (inRange(t.date, pStart, pEnd)) { t.type === "income" ? (pIncome += t.amount) : (pExpense += t.amount); }
+  });
+  const pct = (cur, prev) => (prev > 0 ? ((cur - prev) / prev) * 100 : null);
+  const totalDebt = debts.reduce((s, d) => s + (d.current_balance || 0), 0);
+  const totalCash = accounts.reduce((s, a) => s + (a.balance || 0), 0);
+  const netWorth = totalCash - totalDebt;
+  const spendRatio = mIncome > 0 ? mExpense / mIncome : (mExpense > 0 ? 1 : 0);
+  const forecastData = useMemo(
+    () => computeTrajectory({ debts, accounts, transactions: txns }).series,
+    [debts, accounts, txns]
+  );
 
   const headerActions = (
     <>
@@ -74,25 +112,54 @@ export default function Dashboard() {
     <div className="dd-page-enter dark min-h-screen bg-black text-zinc-100 selection:bg-emerald-500/30">
       <DashboardHeader actions={headerActions} />
 
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
-        <div className="flex gap-1 mb-6 border-b border-white/10 overflow-x-auto">
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={`px-3 py-2 text-xs font-medium whitespace-nowrap transition-colors border-b-2 ${tab === t.id ? "text-emerald-400 border-emerald-400" : "text-white/50 hover:text-white border-transparent"}`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
+      <ForecastProvider forecastData={forecastData}>
+        <main className="relative max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-8 sm:space-y-6">
+          {/* Old Home overview — always visible above the tabbed command center */}
+          <Reveal>
+            <MetricsRow
+              netWorth={netWorth}
+              income={mIncome}
+              expense={mExpense}
+              incomePct={pct(mIncome, pIncome)}
+              expensePct={pct(mExpense, pExpense)}
+              spendRatio={spendRatio}
+            />
+          </Reveal>
 
-        {tab === "overview" && <OverviewTab refreshKey={refreshKey} />}
-        {tab === "debt" && <DebtTab refreshKey={refreshKey} />}
-        {tab === "cashflow" && <CashFlowTab refreshKey={refreshKey} />}
-        {tab === "investments" && <InvestmentsTab refreshKey={refreshKey} />}
-        {tab === "goals" && <GoalsTab refreshKey={refreshKey} />}
-      </main>
+          <Reveal><AccountsSummary /></Reveal>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-6">
+              <Reveal><ChartSwitcher transactions={txns} accounts={accounts} debts={debts} /></Reveal>
+              <Reveal delay={0.05}>
+                <RecentTransactions transactions={txns} accounts={accounts} debts={debts} refreshKey={refreshKey} onChanged={refresh} />
+              </Reveal>
+            </div>
+            <div className="space-y-6">
+              <Reveal><UpcomingRecurring transactions={txns} accounts={accounts} onChanged={refresh} /></Reveal>
+            </div>
+          </div>
+
+          {/* Tabbed financial command center */}
+          <div className="flex gap-1 border-b border-white/10 overflow-x-auto">
+            {TABS.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className={`px-3 py-2 text-xs font-medium whitespace-nowrap transition-colors border-b-2 ${tab === t.id ? "text-emerald-400 border-emerald-400" : "text-white/50 hover:text-white border-transparent"}`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          {tab === "overview" && <OverviewTab refreshKey={refreshKey} />}
+          {tab === "debt" && <DebtTab refreshKey={refreshKey} />}
+          {tab === "cashflow" && <CashFlowTab refreshKey={refreshKey} />}
+          {tab === "investments" && <InvestmentsTab refreshKey={refreshKey} />}
+          {tab === "goals" && <GoalsTab refreshKey={refreshKey} />}
+        </main>
+      </ForecastProvider>
 
       <QuickAddModal
         open={quickAdd}
