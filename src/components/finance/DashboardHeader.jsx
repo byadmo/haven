@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Wallet, Settings as SettingsIcon, LayoutDashboard, LineChart, PieChart, TrendingUp, Target, Sparkles, PiggyBank, ShieldCheck } from "lucide-react";
+import { Wallet, Settings as SettingsIcon, LayoutDashboard, LineChart, PieChart, TrendingUp, Target, Sparkles, PiggyBank } from "lucide-react";
 import CommandPalette from "@/components/finance/CommandPalette";
 import BackupModal from "@/components/finance/BackupModal";
 import MobileNav from "@/components/finance/MobileNav";
@@ -35,10 +35,6 @@ export default function DashboardHeader({ actions }) {
         <nav className="hidden sm:flex items-center gap-1 shrink-0 mr-auto">
           <NavDropdown label="Finances" items={financesGroup} />
           <NavDropdown label="Planning" items={planningGroup} />
-          <Link to="/splash" className="px-2 py-1.5 text-[11px] font-mono uppercase tracking-wide text-zinc-400 hover:text-white border-b-2 border-transparent flex items-center gap-1.5">
-            <ShieldCheck className="h-3.5 w-3.5" />
-            Splash
-          </Link>
         </nav>
 
         <div className="flex items-center gap-1.5 ml-auto shrink-0">

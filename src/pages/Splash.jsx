@@ -9,7 +9,9 @@ export default function Splash() {
   const [view, setView] = useState("authcheck");
   const [form, setForm] = useState({ name: "", email: "", password: "", confirm: "", code: "" });
   const [error, setError] = useState("");
+  const [leaving, setLeaving] = useState(false);
   const dest = useRef("/dashboard");
+  const go = () => { setLeaving(true); setTimeout(() => { window.location.href = dest.current; }, 280); };
 
   useEffect(() => {
     const r = safeReturnTo();
@@ -19,7 +21,7 @@ export default function Splash() {
         const ok = await base44.auth.isAuthenticated();
         if (ok) {
           setView("authed");
-          setTimeout(() => { window.location.href = dest.current; }, 1800);
+          setTimeout(() => { go(); }, 1800);
         } else {
           setView("splash");
         }
@@ -39,7 +41,7 @@ export default function Splash() {
     setView("loading");
     try {
       await base44.auth.loginViaEmailPassword(form.email, form.password);
-      window.location.href = dest.current;
+      go();
     } catch (err) {
       setError(err?.message || "Invalid email or password.");
       setView("signin");
@@ -72,7 +74,7 @@ export default function Splash() {
       const res = await base44.auth.verifyOtp({ email: form.email, otpCode: form.code });
       if (res?.access_token) base44.auth.setToken(res.access_token);
       try { await base44.auth.updateMe({ full_name: form.name }); } catch {}
-      window.location.href = dest.current;
+      go();
     } catch (err) {
       setError(err?.message || "Invalid verification code.");
       setView("otp");
@@ -87,7 +89,7 @@ export default function Splash() {
   const shellStyle = { height: "100dvh", paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" };
 
   return (
-    <div className="fixed inset-0 overflow-hidden bg-black" style={{ background: "radial-gradient(120% 120% at 50% 0%, #052e25 0%, #000 55%)" }}>
+    <div className={`fixed inset-0 overflow-hidden bg-black transition-opacity duration-300 ${leaving ? "opacity-0" : "opacity-100"}`} style={{ background: "radial-gradient(120% 120% at 50% 0%, #052e25 0%, #000 55%)" }}>
       {/* drifting ambient blobs */}
       <div className="pointer-events-none absolute -top-24 -left-16 h-72 w-72 rounded-full" style={{ background: "radial-gradient(circle, rgba(16,185,129,0.18), transparent 70%)", animation: "splash-float 9s ease-in-out infinite" }} />
       <div className="pointer-events-none absolute top-1/2 -right-20 h-80 w-80 rounded-full" style={{ background: "radial-gradient(circle, rgba(13,148,136,0.16), transparent 70%)", animation: "splash-float 12s ease-in-out infinite", animationDelay: "1.5s" }} />
