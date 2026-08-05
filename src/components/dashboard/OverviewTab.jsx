@@ -1,33 +1,27 @@
 import React, { useEffect, useState } from "react";
-import { base44 } from "@/api/base44Client";
 import { invokeFunc, money, pct } from "@/lib/dashboard";
 import { Loader, Card3, Bar } from "@/components/dashboard/ui";
 import { TrendingUp, TrendingDown, Wallet, AlertTriangle } from "lucide-react";
 
-export function useOverviewData(refreshKey) {
+// Reads accounts/debts/stocks from the shared FinanceDataContext instead of
+// re-listing them (the old version fired 3 redundant concurrent calls here,
+// which contributed to rate-limit bursts on dashboard load).
+export function useOverviewData(refreshKey, { accounts = [], debts = [], stocks = [] } = {}) {
   const [saving, setSaving] = useState(null);
   const [heat, setHeat] = useState(null);
   const [alerts, setAlerts] = useState(null);
-  const [net, setNet] = useState(null);
 
-  async function load() {
-    try {
-      const [acc, debts, stocks] = await Promise.all([
-        base44.entities.Account.list(),
-        base44.entities.Debt.list(),
-        base44.entities.Stock.list(),
-      ]);
-      const cash = acc.reduce((s, a) => s + (a.balance || 0), 0);
-      const debt = debts.filter((d) => d.status !== "paid_off").reduce((s, d) => s + (d.current_balance || 0), 0);
-      const inv = stocks.reduce((s, x) => s + (x.shares || 0) * (x.avg_buy_price || 0), 0);
-      setNet({ cash, debt, inv, total: cash + inv - debt });
-    } catch (e) {}
+  useEffect(() => {
     invokeFunc("calculateSavingsRate", {}).then(setSaving).catch(() => {});
     invokeFunc("getSpendingHeatmap", {}).then(setHeat).catch(() => {});
     invokeFunc("checkAccountAlerts", {}).then(setAlerts).catch(() => {});
-  }
+  }, [refreshKey]);
 
-  useEffect(() => { load(); }, [refreshKey]);
+  const cash = accounts.reduce((s, a) => s + (a.balance || 0), 0);
+  const debt = debts.filter((d) => d.status !== "paid_off").reduce((s, d) => s + (d.current_balance || 0), 0);
+  const inv = stocks.reduce((s, x) => s + (x.shares || 0) * (x.avg_buy_price || 0), 0);
+  const net = { cash, debt, inv, total: cash + inv - debt };
+
   return { net, saving, heat, alerts };
 }
 

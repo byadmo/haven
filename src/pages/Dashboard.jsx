@@ -25,14 +25,14 @@ import PageTitle from "@/components/finance/PageTitle";
 import { useFinanceData } from "@/lib/FinanceDataContext";
 
 export default function Dashboard() {
-  const { transactions: txns, debts, accounts, refresh, refreshKey } = useFinanceData();
+  const { transactions: txns, debts, accounts, stocks, refresh, refreshKey } = useFinanceData();
   const [quickAdd, setQuickAdd] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [intro, setIntro] = useState(() => {
     try { return sessionStorage.getItem("haven_splash_shown") !== "1"; } catch { return true; }
   });
-  const { net, saving, heat, alerts } = useOverviewData(refreshKey);
+  const { net, saving, heat, alerts } = useOverviewData(refreshKey, { accounts, debts, stocks });
 
   React.useEffect(() => {
     try { sessionStorage.setItem("haven_splash_shown", "1"); } catch {}

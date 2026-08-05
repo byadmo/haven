@@ -15,9 +15,14 @@ export default function DebtTab({ refreshKey }) {
     invokeFunc("calculateCreditUtilization", {}).then(setUtil).catch(() => {});
   }, [refreshKey]);
 
+  // Debounced so dragging the "extra/month" slider doesn't fire two backend
+  // calls on every step (which trips the platform rate limit).
   useEffect(() => {
-    invokeFunc("projectDebtFreeDate", { extra_payment: extra }).then(setProj).catch(() => {});
-    invokeFunc("comparePayoffStrategies", { extra_payment: extra }).then(setStrat).catch(() => {});
+    const t = setTimeout(() => {
+      invokeFunc("projectDebtFreeDate", { extra_payment: extra }).then(setProj).catch(() => {});
+      invokeFunc("comparePayoffStrategies", { extra_payment: extra }).then(setStrat).catch(() => {});
+    }, 350);
+    return () => clearTimeout(t);
   }, [refreshKey, extra]);
 
   const utilColor = (u) => u == null ? "bg-zinc-500" : u < 10 ? "bg-emerald-500" : u < 30 ? "bg-lime-500" : u < 50 ? "bg-amber-500" : u < 75 ? "bg-orange-500" : "bg-rose-500";
