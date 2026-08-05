@@ -16,6 +16,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/AuthContext";
 import { base44 } from "@/api/base44Client";
+import { useToast } from "@/components/ui/use-toast";
+import { useFinanceData } from "@/lib/FinanceDataContext";
 
 export default function Settings() {
   const { categories, loading, add, remove, restoreDefaults } = useCategories();
@@ -24,8 +26,13 @@ export default function Settings() {
   const [showDelete, setShowDelete] = React.useState(false);
   const [deleteText, setDeleteText] = React.useState("");
   const [deleting, setDeleting] = React.useState(false);
+  const [showReset, setShowReset] = React.useState(false);
+  const [resetText, setResetText] = React.useState("");
+  const [resetting, setResetting] = React.useState(false);
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { toast } = useToast();
+  const { refresh } = useFinanceData();
 
   async function handleDeleteAccount() {
     setDeleting(true);
@@ -46,6 +53,22 @@ export default function Settings() {
     } finally {
       setDeleting(false);
       base44.auth.logout(window.location.origin);
+    }
+  }
+
+  async function handleResetData() {
+    setResetting(true);
+    try {
+      await base44.entities.Transaction.deleteMany({});
+      await base44.entities.Account.updateMany({}, { $set: { balance: 0 } });
+      toast({ title: "Data reset", description: "All transactions deleted and account balances set to $0." });
+      setShowReset(false);
+      setResetText("");
+      refresh();
+    } catch {
+      toast({ title: "Reset failed", description: "Something went wrong — please try again." });
+    } finally {
+      setResetting(false);
     }
   }
 
@@ -175,6 +198,21 @@ export default function Settings() {
           <CalendarSyncSettings />
         </Reveal>
 
+        <Reveal delay={0.09}>
+          <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-5">
+            <h2 className="text-xs uppercase tracking-widest text-amber-400/80">Data Management</h2>
+            <p className="text-lg font-semibold font-mono tracking-tight text-zinc-100 mt-1">Delete Transactions &amp; Reset Accounts</p>
+            <p className="text-xs text-white/40 mt-1 mb-4">Removes every transaction and sets all account balances to $0. Debts, investments, goals, and your profile are not affected. This cannot be undone.</p>
+            <Button
+              variant="outline"
+              onClick={() => setShowReset(true)}
+              className="border-amber-500/40 text-amber-400 hover:bg-amber-500/10 hover:border-amber-500/60"
+            >
+              <RotateCcw className="h-4 w-4 mr-1.5" /> Delete All Transactions &amp; Reset Accounts to $0
+            </Button>
+          </div>
+        </Reveal>
+
         <Reveal delay={0.1}>
           <div className="rounded-lg border border-rose-500/30 bg-rose-500/5 p-5">
             <h2 className="text-xs uppercase tracking-widest text-rose-400/80">Danger Zone</h2>
@@ -217,6 +255,37 @@ export default function Settings() {
               className="bg-rose-600 text-white hover:bg-rose-500"
             >
               {deleting ? "Deleting…" : "Permanently Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showReset} onOpenChange={(v) => { setShowReset(v); if (!v) setResetText(""); }}>
+        <DialogContent className="bg-zinc-900 border-amber-500/30 text-zinc-100">
+          <DialogHeader>
+            <DialogTitle className="text-zinc-100">Delete Transactions &amp; Reset Accounts</DialogTitle>
+            <DialogDescription className="text-zinc-500">
+              This permanently deletes all your transactions and sets every account balance to $0. Debts, investments, goals, and your profile are not affected. Type <span className="text-amber-400 font-mono">RESET</span> to confirm.
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            value={resetText}
+            onChange={(e) => setResetText(e.target.value)}
+            placeholder="Type RESET to confirm"
+            className="bg-zinc-950 border-zinc-800 text-zinc-100"
+            autoFocus
+          />
+          <DialogFooter className="pt-2 gap-2">
+            <DialogClose asChild>
+              <Button type="button" variant="outline" className="border-white/10 text-zinc-400 hover:bg-white/5">Cancel</Button>
+            </DialogClose>
+            <Button
+              type="button"
+              disabled={resetting || resetText !== "RESET"}
+              onClick={handleResetData}
+              className="bg-amber-600 text-white hover:bg-amber-500"
+            >
+              {resetting ? "Resetting…" : "Reset Data"}
             </Button>
           </DialogFooter>
         </DialogContent>

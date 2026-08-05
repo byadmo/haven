@@ -18,7 +18,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { balanceApplies, txEffect } from "@/lib/accounts";
-import { hasAmountWindowMatch } from "@/lib/duplicates";
+import { isLikelyImportDuplicate } from "@/lib/duplicates";
 import { useCategories, categoryOptions } from "@/lib/categories";
 import { format } from "date-fns";
 import { UploadCloud, Loader2, Trash2, Check, FileText, ImageIcon, X, FileCheck, AlertTriangle } from "lucide-react";
@@ -29,7 +29,7 @@ const today = () => format(new Date(), "yyyy-MM-dd");
 // "PAYMENT - THANK YOU" on a credit-card statement is a payment TO the card
 // (a liability pay-down), not income.
 function isCardPayment(text) {
-  return /payment\s*-\s*thank you|payment\s*thank you|thank\s*you/i.test(text || "");
+  return /payment\s*-\s*thank you|payment\s*thank you|thank\s*you|paiement\s*-\s*merci|paiement\s*merci/i.test(text || "");
 }
 
 // Match the description against the user's own categories (managed in Settings).
@@ -43,10 +43,24 @@ function guessCategory(text, knownCategories) {
 
 function cleanMerchant(raw) {
   if (!raw) return "";
-  let m = raw.split(/[/\\]/)[0].trim();
-  m = m.replace(/\s+(appl|apple pay|google pay|gpay|stripe|sq|pty|ltd|inc|llc)\b.*/i, "").trim();
-  m = m.replace(/[.,;:|]+$/, "").trim();
-  return m || raw.trim();
+  let m = String(raw).trim();
+  // Drop a second reference line (long number / phone / province code) if the
+  // AI joined the merchant line with its metadata line.
+  m = m.split(/\n/)[0].trim();
+  // Strip asterisk-prefixed sub-identifiers and masked card digits
+  // (e.g. "*SUBNAME", "*****1234", "****0806").
+  m = m.replace(/\*+[A-Za-z0-9]*/g, " ");
+  // Strip long numeric reference strings and phone numbers.
+  m = m.replace(/\b\d{4,}\b/g, " ");
+  // Strip trailing province codes (BC, ON, AB, …) and the word PHONE.
+  m = m.replace(/\s+(AB|BC|MB|NB|NL|NS|NT|NU|ON|PE|QC|SK|YT)\b(?![A-Z])/g, " ");
+  m = m.replace(/\bPHONE\b/gi, " ");
+  // Strip payment-channel suffixes that follow the merchant name.
+  m = m.replace(/\s+(APPLE PAY|GOOGLE PAY|GPAY|STRIPE|SQ|PTY|LTD|INC|LLC)\b.*$/i, " ");
+  // Trim stray punctuation/whitespace.
+  m = m.replace(/[.,;:|]+$/g, "").replace(/^[.,;:|]+/g, "").trim();
+  m = m.replace(/\s+/g, " ").trim();
+  return m || String(raw).trim();
 }
 
 function parseDate(raw) {
@@ -84,7 +98,7 @@ function buildSchema(categoryList = []) {
   return {
     type: "object",
     description:
-      `Extract ONLY the transaction rows and the current/new balance from this bank/credit-card statement. Today's date is ${todayStr}. Ignore interest rate charts, APR/fee tables, terms pages, marketing, and any non-transaction summary.`,
+      `Extract ONLY the transaction rows and the current/new balance from this bank/credit-card statement. Today's date is ${todayStr}. Ignore interest rate charts, APR/fee tables, terms pages, marketing, and any non-transaction summary. For RBC ION Visa (and similar Canadian credit-card statements) with two date columns TRANSACTION DATE and POSTING DATE (both "MMM DD" like "DEC 29"), always use the TRANSACTION DATE as the row's date and infer the year from the statement period/statement_date. The ACTIVITY DESCRIPTION column shows the merchant on the first line; a following line with a long reference number, phone number, or province code is metadata — strip it and do not include it in the description. In the AMOUNT ($) column, values with a minus/negative sign (e.g. -$199.64) or shown as payments/credits reduce the card balance: set type to "debt_payment" (a payment/credit, NOT a purchase). Positive/unsigned amounts are purchases/charges: set type to "expense". A row like "PAYMENT - THANK YOU / PAIEMENT - MERCI" is a card payment: type "debt_payment". Exclude the "TOTAL ACCOUNT BALANCE" and "NEW BALANCE" summary rows from transactions (use NEW BALANCE for new_balance). Exclude the card-number header line (e.g. "4510 14** **** 0806 - PRIMARY"); capture its last 4 digits as card_last4.`,
     properties: {
       card_name: { type: "string", description: "Card or account name shown, if visible." },
       card_last4: { type: "string", description: "Last 4 digits of the card, if shown." },
@@ -98,7 +112,7 @@ function buildSchema(categoryList = []) {
           properties: {
             description: { type: "string", description: "Merchant/memo text exactly as shown." },
             amount: { type: "number", description: "Absolute dollar amount as a positive number, no symbols." },
-            type: { type: "string", enum: ["income", "expense"], description: "'expense' for charges/purchases/bills. 'income' for refunds/deposits/payroll." },
+            type: { type: "string", enum: ["income", "expense", "debt_payment"], description: "'expense' for purchases/charges/bills. 'income' for refunds/deposits/payroll. 'debt_payment' for card payments/credits — rows whose amount is negative/credited (e.g. 'PAYMENT - THANK YOU') that reduce a credit-card balance, NOT a purchase." },
             date: { type: "string", description: `The EXACT transaction date in yyyy-MM-dd, taken from that row. If the row shows only month/day, use the year from the statement period/statement date; a date later than today (${todayStr}) means the previous calendar year. 'Today'→${todayStr}, 'Yesterday'→the day before. Never guess or invent a value; if no date is visible, use ${todayStr}.` },
             category: { type: "string", description: "The category that best fits this transaction based on its description." + catHint },
           },
@@ -114,7 +128,7 @@ function normalizeRow(r, knownCategories = []) {
   const rawDesc = r.description || "";
   const description = cleanMerchant(rawDesc) || rawDesc;
   const amount = Math.abs(Number(r.amount) || 0);
-  const isPayment = isCardPayment(description + " " + rawDesc);
+  const isPayment = isCardPayment(description + " " + rawDesc) || r.type === "debt_payment";
   const type = isPayment ? "debt_payment" : (r.type === "income" ? "income" : "expense");
   let category;
   if (isPayment) {
@@ -244,7 +258,7 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
   const duplicateFlags = React.useMemo(() => {
     const flags = {};
     rows.forEach((r, i) => {
-      const dup = hasAmountWindowMatch(r, existingTxns) || hasAmountWindowMatch(r, rows.slice(0, i));
+      const dup = isLikelyImportDuplicate(r, existingTxns, 1) || isLikelyImportDuplicate(r, rows.slice(0, i), 1);
       if (dup) flags[i] = true;
     });
     return flags;
@@ -332,7 +346,7 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
           }
           if (rows.length) {
             rows.forEach((n, idx) => {
-              n.duplicate = hasAmountWindowMatch(n, existing) || hasAmountWindowMatch(n, rows.slice(0, idx));
+              n.duplicate = isLikelyImportDuplicate(n, existing, 1) || isLikelyImportDuplicate(n, rows.slice(0, idx), 1);
               if (n.duplicate) n.included = false;
             });
             valid++;
@@ -565,6 +579,12 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
                   <div className="min-w-0">
                     <p className="text-[10px] uppercase tracking-wider text-white/40">File {gi + 1} of {totalFiles}</p>
                     <p className="text-sm text-zinc-100 truncate font-mono" title={current.fileName}>{current.fileName}</p>
+                    {rows.length > 0 && (() => {
+                      const ds = rows.map((r) => r.date).filter(Boolean).sort();
+                      if (!ds.length) return null;
+                      const label = ds[ds.length - 1] !== ds[0] ? `${ds[0]} \u2192 ${ds[ds.length - 1]}` : ds[0];
+                      return <p className="text-[10px] text-white/30 font-mono truncate">{label}</p>;
+                    })()}
                   </div>
                 </div>
                 <button
@@ -620,7 +640,11 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
                   <div
                     key={i}
                     className={`rounded-lg border p-3 transition-colors ${
-                      r.included ? "border-zinc-700 bg-zinc-950/40" : "border-zinc-800 bg-zinc-950/20 opacity-50"
+                      duplicateFlags[i]
+                        ? `border-amber-500/40 bg-amber-500/10 ${r.included ? "" : "opacity-60"}`
+                        : r.included
+                          ? "border-zinc-700 bg-zinc-950/40"
+                          : "border-zinc-800 bg-zinc-950/20 opacity-50"
                     }`}
                   >
                     <div className="flex items-start gap-3">
@@ -635,8 +659,11 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
 
                       <div className="flex-1 grid grid-cols-12 gap-2">
                         {duplicateFlags[i] && (
-                          <div className="col-span-12 mb-1 flex items-center gap-1 text-[10px] text-amber-400">
-                            <AlertTriangle className="h-3 w-3" /> Possible duplicate — same amount &amp; account within 3 days of an existing or earlier row (unchecked)
+                          <div className="col-span-12 mb-1 flex items-center gap-1.5">
+                            <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/15 px-2 py-0.5 text-[10px] text-amber-300">
+                              <AlertTriangle className="h-3 w-3" /> Possible duplicate
+                            </span>
+                            <span className="text-[10px] text-amber-400/80">already exists — unchecked by default</span>
                           </div>
                         )}
                         <div className="col-span-12 sm:col-span-5">

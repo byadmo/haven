@@ -25,6 +25,53 @@ export function hasAmountWindowMatch(row, others, windowDays = DUP_WINDOW_DAYS) 
   return false;
 }
 
+// Tokens used to judge description/merchant similarity for import duplicate
+// detection. Masks, reference numbers, province codes and channel/payment
+// stopwords are stripped so "ROGERS *****1234 PHONE ON" and "ROGERS" compare
+// as the same merchant.
+const DUP_PROVINCES = new Set(["AB", "BC", "MB", "NB", "NL", "NS", "NT", "NU", "ON", "PE", "QC", "SK", "YT"]);
+const DUP_STOPWORDS = new Set(["phone", "app", "appl", "pay", "gpay", "ltd", "inc", "llc", "pty", "thank", "you", "paiement", "merci", "payment", "the", "and", "primary", "transfer"]);
+
+function normDescTokens(s) {
+  if (!s) return [];
+  let t = String(s).toLowerCase();
+  t = t.replace(/\*+/g, " ");
+  t = t.replace(/\b\d{4,}\b/g, " ");
+  t = t.replace(/[.,;:|/\\()\[\]-]+/g, " ");
+  return t
+    .split(/\s+/)
+    .map((x) => x.trim())
+    .filter(Boolean)
+    .filter((x) => !DUP_PROVINCES.has(x.toUpperCase()))
+    .filter((x) => !DUP_STOPWORDS.has(x))
+    .filter((x) => x.length >= 3);
+}
+
+// Import-time duplicate check used by the statement review screen. A new row
+// matches an existing/earlier row when the amount is equal, the date is within
+// windowDays (±1 day per the import spec), and the cleaned merchant/description
+// shares at least one significant token. If either side has no usable
+// description tokens, an amount + date match is enough (a strong signal on its
+// own). If both rows carry an account and they differ, they are never
+// duplicates of each other.
+export function isLikelyImportDuplicate(row, others, windowDays = 1) {
+  const amt = Math.abs(Number(row.amount) || 0);
+  if (!amt) return false;
+  const rowTokens = normDescTokens(row.description);
+  for (const o of others || []) {
+    if (!o) continue;
+    if (Math.abs(Number(o.amount) || 0) !== amt) continue;
+    const aA = row.account_id || "";
+    const aB = o.account_id || "";
+    if (aA && aB && aA !== aB) continue;
+    if (dayDiff(row.date, o.date) > windowDays) continue;
+    const oTokens = normDescTokens(o.description);
+    if (!rowTokens.length || !oTokens.length) return true;
+    if (oTokens.some((t) => rowTokens.includes(t))) return true;
+  }
+  return false;
+}
+
 // Group all rows by (amount, account) and cluster consecutive rows whose dates
 // fall within the 3-day window. Returns { groupIds, dupIds }:
 //   groupIds — every member of a duplicate cluster (for highlighting)
