@@ -7,7 +7,8 @@ import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import ScrollToTop from './components/ScrollToTop';
 // Add page imports here
-import RootGate from '@/pages/RootGate';
+import Dashboard from '@/pages/Dashboard';
+import Splash from '@/pages/Splash';
 import Strategy from '@/pages/Strategy';
 import Portfolio from '@/pages/Portfolio';
 import Insights from '@/pages/Insights';
@@ -21,7 +22,8 @@ import Setup from '@/pages/Setup';
 import CreditUtilization from '@/pages/CreditUtilization';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { FinanceLayout } from '@/lib/FinanceDataContext';
-import { Navigate } from 'react-router-dom';
+import OnboardingGate from '@/components/onboarding/OnboardingGate';
+import KeepAliveOutlet from '@/components/finance/KeepAliveOutlet';
 import Login from '@/pages/Login';
 import Register from '@/pages/Register';
 import ForgotPassword from '@/pages/ForgotPassword';
@@ -57,23 +59,22 @@ const AuthenticatedApp = () => {
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
-      {/* The root URL is the single entry point: splash for guests, the full
-          Haven app for authenticated users. */}
-      <Route path="/" element={<RootGate />} />
-      <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/" replace />} />}>
+      <Route element={<ProtectedRoute unauthenticatedElement={<Splash />} />}>
         <Route element={<FinanceLayout />}>
-        {/* Add your page Route elements here */}
-        <Route path="/strategy" element={<Strategy />} />
-        <Route path="/portfolio" element={<Portfolio />} />
-        <Route path="/insights" element={<Insights />} />
-        <Route path="/settings" element={<Settings />} />
-        <Route path="/forecast" element={<Forecast />} />
-        <Route path="/budgeting" element={<Budgeting />} />
-        <Route path="/cashflow" element={<CashFlow />} />
-        <Route path="/assistant" element={<Assistant />} />
-        <Route path="/accounts" element={<Accounts />} />
-        <Route path="/setup" element={<Setup />} />
-        <Route path="/credit-utilization" element={<CreditUtilization />} />
+          <Route element={<OnboardingGate><KeepAliveOutlet /></OnboardingGate>}>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/strategy" element={<Strategy />} />
+            <Route path="/portfolio" element={<Portfolio />} />
+            <Route path="/insights" element={<Insights />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/forecast" element={<Forecast />} />
+            <Route path="/budgeting" element={<Budgeting />} />
+            <Route path="/cashflow" element={<CashFlow />} />
+            <Route path="/assistant" element={<Assistant />} />
+            <Route path="/accounts" element={<Accounts />} />
+            <Route path="/credit-utilization" element={<CreditUtilization />} />
+          </Route>
+          <Route path="/setup" element={<Setup />} />
         </Route>
       </Route>
       <Route path="*" element={<PageNotFound />} />
