@@ -3,6 +3,10 @@ import { History, CreditCard, Landmark } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCategories, categoryOptions } from "@/lib/categories";
 import { TransactionRow } from "@/components/finance/TransactionRows";
+import TransactionExplorerModal from "@/components/finance/TransactionExplorerModal";
+import { ChevronRight } from "lucide-react";
+
+const PREVIEW_LIMIT = 10;
 
 export default function AccountHistory({ accounts = [], debts = [], transactions = [], onChanged }) {
   const { categories } = useCategories();
@@ -36,6 +40,7 @@ export default function AccountHistory({ accounts = [], debts = [], transactions
   }, [accounts, debts]);
 
   const [selected, setSelected] = React.useState("");
+  const [explorerOpen, setExplorerOpen] = React.useState(false);
   React.useEffect(() => {
     if (!selected && holders.length) setSelected(holders[0].id);
     if (selected && !holders.find((h) => h.id === selected) && holders.length) setSelected(holders[0].id);
@@ -91,13 +96,35 @@ export default function AccountHistory({ accounts = [], debts = [], transactions
         {rows.length === 0 ? (
           <p className="text-xs text-zinc-500 text-center py-6">No transactions linked to this account yet.</p>
         ) : (
-          <AnimatePresence mode="popLayout">
-            {rows.map((t) => (
-              <TransactionRow key={t.id} t={t} accountsMap={accountsMap} onChanged={onChanged} categories={options} />
-            ))}
-          </AnimatePresence>
+          <>
+            <AnimatePresence mode="popLayout">
+              {rows.slice(0, PREVIEW_LIMIT).map((t) => (
+                <TransactionRow key={t.id} t={t} accountsMap={accountsMap} onChanged={onChanged} categories={options} />
+              ))}
+            </AnimatePresence>
+            {rows.length > PREVIEW_LIMIT && (
+              <button
+                type="button"
+                onClick={() => setExplorerOpen(true)}
+                className="mt-2 w-full flex items-center justify-center gap-1 rounded-lg border border-white/10 bg-black py-2 text-[11px] uppercase tracking-widest text-white/60 hover:text-white hover:border-white/30 transition-colors"
+              >
+                View All <ChevronRight className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </>
         )}
       </div>
+
+      <TransactionExplorerModal
+        open={explorerOpen}
+        onOpenChange={setExplorerOpen}
+        transactions={transactions}
+        debtRows={[]}
+        accountsMap={accountsMap}
+        accounts={accounts}
+        debts={debts}
+        onChanged={onChanged}
+      />
     </div>
   );
 }
