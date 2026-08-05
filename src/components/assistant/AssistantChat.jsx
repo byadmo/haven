@@ -6,6 +6,7 @@ import { startOfMonth, endOfMonth, isWithinInterval, parseISO, subMonths, format
 import { computeTrajectory, solveExtraForTarget } from "@/lib/trajectory";
 import ApprovalModal from "@/components/assistant/ApprovalModal";
 import { adjustLinkedBalance, txEffect, balanceApplies } from "@/lib/accounts";
+import { AGENTS, AGENT_LIST } from "@/lib/agentPrompts";
 
 const uid = () => Math.random().toString(36).slice(2);
 
@@ -35,7 +36,8 @@ const GREETING = {
   id: uid(),
   role: "assistant",
   kind: "text",
-  text: "Hello — I'm Adam, your personal AI financial advisor. Ask me anything about budgeting, debt strategy, investing, taxes, or a big money decision you're weighing. I can also make changes to your transactions, debts, and accounts (you'll approve every edit first). Upload a statement photo or PDF to import transactions, or just tell me what's on your mind.",
+  agentId: "WEI",
+  text: "Hi — I'm Wei, your master financial strategist and the main entry point for Haven. Ask me anything about budgeting, debt, investing, taxes, or a big money decision. I collaborate with four specialists you can switch to anytime: Clu (cash flow & savings directives), Sno (monthly diagnostics), Jue (portfolio & stocks), and Opi (debt payoff strategy). I can also make changes to your transactions, debts, and accounts — you'll approve every edit first. Upload a statement to import, or tell me what's on your mind.",
 };
 
 const OPS_SCHEMA = {
@@ -88,19 +90,7 @@ const OPS_SCHEMA = {
   required: ["message", "operations"],
 };
 
-const SYSTEM_INSTRUCTIONS = `You are "Adam", a world-class AI financial advisor living inside the user's personal finance app.
-You know everything there is to know about money: budgeting, debt payoff (snowball vs avalanche), interest math, investing, asset allocation, retirement accounts, taxes (with regional awareness), insurance, real estate, emergency funds, behavioral finance, and macroeconomics. You give clear, confident, personalized advice and are equally happy to tackle big life decisions ("should I buy a house now?") as everyday questions ("is this subscription worth keeping?").
-
-PERSONALITY:
-- Warm but direct, never condescending. You sound like the most capable, well-read advisor the user has ever met.
-- You tailor every answer to the user's actual numbers in the PROVIDED DATA — reference their real accounts, debts, balances, and spending when relevant.
-- You explain the *why*, not just the *what*. Offer reasoning, trade-offs, and a recommended action.
-- Be concrete and specific — dollar amounts, percentages, timelines. Avoid vague platitudes like "spend less than you earn."
-- When the user is stressed or in a tough spot, you are calm, reassuring, and constructive — never preachy.
-- You can disagree with the user respectfully when their plan is flawed, and you'll explain the better path.
-- Keep answers tight and skimmable: lead with the answer, then a short supporting explanation. Use plain language; reserve jargon for when it genuinely helps.
-- Open EVERY response with a short, friendly greeting that introduces yourself, e.g. "Hey, Adam here —" or "This is Adam. ". Keep it brief and natural; vary the phrasing so it doesn't feel scripted.
-- You do NOT give legal or individual tax-filing advice or guarantees about investment returns — frame those as general educational guidance and suggest a licensed professional when it crosses that line.
+const SHARED_CAPABILITIES = `You are part of Haven's multi-agent financial advisory team. Your specialist role and behavior are defined above; everything below applies to ALL agents and describes the shared action layer. Always tailor your answer to the user's actual numbers in the PROVIDED DATA, reference their real accounts, debts, balances, and spending, and keep answers tight and skimmable: lead with the answer, then a short supporting explanation. Do not give legal or individual tax-filing advice or guarantees about investment returns — frame those as general educational guidance and suggest a licensed professional when it crosses that line.
 
 ANALYTICS:
 When the user asks for a review, insights, a "read" on their situation, or any open-ended question about their finances, synthesize across ALL provided data — net worth, cash balances, debts (balances, APRs, minimums), income, spending, portfolio holdings, recurring items, and payment history.
@@ -278,6 +268,7 @@ export default function AssistantChat({ accounts, debts, transactions, debtPayme
   const [ops, setOps] = React.useState(null);
   const [opsOpen, setOpsOpen] = React.useState(false);
   const [opsBusy, setOpsBusy] = React.useState(false);
+  const [activeAgent, setActiveAgent] = React.useState("WEI");
   const [pendingFile, setPendingFile] = React.useState(null);
   const [pendingPreview, setPendingPreview] = React.useState(null);
   const fileRef = React.useRef(null);
@@ -396,10 +387,11 @@ export default function AssistantChat({ accounts, debts, transactions, debtPayme
         }
       }
 
-      const prompt = `${SYSTEM_INSTRUCTIONS}\n\n${buildContext(ctxData)}${goalSection}\n\nUSER: ${userText}`;
+      const agent = AGENTS[activeAgent] || AGENTS.WEI;
+      const prompt = `${agent.systemPrompt}\n\n${SHARED_CAPABILITIES}\n\n${buildContext(ctxData)}${goalSection}\n\nUSER: ${userText}`;
       const obj = await callLLM(prompt, fileUrls);
       setMessages((s) => s.filter((m) => m.id !== thinking));
-      if (obj?.message) addMsg({ role: "assistant", kind: "text", text: obj.message });
+      if (obj?.message) addMsg({ role: "assistant", kind: "text", text: obj.message, agentId: activeAgent });
       const opsList = opsFromResponse(obj);
       if (opsList.length) { setOps(opsList); setOpsOpen(true); }
       else if (!obj?.message) addMsg({ role: "assistant", kind: "text", text: "Done." });
@@ -506,7 +498,7 @@ export default function AssistantChat({ accounts, debts, transactions, debtPayme
     try {
       const slim = priorOps.map(({ summary, entity, action, targetId, data }) => ({ entity, action, targetId, summary, data }));
       const prompt =
-        `${SYSTEM_INSTRUCTIONS}\n\n${buildContext(ctxData)}\n\n` +
+        `${(AGENTS[activeAgent] || AGENTS.WEI).systemPrompt}\n\n${SHARED_CAPABILITIES}\n\n${buildContext(ctxData)}\n\n` +
         `PREVIOUS PROPOSALS (JSON):\n${JSON.stringify(slim, null, 0)}\n\n` +
         `USER FEEDBACK: ${feedback}\n\nRevise the operations to satisfy the feedback. Return the same JSON shape (message + operations).`;
       const obj = await callLLM(prompt);
@@ -529,16 +521,33 @@ export default function AssistantChat({ accounts, debts, transactions, debtPayme
         style={vpHeight ? { height: `${Math.max(240, vpHeight - 144)}px` } : undefined}
       >
         <div className="flex items-center justify-between px-4 py-2 border-b border-white/10">
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-3.5 w-3.5 text-indigo-400" />
-            <span className="text-[10px] font-mono uppercase tracking-widest text-white/50">Adam · saved on this device</span>
+          <div className="flex items-center gap-2 min-w-0">
+            <Sparkles className="h-3.5 w-3.5 text-indigo-400 shrink-0" />
+            <span className="text-[10px] font-mono uppercase tracking-widest text-white/50 truncate">
+              {AGENTS[activeAgent]?.name || "Wei"} · {AGENTS[activeAgent]?.title || ""} · saved on this device
+            </span>
           </div>
           <button
             onClick={handleClear}
-            className="flex items-center gap-1 text-[10px] font-mono uppercase tracking-widest text-white/40 hover:text-red-400 transition-colors"
+            className="flex items-center gap-1 text-[10px] font-mono uppercase tracking-widest text-white/40 hover:text-red-400 transition-colors shrink-0"
           >
             <Trash2 className="h-3 w-3" /> Clear
           </button>
+        </div>
+
+        <div className="flex gap-1.5 overflow-x-auto px-3 py-2 border-b border-white/10">
+          {AGENT_LIST.map((a) => (
+            <button
+              key={a.id}
+              onClick={() => setActiveAgent(a.id)}
+              title={a.description}
+              className={`shrink-0 rounded-md border px-2.5 py-1 text-[10px] font-mono uppercase tracking-wider transition-colors ${
+                a.id === activeAgent ? a.badgeColor : "border-white/10 text-white/40 hover:text-white hover:border-white/30"
+              }`}
+            >
+              {a.name}
+            </button>
+          ))}
         </div>
 
         <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -649,8 +658,15 @@ function Message({ m }) {
   }
   return (
     <div className="flex justify-start">
-      <div className="max-w-[85%] border border-white/10 rounded-md px-3 py-2 text-sm text-zinc-100 whitespace-pre-wrap">
-        {m.text}
+      <div className="max-w-[85%]">
+        {m.agentId && AGENTS[m.agentId] && (
+          <span className={`inline-block mb-1 rounded border px-1.5 py-0.5 text-[9px] font-mono uppercase tracking-wider ${AGENTS[m.agentId].badgeColor}`}>
+            {AGENTS[m.agentId].name} · {AGENTS[m.agentId].title}
+          </span>
+        )}
+        <div className="border border-white/10 rounded-md px-3 py-2 text-sm text-zinc-100 whitespace-pre-wrap">
+          {m.text}
+        </div>
       </div>
     </div>
   );
