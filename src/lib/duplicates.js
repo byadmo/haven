@@ -64,3 +64,34 @@ export function detectAmountWindowDuplicates(rows, windowDays = DUP_WINDOW_DAYS)
   }
   return { groupIds, dupIds };
 }
+
+// Returns an array of duplicate clusters (each an array of rows sorted by date,
+// earliest first = the keeper). Only clusters with more than one member.
+export function getDuplicateClusters(rows, windowDays = DUP_WINDOW_DAYS) {
+  const byKey = {};
+  for (const r of rows) {
+    const k = `${Number(r.amount) || 0}|${r.account_id || ""}`;
+    (byKey[k] ||= []).push(r);
+  }
+  const clusters = [];
+  for (const list of Object.values(byKey)) {
+    const sorted = [...list]
+      .filter((r) => !isNaN(parseISO(r.date)))
+      .sort((a, b) => parseISO(a.date) - parseISO(b.date));
+    let cluster = [];
+    let last = null;
+    const flush = () => { if (cluster.length > 1) clusters.push(cluster); cluster = []; };
+    for (const r of sorted) {
+      const d = parseISO(r.date);
+      if (cluster.length === 0 || (last !== null && differenceInCalendarDays(d, last) <= windowDays)) {
+        cluster.push(r);
+      } else {
+        flush();
+        cluster = [r];
+      }
+      last = d;
+    }
+    flush();
+  }
+  return clusters;
+}

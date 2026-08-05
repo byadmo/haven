@@ -12,7 +12,7 @@ import { base44 } from "@/api/base44Client";
 import { adjustTransferInOut, balanceApplies } from "@/lib/accounts";
 import { useCategories, categoryOptions } from "@/lib/categories";
 import { TransactionRow, DebtPaymentRow } from "@/components/finance/TransactionRows";
-import { detectAmountWindowDuplicates } from "@/lib/duplicates";
+import { getDuplicateClusters } from "@/lib/duplicates";
 import QuickAddModal from "@/components/finance/QuickAddModal";
 
 const DATE_FILTERS = [
@@ -52,6 +52,7 @@ export default function TransactionExplorerModal({ open, onOpenChange, transacti
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   const [dupIds, setDupIds] = React.useState(new Set());
   const [groupIds, setGroupIds] = React.useState(new Set());
+  const [dupClusters, setDupClusters] = React.useState([]);
 
   const allRows = React.useMemo(() => [...transactions, ...debtRows], [transactions, debtRows]);
 
@@ -88,29 +89,56 @@ export default function TransactionExplorerModal({ open, onOpenChange, transacti
   const clearAll = () => setSelected(new Set());
 
   const detectDuplicates = () => {
-    const { groupIds: gIds, dupIds: dups } = detectAmountWindowDuplicates(transactions);
+    const clusters = getDuplicateClusters(transactions);
+    const gIds = new Set();
+    const dups = new Set();
+    clusters.forEach((cl) => {
+      cl.forEach((r) => gIds.add(r.id));
+      cl.slice(1).forEach((r) => dups.add(r.id));
+    });
+    setDupClusters(clusters);
     setGroupIds(gIds);
     setDupIds(dups);
     setBulkMode(true);
     setSelected(new Set(dups));
   };
 
+  async function removeTransactions(list) {
+    for (const t of list) {
+      if (t._kind === "debt_payment") continue;
+      if (balanceApplies(t.date)) {
+        const oldFrom = t.type === "expense" ? t.account_id : t.transfer_account_id;
+        const oldTo = t.type === "expense" ? t.transfer_account_id : t.account_id;
+        if (oldFrom) await adjustTransferInOut(oldFrom, t.amount, "in");
+        if (oldTo) await adjustTransferInOut(oldTo, t.amount, "out");
+      }
+      await base44.entities.Transaction.delete(t.id);
+    }
+  }
+
   async function bulkDelete() {
     setDeleting(true);
     try {
-      const rows = filtered.filter((t) => selected.has(t.id) && t._kind !== "debt_payment");
-      for (const t of rows) {
-        if (balanceApplies(t.date)) {
-          const oldFrom = t.type === "expense" ? t.account_id : t.transfer_account_id;
-          const oldTo = t.type === "expense" ? t.transfer_account_id : t.account_id;
-          if (oldFrom) await adjustTransferInOut(oldFrom, t.amount, "in");
-          if (oldTo) await adjustTransferInOut(oldTo, t.amount, "out");
-        }
-        await base44.entities.Transaction.delete(t.id);
-      }
+      await removeTransactions(filtered.filter((t) => selected.has(t.id) && t._kind !== "debt_payment"));
       setSelected(new Set());
       setBulkMode(false);
       setConfirmOpen(false);
+      onChanged?.();
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  async function deleteDuplicate(id) {
+    const t = transactions.find((x) => x.id === id);
+    if (!t || t._kind === "debt_payment") return;
+    setDeleting(true);
+    try {
+      await removeTransactions([t]);
+      setDupClusters((cs) => cs.map((cl) => cl.filter((r) => r.id !== id)).filter((cl) => cl.length > 1));
+      setGroupIds((s) => { const n = new Set(s); n.delete(id); return n; });
+      setDupIds((s) => { const n = new Set(s); n.delete(id); return n; });
+      setSelected((s) => { const n = new Set(s); n.delete(id); return n; });
       onChanged?.();
     } finally {
       setDeleting(false);
@@ -246,6 +274,45 @@ export default function TransactionExplorerModal({ open, onOpenChange, transacti
             </Button>
           )}
         </div>
+
+        {dupClusters.length > 0 && (
+          <div className="shrink-0 rounded-lg border border-amber-500/30 bg-amber-500/[0.03] p-3">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[10px] uppercase tracking-widest text-amber-400">Duplicate groups · {dupClusters.length}</p>
+              <span className="text-[10px] text-white/40">green = keep · orange = remove</span>
+            </div>
+            <div className="space-y-3 max-h-56 overflow-y-auto pr-0.5">
+              {dupClusters.map((cl, ci) => (
+                <div key={ci} className="rounded-md border border-white/10 bg-black p-2">
+                  <p className="text-[9px] uppercase tracking-widest text-white/40 mb-1.5">
+                    Group {ci + 1} · {cl.length} charges · same amount &amp; account within 3 days
+                  </p>
+                  <div className="space-y-1.5">
+                    {cl.map((r, ri) => {
+                      const keeper = ri === 0;
+                      const acct = accountsMap?.[r.account_id]?.name || "—";
+                      return (
+                        <div key={r.id} className={`rounded-md border px-2.5 py-2 flex items-center gap-2 ${keeper ? "border-emerald-500/40 bg-emerald-500/5" : "border-amber-500/40 bg-amber-500/10"}`}>
+                          <span className={`text-[9px] uppercase tracking-widest shrink-0 ${keeper ? "text-emerald-400" : "text-amber-400"}`}>{keeper ? "Keep" : "Dup"}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs text-zinc-100 truncate">{r.description || "(no description)"}</p>
+                            <p className="text-[10px] text-white/40 font-mono">{format(parseISO(r.date), "MMM d, yyyy")} · {acct}{r.category ? ` · ${r.category}` : ""}</p>
+                          </div>
+                          <span className="text-sm font-mono tabular-nums text-zinc-100 shrink-0">${Number(r.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                          {!keeper && (
+                            <button type="button" onClick={() => deleteDuplicate(r.id)} disabled={deleting} className="shrink-0 h-7 w-7 rounded-md border border-amber-500/40 text-amber-400 hover:bg-amber-500/20 flex items-center justify-center disabled:opacity-40">
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden -mx-1 px-1 pb-1">
           {filtered.length === 0 ? (
