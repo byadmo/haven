@@ -104,10 +104,10 @@ export default function TransactionExplorerModal({ open, onOpenChange, transacti
     setSelected(new Set(dups));
   };
 
-  async function removeTransactions(list) {
+  async function removeTransactions(list, { skipBalance = false } = {}) {
     for (const t of list) {
       if (t._kind === "debt_payment") continue;
-      if (balanceApplies(t.date)) {
+      if (!skipBalance && balanceApplies(t.date)) {
         const oldFrom = t.type === "expense" ? t.account_id : t.transfer_account_id;
         const oldTo = t.type === "expense" ? t.transfer_account_id : t.account_id;
         if (oldFrom) await adjustTransferInOut(oldFrom, t.amount, "in");
@@ -154,7 +154,7 @@ export default function TransactionExplorerModal({ open, onOpenChange, transacti
     const ids = new Set(cluster.map((r) => r.id));
     setDeleting(true);
     try {
-      await removeTransactions(cluster.filter((t) => t._kind !== "debt_payment"));
+      await removeTransactions(cluster.filter((t) => t._kind !== "debt_payment"), { skipBalance: true });
       setDupClusters((cs) => cs.filter((cl) => cl !== cluster));
       setGroupIds((s) => { const n = new Set(s); ids.forEach((id) => n.delete(id)); return n; });
       setDupIds((s) => { const n = new Set(s); ids.forEach((id) => n.delete(id)); return n; });
@@ -170,7 +170,7 @@ export default function TransactionExplorerModal({ open, onOpenChange, transacti
     if (!t || t._kind === "debt_payment") return;
     setDeleting(true);
     try {
-      await removeTransactions([t]);
+      await removeTransactions([t], { skipBalance: true });
       setDupClusters((cs) => cs.map((cl) => cl.filter((r) => r.id !== id)).filter((cl) => cl.length > 1));
       setGroupIds((s) => { const n = new Set(s); n.delete(id); return n; });
       setDupIds((s) => { const n = new Set(s); n.delete(id); return n; });
