@@ -1,6 +1,6 @@
 import React from "react";
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, Target, LineChart, PieChart, TrendingUp, Sparkles, PiggyBank } from "lucide-react";
+import { LayoutDashboard, Target, LineChart, PieChart, TrendingUp, Sparkles, PiggyBank, ShieldCheck } from "lucide-react";
 
 const items = [
   { to: "/", label: "Overview", icon: LayoutDashboard, end: true },
@@ -10,6 +10,7 @@ const items = [
   { to: "/portfolio", label: "Portfolio", icon: LineChart },
   { to: "/insights", label: "Insights", icon: PieChart },
   { to: "/assistant", label: "Ask Wei", icon: Sparkles },
+  { to: "/splash", label: "Splash", icon: ShieldCheck },
 ];
 
 export default function MobileNav() {
