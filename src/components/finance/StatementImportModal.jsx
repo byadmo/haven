@@ -19,9 +19,10 @@ import {
 } from "@/components/ui/dialog";
 import { balanceApplies, txEffect } from "@/lib/accounts";
 import { isLikelyImportDuplicate } from "@/lib/duplicates";
+import { useToast } from "@/components/ui/use-toast";
 import { useCategories, categoryOptions } from "@/lib/categories";
 import { format } from "date-fns";
-import { UploadCloud, Loader2, Trash2, Check, FileText, ImageIcon, X, FileCheck, AlertTriangle } from "lucide-react";
+import { UploadCloud, Loader2, Trash2, Check, FileText, ImageIcon, X, FileCheck, AlertTriangle, Sparkles } from "lucide-react";
 import confetti from "canvas-confetti";
 
 const today = () => format(new Date(), "yyyy-MM-dd");
@@ -186,7 +187,9 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
   const [done, setDone] = React.useState(0);
   const [bulkAccountId, setBulkAccountId] = React.useState("");
   const [existingTxns, setExistingTxns] = React.useState([]);
+  const [aiBusy, setAiBusy] = React.useState(false);
   const fileRef = React.useRef(null);
+  const { toast } = useToast();
 
   React.useEffect(() => {
     if (open) reset();
@@ -396,6 +399,128 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
     }));
   }
 
+  async function commitBatch(toCreate) {
+    if (!toCreate || !toCreate.length) return 0;
+    const debtIds = new Set(debts.map((d) => d.id));
+    const isPay = (r) => r.type === "debt_payment" && debtIds.has(r.account_id);
+    const paymentRows = toCreate.filter(isPay);
+    const txRows = toCreate.filter((r) => !isPay(r)).map((r) => (r.type === "debt_payment" ? { ...r, type: "expense" } : r));
+
+    if (txRows.length) {
+      await base44.entities.Transaction.bulkCreate(
+        txRows.map((r) => ({
+          description: r.description,
+          amount: r.amount,
+          type: r.type,
+          category: r.category,
+          date: r.date,
+          account_id: r.account_id || undefined,
+        }))
+      );
+      await applyBatchEffects(txRows);
+    }
+
+    if (paymentRows.length) {
+      await base44.entities.DebtPayment.bulkCreate(
+        paymentRows.map((r) => ({
+          debt_id: r.account_id,
+          amount: r.amount,
+          date: r.date,
+          note: r.description,
+        }))
+      );
+      const payDeltas = {};
+      for (const r of paymentRows) {
+        if (!balanceApplies(r.date)) continue;
+        payDeltas[r.account_id] = (payDeltas[r.account_id] || 0) + r.amount;
+      }
+      await Promise.all(Object.entries(payDeltas).map(async ([id, amt]) => {
+        try {
+          const rec = await base44.entities.Debt.get(id);
+          const newBalance = Math.max(0, (rec.current_balance || 0) - amt);
+          await base44.entities.Debt.update(id, {
+            current_balance: newBalance,
+            status: newBalance <= 0 ? "paid_off" : "active",
+          });
+        } catch { /* ignore balance update failure */ }
+      }));
+    }
+    return toCreate.length;
+  }
+
+  // AI Auto-Approve: send the pending review rows to the deterministic backend
+  // reviewer. The approved rows are committed through the shared commit path
+  // (so account/liability balances stay consistent); the flagged rows stay in
+  // the review list, amber-highlighted and unchecked, with an explanatory
+  // tooltip so the user can override before finalizing.
+  async function handleAiAutoApprove() {
+    if (aiBusy || importing) return;
+    const reviewRows = rows.filter((r) => r.included && r.amount > 0);
+    if (!reviewRows.length) return;
+    setAiBusy(true);
+    try {
+      const pending = reviewRows.map((r) => ({
+        description: r.description, amount: r.amount, type: r.type,
+        date: r.date, account_id: r.account_id || "", category: r.category || "",
+      }));
+      const existing = existingTxns.map((t) => ({
+        description: t.description || "", amount: t.amount, type: t.type || "expense",
+        date: t.date, account_id: t.account_id || "",
+      }));
+      const res = await base44.functions.invoke("aiAutoApprove", { pending, existing });
+      const data = res?.data ?? res;
+      const flaggedList = Array.isArray(data?.flagged) ? data.flagged : [];
+      const flaggedPendingIdx = new Set(flaggedList.map((f) => f.index));
+
+      // Map pending positions back to row indices in the current group.
+      const reviewToRowIdx = [];
+      rows.forEach((r, idx) => { if (r.included && r.amount > 0) reviewToRowIdx.push(idx); });
+      const rowReason = {};
+      flaggedList.forEach((f) => {
+        if (typeof f?.index !== "number") return;
+        const rowIdx = reviewToRowIdx[f.index];
+        rowReason[rowIdx] = f.reason || "Likely duplicate import";
+      });
+      const approvedRowIdxs = [];
+      const flaggedRowIdxs = [];
+      reviewRows.forEach((_r, p) => {
+        const rowIdx = reviewToRowIdx[p];
+        if (flaggedPendingIdx.has(p)) flaggedRowIdxs.push(rowIdx);
+        else approvedRowIdxs.push(rowIdx);
+      });
+
+      const approvedRows = approvedRowIdxs.map((i) => rows[i]);
+      const committed = await commitBatch(approvedRows);
+      onSaved?.();
+
+      setGroups((gs) => gs.map((g, idx) => {
+        if (idx !== gi) return g;
+        const nextRows = [];
+        g.rows.forEach((r, j) => {
+          if (approvedRowIdxs.includes(j)) return; // committed — drop from review
+          if (flaggedRowIdxs.includes(j)) {
+            nextRows.push({ ...r, included: false, aiFlagReason: rowReason[j] || "Likely duplicate import" });
+          } else {
+            nextRows.push(r);
+          }
+        });
+        return { ...g, rows: nextRows };
+      }));
+
+      // Keep the in-memory existing list fresh so a second pass is accurate.
+      setExistingTxns((prev) => [...approvedRows, ...prev]);
+
+      toast({
+        title: "AI Auto-Approve",
+        description: `Approved ${committed} transaction${committed === 1 ? "" : "s"}, flagged ${flaggedList.length} as likely duplicate${flaggedList.length === 1 ? "" : "s"}.`,
+      });
+    } catch {
+      toast({ title: "AI Auto-Approve failed", description: "Please try again." });
+    } finally {
+      setAiBusy(false);
+    }
+  }
+
   async function handleImport() {
     if (importing) return;
     const toCreate = rows.filter((r) => r.included && r.amount > 0);
@@ -403,55 +528,9 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
     setImporting(true);
     setDone(0);
     try {
-      const debtIds = new Set(debts.map((d) => d.id));
-      const isPay = (r) => r.type === "debt_payment" && debtIds.has(r.account_id);
-      const paymentRows = toCreate.filter(isPay);
-      const txRows = toCreate.filter((r) => !isPay(r)).map((r) => r.type === "debt_payment" ? { ...r, type: "expense" } : r);
+      const count = await commitBatch(toCreate);
 
-      // One bulk create instead of a per-row loop.
-      if (txRows.length) {
-        await base44.entities.Transaction.bulkCreate(
-          txRows.map((r) => ({
-            description: r.description,
-            amount: r.amount,
-            type: r.type,
-            category: r.category,
-            date: r.date,
-            account_id: r.account_id || undefined,
-          }))
-        );
-        await applyBatchEffects(txRows);
-      }
-
-      // "PAYMENT - THANK YOU" rows that matched a liability are logged as debt
-      // payments (paying that liability down) — never as income transactions.
-      if (paymentRows.length) {
-        await base44.entities.DebtPayment.bulkCreate(
-          paymentRows.map((r) => ({
-            debt_id: r.account_id,
-            amount: r.amount,
-            date: r.date,
-            note: r.description,
-          }))
-        );
-        const payDeltas = {};
-        for (const r of paymentRows) {
-          if (!balanceApplies(r.date)) continue;
-          payDeltas[r.account_id] = (payDeltas[r.account_id] || 0) + r.amount;
-        }
-        await Promise.all(Object.entries(payDeltas).map(async ([id, amt]) => {
-          try {
-            const rec = await base44.entities.Debt.get(id);
-            const newBalance = Math.max(0, (rec.current_balance || 0) - amt);
-            await base44.entities.Debt.update(id, {
-              current_balance: newBalance,
-              status: newBalance <= 0 ? "paid_off" : "active",
-            });
-          } catch { /* ignore balance update failure */ }
-        }));
-      }
-
-      setDone(toCreate.length);
+      setDone(count);
       confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } });
 
       // Advance to the next group — if it isn't ready yet, a loading screen
@@ -601,6 +680,11 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
                 <Button variant="outline" onClick={disregardFile} disabled={importing} className="flex-1 h-10 border-zinc-800 text-zinc-300 hover:text-rose-400 hover:border-rose-500/40">
                   <X className="h-4 w-4 mr-1.5" /> Disregard
                 </Button>
+                <Button variant="outline" onClick={handleAiAutoApprove} disabled={aiBusy || importing || includedCount === 0} className="flex-1 h-10 border-indigo-500/40 text-indigo-300 hover:bg-indigo-500/10 hover:border-indigo-500/60">
+                  {aiBusy
+                    ? <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> AI reviewing…</>
+                    : <><Sparkles className="h-4 w-4 mr-1.5" /> AI Auto-Approve</>}
+                </Button>
                 <Button onClick={handleImport} disabled={importing || includedCount === 0} className="flex-1 h-10 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold">
                   {importing
                     ? <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> Importing…</>
@@ -640,7 +724,7 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
                   <div
                     key={i}
                     className={`rounded-lg border p-3 transition-colors ${
-                      duplicateFlags[i]
+                      duplicateFlags[i] || r.aiFlagReason
                         ? `border-amber-500/40 bg-amber-500/10 ${r.included ? "" : "opacity-60"}`
                         : r.included
                           ? "border-zinc-700 bg-zinc-950/40"
@@ -658,12 +742,12 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
                       </button>
 
                       <div className="flex-1 grid grid-cols-12 gap-2">
-                        {duplicateFlags[i] && (
-                          <div className="col-span-12 mb-1 flex items-center gap-1.5">
+                        {(duplicateFlags[i] || r.aiFlagReason) && (
+                          <div className="col-span-12 mb-1 flex items-center gap-1.5" title={r.aiFlagReason || "Possible duplicate — already exists in your transaction log"}>
                             <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/15 px-2 py-0.5 text-[10px] text-amber-300">
-                              <AlertTriangle className="h-3 w-3" /> Possible duplicate
+                              <AlertTriangle className="h-3 w-3" /> {r.aiFlagReason ? "AI flagged" : "Possible duplicate"}
                             </span>
-                            <span className="text-[10px] text-amber-400/80">already exists — unchecked by default</span>
+                            <span className="text-[10px] text-amber-400/80">{r.aiFlagReason || "already exists — unchecked by default"}</span>
                           </div>
                         )}
                         <div className="col-span-12 sm:col-span-5">
