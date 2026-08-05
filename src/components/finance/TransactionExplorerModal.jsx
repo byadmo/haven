@@ -49,6 +49,7 @@ export default function TransactionExplorerModal({ open, onOpenChange, transacti
   const [selected, setSelected] = React.useState(new Set());
   const [deleting, setDeleting] = React.useState(false);
   const [confirmOpen, setConfirmOpen] = React.useState(false);
+  const [dupIds, setDupIds] = React.useState(new Set());
 
   const allRows = React.useMemo(() => [...transactions, ...debtRows], [transactions, debtRows]);
 
@@ -84,6 +85,18 @@ export default function TransactionExplorerModal({ open, onOpenChange, transacti
   const selectAll = () => setSelected(new Set(selectableIds));
   const clearAll = () => setSelected(new Set());
 
+  const detectDuplicates = () => {
+    const seen = new Set();
+    const dups = new Set();
+    for (const t of [...transactions].sort((a, b) => new Date(a.date) - new Date(b.date))) {
+      const key = `${t.date}|${(t.description || "").toLowerCase().trim()}|${Number(t.amount) || 0}|${t.account_id || ""}`;
+      if (seen.has(key)) dups.add(t.id); else seen.add(key);
+    }
+    setDupIds(dups);
+    setBulkMode(true);
+    setSelected(new Set(dups));
+  };
+
   async function bulkDelete() {
     setDeleting(true);
     try {
@@ -109,8 +122,20 @@ export default function TransactionExplorerModal({ open, onOpenChange, transacti
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="bg-black border-white/10 text-zinc-100 max-w-3xl flex flex-col max-h-[90dvh] gap-3 overflow-hidden p-4 sm:p-5">
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center justify-between gap-2 shrink-0 pr-10">
           <DialogTitle className="text-sm font-semibold text-zinc-100">All Transactions</DialogTitle>
+          <div className="flex items-center gap-2">
+            {dupIds.size > 0 && (
+              <span className="text-[10px] uppercase tracking-widest text-amber-400">{dupIds.size} flagged</span>
+            )}
+            <button
+              type="button"
+              onClick={detectDuplicates}
+              className="h-8 px-3 rounded-md text-xs font-medium border border-white/10 bg-black text-white/60 hover:text-white/90 hover:border-white/20 transition-colors"
+            >
+              Detect duplicates
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-3 gap-2 shrink-0">
