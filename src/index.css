@@ -97,13 +97,13 @@
     color-scheme: dark;
     overscroll-behavior-y: none;
     overflow-x: hidden;
-    /* Global ~30% density reduction. Tailwind utilities are rem-based, so
-       shrinking the root font-size scales text/padding/margins/heights
+    /* Global density reduction (second pass). Tailwind utilities are rem-based,
+       so shrinking the root font-size scales text/padding/margins/heights
        uniformly across every page and component. The max-w overrides below
        keep the main content columns at ~their original pixel width, so the
        layout becomes denser (more info per screen) instead of just smaller
        with bigger gutters. */
-    font-size: 11.2px;
+    font-size: 9.8px;
   }
 }
 
@@ -116,9 +116,9 @@
      root font-size reduction above (purely compensates for the rem shrink,
      so layouts don't gain huge gutters). Only affects page content mains;
      modals/menus use max-w-md/lg and are untouched. */
-  .max-w-5xl { max-width: 90rem !important; }
-  .max-w-6xl { max-width: 100rem !important; }
-  .max-w-7xl { max-width: 116rem !important; }
+  .max-w-5xl { max-width: 105rem !important; }
+  .max-w-6xl { max-width: 118rem !important; }
+  .max-w-7xl { max-width: 131rem !important; }
 
   /* no soft shadows, no glass blur */
   .shadow, .shadow-sm, .shadow-md, .shadow-lg, .shadow-xl, .shadow-2xl { box-shadow: none !important; }

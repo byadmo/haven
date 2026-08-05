@@ -47,15 +47,25 @@ export default function CashFlowTab({ refreshKey, transactions = [], onRefresh }
                 const key = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
                 const d = byDate[key];
                 const crunch = d?.is_crunch_day;
+                const hasTxn = d && (d.income > 0 || d.expenses > 0);
                 return (
                   <div key={key}
-                    className={`aspect-square rounded border p-1 text-[9px] font-mono tabular-nums flex flex-col justify-between overflow-hidden ${crunch ? "border-rose-500/50 bg-rose-500/10" : d ? "border-white/10 bg-black" : "border-white/5 bg-white/[0.02]"}`}>
-                    <span className="text-white/40">{day}</span>
-                    {d && (
-                      <div className="overflow-hidden">
-                        {d.income > 0 && <p className="text-emerald-400 whitespace-nowrap truncate leading-none" title={money(d.income)}>+{moneyCompact(d.income)}</p>}
-                        {d.expenses > 0 && <p className="text-rose-400 whitespace-nowrap truncate leading-none" title={money(d.expenses)}>-{moneyCompact(d.expenses)}</p>}
-                        <p className={`whitespace-nowrap truncate leading-none ${d.running_balance < 0 ? "text-rose-400" : "text-white/40"}`} title={money(d.running_balance)}>{moneyCompact(d.running_balance)}</p>
+                    className={`aspect-square rounded border p-[5px] text-[8px] sm:text-[9px] font-mono tabular-nums leading-tight flex flex-col gap-1 overflow-hidden ${
+                      crunch
+                        ? "border-rose-500/60 bg-rose-500/10"
+                        : hasTxn
+                        ? "border-emerald-500/25 bg-emerald-500/[0.04]"
+                        : "border-white/[0.06] bg-white/[0.02]"
+                    }`}>
+                    <span className="text-white/35 self-start">{day}</span>
+                    {hasTxn && (
+                      <div className="flex flex-col gap-[2px] overflow-hidden">
+                        {d.income > 0 && (
+                          <span className="text-emerald-400 font-semibold whitespace-nowrap truncate" title={`+${money(d.income)}`}>+{moneyCompact(d.income)}</span>
+                        )}
+                        {d.expenses > 0 && (
+                          <span className="text-rose-400 font-semibold whitespace-nowrap truncate" title={`-${money(d.expenses)}`}>-{moneyCompact(d.expenses)}</span>
+                        )}
                       </div>
                     )}
                   </div>
