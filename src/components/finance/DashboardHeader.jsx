@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Wallet, Settings as SettingsIcon, LayoutDashboard, LineChart, PieChart, TrendingUp, Target, Sparkles } from "lucide-react";
+import { Wallet, Settings as SettingsIcon, LayoutDashboard, LineChart, PieChart, TrendingUp, Target, Sparkles, PiggyBank } from "lucide-react";
 import CommandPalette from "@/components/finance/CommandPalette";
 import BackupModal from "@/components/finance/BackupModal";
 import MobileNav from "@/components/finance/MobileNav";
@@ -13,6 +13,7 @@ export default function DashboardHeader({ actions }) {
     { to: "/insights", label: "Insights", icon: PieChart },
   ];
   const planningGroup = [
+    { to: "/budgeting", label: "Budgeting", icon: PiggyBank },
     { to: "/forecast", label: "Forecast", icon: TrendingUp },
     { to: "/strategy", label: "Strategy", icon: Target },
     { to: "/assistant", label: "Ask Wei", icon: Sparkles },

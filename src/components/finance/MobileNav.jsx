@@ -1,14 +1,15 @@
 import React from "react";
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, Target, LineChart, PieChart, TrendingUp, Sparkles } from "lucide-react";
+import { LayoutDashboard, Target, LineChart, PieChart, TrendingUp, Sparkles, PiggyBank } from "lucide-react";
 
 const items = [
   { to: "/", label: "Overview", icon: LayoutDashboard, end: true },
+  { to: "/budgeting", label: "Budget", icon: PiggyBank },
   { to: "/forecast", label: "Forecast", icon: TrendingUp },
-  { to: "/assistant", label: "Ask Wei", icon: Sparkles },
   { to: "/strategy", label: "Strategy", icon: Target },
   { to: "/portfolio", label: "Portfolio", icon: LineChart },
   { to: "/insights", label: "Insights", icon: PieChart },
+  { to: "/assistant", label: "Ask Wei", icon: Sparkles },
 ];
 
 export default function MobileNav() {

@@ -13,6 +13,7 @@ import Portfolio from '@/pages/Portfolio';
 import Insights from '@/pages/Insights';
 import Settings from '@/pages/Settings';
 import Forecast from '@/pages/Forecast';
+import Budgeting from '@/pages/Budgeting';
 import Assistant from '@/pages/Assistant';
 import Accounts from '@/pages/Accounts';
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -62,6 +63,7 @@ const AuthenticatedApp = () => {
         <Route path="/insights" element={<Insights />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/forecast" element={<Forecast />} />
+        <Route path="/budgeting" element={<Budgeting />} />
         <Route path="/assistant" element={<Assistant />} />
         <Route path="/accounts" element={<Accounts />} />
         </Route>
