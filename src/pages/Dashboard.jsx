@@ -14,15 +14,22 @@ import AccountsSummary from "@/components/finance/AccountsSummary";
 import Reveal from "@/components/finance/Reveal";
 import { ForecastProvider } from "@/lib/forecast-context";
 import { computeTrajectory } from "@/lib/trajectory";
-import OverviewTab from "@/components/dashboard/OverviewTab";
+import {
+  useOverviewData,
+  OverviewKpis,
+  OverviewSavings,
+  OverviewHeatmap,
+  OverviewAlerts,
+} from "@/components/dashboard/OverviewTab";
 import DebtTab from "@/components/dashboard/DebtTab";
 import CashFlowTab from "@/components/dashboard/CashFlowTab";
 import InvestmentsTab from "@/components/dashboard/InvestmentsTab";
 import GoalsTab from "@/components/dashboard/GoalsTab";
 import { useFinanceData } from "@/lib/FinanceDataContext";
 
+// The Overview analytics now live permanently above the tab bar, so the tab
+// rail surfaces the specialized command-center views only.
 const TABS = [
-  { id: "overview", label: "Overview" },
   { id: "debt", label: "Debt" },
   { id: "cashflow", label: "Cash Flow" },
   { id: "investments", label: "Investments" },
@@ -31,10 +38,11 @@ const TABS = [
 
 export default function Dashboard() {
   const { transactions: txns, debts, accounts, refresh, refreshKey } = useFinanceData();
-  const [tab, setTab] = useState("overview");
+  const [tab, setTab] = useState("debt");
   const [quickAdd, setQuickAdd] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const { net, saving, heat, alerts } = useOverviewData(refreshKey);
 
   const doRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -70,9 +78,7 @@ export default function Dashboard() {
     else if (inRange(t.date, pStart, pEnd)) { t.type === "income" ? (pIncome += t.amount) : (pExpense += t.amount); }
   });
   const pct = (cur, prev) => (prev > 0 ? ((cur - prev) / prev) * 100 : null);
-  const totalDebt = debts.reduce((s, d) => s + (d.current_balance || 0), 0);
-  const totalCash = accounts.reduce((s, a) => s + (a.balance || 0), 0);
-  const netWorth = totalCash - totalDebt;
+  const netWorth = (net ? net.total : null) ?? (accounts.reduce((s, a) => s + (a.balance || 0), 0) - debts.reduce((s, d) => s + (d.current_balance || 0), 0));
   const spendRatio = mIncome > 0 ? mExpense / mIncome : (mExpense > 0 ? 1 : 0);
   const forecastData = useMemo(
     () => computeTrajectory({ debts, accounts, transactions: txns }).series,
@@ -114,7 +120,7 @@ export default function Dashboard() {
 
       <ForecastProvider forecastData={forecastData}>
         <main className="relative max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-8 sm:space-y-6">
-          {/* Old Home overview — always visible above the tabbed command center */}
+          {/* Row 1 — headline metrics (Net Worth · Monthly Income · Monthly Spend) */}
           <Reveal>
             <MetricsRow
               netWorth={netWorth}
@@ -126,21 +132,37 @@ export default function Dashboard() {
             />
           </Reveal>
 
-          <Reveal><AccountsSummary /></Reveal>
+          {/* Row 2 — balance-sheet KPIs (Cash · Investments · Debt) */}
+          <Reveal delay={0.02}><OverviewKpis net={net} /></Reveal>
 
+          {/* Row 3 — accounts ledger */}
+          <Reveal delay={0.04}><AccountsSummary /></Reveal>
+
+          {/* Row 4 — chart + upcoming recurring */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
               <Reveal><ChartSwitcher transactions={txns} accounts={accounts} debts={debts} /></Reveal>
-              <Reveal delay={0.05}>
-                <RecentTransactions transactions={txns} accounts={accounts} debts={debts} refreshKey={refreshKey} onChanged={refresh} />
-              </Reveal>
             </div>
             <div className="space-y-6">
               <Reveal><UpcomingRecurring transactions={txns} accounts={accounts} onChanged={refresh} /></Reveal>
             </div>
           </div>
 
-          {/* Tabbed financial command center */}
+          {/* Row 5 — savings rate + spending heatmap */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Reveal><OverviewSavings saving={saving} /></Reveal>
+            <Reveal delay={0.03}><OverviewHeatmap heat={heat} /></Reveal>
+          </div>
+
+          {/* Row 6 — recent transactions */}
+          <Reveal delay={0.05}>
+            <RecentTransactions transactions={txns} accounts={accounts} debts={debts} refreshKey={refreshKey} onChanged={refresh} />
+          </Reveal>
+
+          {/* Row 7 — account balance alerts (footer) */}
+          <Reveal><OverviewAlerts alerts={alerts} /></Reveal>
+
+          {/* Tabbed command center */}
           <div className="flex gap-1 border-b border-white/10 overflow-x-auto">
             {TABS.map((t) => (
               <button
@@ -153,7 +175,6 @@ export default function Dashboard() {
             ))}
           </div>
 
-          {tab === "overview" && <OverviewTab refreshKey={refreshKey} />}
           {tab === "debt" && <DebtTab refreshKey={refreshKey} />}
           {tab === "cashflow" && <CashFlowTab refreshKey={refreshKey} />}
           {tab === "investments" && <InvestmentsTab refreshKey={refreshKey} />}
