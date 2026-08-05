@@ -249,9 +249,9 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
   function handleFiles(fileList) {
     const arr = Array.from(fileList || []);
     if (!arr.length) return;
-    previews.forEach((p) => p && URL.revokeObjectURL(p));
-    setFiles(arr);
-    setPreviews(arr.map((f) => (f.type.startsWith("image/") ? URL.createObjectURL(f) : null)));
+    const newPreviews = arr.map((f) => (f.type.startsWith("image/") ? URL.createObjectURL(f) : null));
+    setFiles((prev) => [...prev, ...arr]);
+    setPreviews((prev) => [...prev, ...newPreviews]);
     setRows([]);
     setError("");
   }
