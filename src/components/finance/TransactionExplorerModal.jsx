@@ -300,6 +300,9 @@ export default function TransactionExplorerModal({ open, onOpenChange, transacti
                 {accounts.map((a) => (
                   <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
                 ))}
+                {debts.filter((d) => (d.status || "active") !== "paid_off").map((d) => (
+                  <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           )}
