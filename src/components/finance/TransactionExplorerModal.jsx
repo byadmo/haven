@@ -1,6 +1,6 @@
 import React from "react";
 import { parseISO, format, isToday, isThisWeek, isThisMonth, isWithinInterval, startOfDay, endOfDay } from "date-fns";
-import { Search, Plus, Trash2 } from "lucide-react";
+import { Search, Plus, Trash2, Check } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
@@ -127,6 +127,14 @@ export default function TransactionExplorerModal({ open, onOpenChange, transacti
     } finally {
       setDeleting(false);
     }
+  }
+
+  function keepDuplicateGroup(cluster) {
+    const ids = new Set(cluster.map((r) => r.id));
+    setDupClusters((cs) => cs.filter((cl) => cl !== cluster));
+    setGroupIds((s) => { const n = new Set(s); ids.forEach((id) => n.delete(id)); return n; });
+    setDupIds((s) => { const n = new Set(s); ids.forEach((id) => n.delete(id)); return n; });
+    setSelected((s) => { const n = new Set(s); ids.forEach((id) => n.delete(id)); return n; });
   }
 
   async function deleteDuplicateGroup(cluster) {
@@ -303,9 +311,14 @@ export default function TransactionExplorerModal({ open, onOpenChange, transacti
                     <p className="text-[9px] uppercase tracking-widest text-white/40">
                       Group {ci + 1} · {cl.length} charges · same amount &amp; account within 3 days
                     </p>
-                    <button type="button" onClick={() => deleteDuplicateGroup(cl)} disabled={deleting} className="h-7 px-2 rounded-md border border-rose-500/40 text-rose-400 hover:bg-rose-500/20 flex items-center gap-1 text-[10px] uppercase tracking-widest disabled:opacity-40">
-                      <Trash2 className="h-3 w-3" /> Delete group
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      <button type="button" onClick={() => keepDuplicateGroup(cl)} disabled={deleting} className="h-7 px-2 rounded-md border border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/20 flex items-center gap-1 text-[10px] uppercase tracking-widest disabled:opacity-40">
+                        <Check className="h-3 w-3" /> Keep
+                      </button>
+                      <button type="button" onClick={() => deleteDuplicateGroup(cl)} disabled={deleting} className="h-7 px-2 rounded-md border border-rose-500/40 text-rose-400 hover:bg-rose-500/20 flex items-center gap-1 text-[10px] uppercase tracking-widest disabled:opacity-40">
+                        <Trash2 className="h-3 w-3" /> Delete
+                      </button>
+                    </div>
                   </div>
                   <div className="space-y-1.5">
                     {cl.map((r, ri) => {
