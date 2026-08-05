@@ -20,7 +20,7 @@ import {
 import { balanceApplies, txEffect } from "@/lib/accounts";
 import { useCategories, categoryOptions } from "@/lib/categories";
 import { format } from "date-fns";
-import { UploadCloud, Loader2, Trash2, Check, FileText, ImageIcon, X, FileCheck, AlertTriangle } from "lucide-react";
+import { UploadCloud, Loader2, Trash2, Check, FileText, ImageIcon, X, FileCheck, AlertTriangle, ChevronRight } from "lucide-react";
 import confetti from "canvas-confetti";
 
 const today = () => format(new Date(), "yyyy-MM-dd");
@@ -262,6 +262,21 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
     setGroups((gs) => gs.map((g, idx) => idx === gi
       ? { ...g, rows: g.rows.map((r) => (r.included ? { ...r, account_id: bulkAccountId } : r)) }
       : g));
+  }
+
+  // Drop this file's rows without importing, then advance to the next file
+  // (or close if it was the last one).
+  function disregardFile() {
+    if (importing) return;
+    setGroups((gs) => gs.filter((_, idx) => idx !== gi));
+    setError("");
+  }
+
+  // Move on to the next file without importing (or close if it was the last).
+  function nextFile() {
+    if (importing) return;
+    if (gi + 1 < groups.length) setGi(gi + 1);
+    else if (!parsing) { onSaved?.(); onOpenChange?.(false); }
   }
 
   async function handleParse() {
@@ -555,6 +570,16 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
                 >
                   Start over
                 </button>
+              </div>
+
+              {/* Quick actions at the very top of the list */}
+              <div className="flex items-center gap-2">
+                <Button variant="outline" onClick={disregardFile} disabled={importing} className="flex-1 h-10 border-zinc-800 text-zinc-300 hover:text-rose-400 hover:border-rose-500/40">
+                  <X className="h-4 w-4 mr-1.5" /> Disregard
+                </Button>
+                <Button onClick={nextFile} disabled={importing} className="flex-1 h-10 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold">
+                  Next <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
               </div>
 
               <div className="flex items-center justify-between">
