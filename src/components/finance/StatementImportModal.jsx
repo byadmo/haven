@@ -20,41 +20,14 @@ import {
 import { applyTxAccountEffect } from "@/lib/accounts";
 import { useCategories, categoryOptions } from "@/lib/categories";
 import { format } from "date-fns";
-import { UploadCloud, Loader2, Trash2, Check, FileText, ImageIcon, Camera, X } from "lucide-react";
+import { UploadCloud, Loader2, Trash2, Check, FileText, ImageIcon, X } from "lucide-react";
 import confetti from "canvas-confetti";
 
 const today = () => format(new Date(), "yyyy-MM-dd");
 
-// Recognized screenshot formats (pass these hints to the model via field
-// descriptions so it knows what kinds of images to expect):
-//   • Apple Wallet "Transaction Detail" pages — large amount at top, merchant
-//     string, "M/D/YY, H:MM AM/PM" timestamp, "Status: Approved" block, card
-//     name (e.g. "Royal Bank Cashback MasterCard").
-//   • Banking app "Latest Transactions" lists — a card image plus one or more
-//     rounded transaction rows with merchant, amount (CA$ or $), payment
-//     method (Apple Pay, etc.), and a relative time ("Just now", "Today",
-//     "Yesterday", "Aug 3").
-//   • Credit card / chequing statements — multi-row tables with date,
-//     description, and amount columns.
-//   • Single-charge push notifications or email receipts.
-// Amounts may be prefixed with CA$, CDN$, USD, $, or no symbol. Relative
-// dates like "Just now" map to today's date. The merchant string often
-// contains a raw processor suffix (e.g. "Presto Appl/scvxd2kmd7") — extract
-// the clean human-readable merchant into `merchant_clean`.
 const KNOWN_CATEGORIES = [
   "Income", "Transit (GO/TTC)", "E39/Civic Maintenance", "Christ Like! Inventory",
   "Food/Groceries", "Rent", "Utilities", "Dining", "Other",
-];
-
-const MERCHANT_CATEGORY_HINTS = [
-  "Presto, GO Transit, TTC, UP Express, Uber, Lyft, Transit → 'Transit (GO/TTC)'",
-  "Loblaws, No Frills, Metro, Sobeys, Farm Boy, Whole Foods, Costco, Walmart grocery → 'Food/Groceries'",
-  "McDonalds, Tim Hortons, Starbucks, Subway, Swigch, DoorDash, Uber Eats, Skip → 'Dining'",
-  "Lula, Intel, landlord, property management, Condo → 'Rent'",
-  "Enbridge, Hydro, Bell, Rogers, Telus, Toronto Hydro, water, gas, internet → 'Utilities'",
-  "Payroll, salary, deposit, e-transfer in, refund, cashback reward → 'Income'",
-  "Honda, Toyota, mechanic, E39, BMW, parts, Civic maintenance → 'E39/Civic Maintenance'",
-  "inventory, stock, wholesale goods for resale → 'Christ Like! Inventory'",
 ];
 
 const CATEGORY_FROM_DESCRIPTION = [
@@ -75,7 +48,6 @@ function guessCategory(text) {
   return "Other";
 }
 
-// Strip raw processor suffixes like "Presto Appl/scvxd2kmd7" → "Presto"
 function cleanMerchant(raw) {
   if (!raw) return "";
   let m = raw.split(/[/\\]/)[0].trim();
@@ -84,8 +56,6 @@ function cleanMerchant(raw) {
   return m || raw.trim();
 }
 
-// Parse many date forms → yyyy-MM-dd. Relative ("Just now", "Today",
-// "Yesterday") resolve against `now`. Falls back to today.
 function parseDate(raw) {
   if (!raw) return today();
   const s = String(raw).trim();
@@ -96,7 +66,6 @@ function parseDate(raw) {
     d.setDate(d.getDate() - 1);
     return format(d, "yyyy-MM-dd");
   }
-  // "8/3/26, 9:52 PM"  →  2026-08-03
   const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})(?:[,\s].*)?$/);
   if (m) {
     const [, mo, da, yr] = m;
@@ -108,6 +77,9 @@ function parseDate(raw) {
   return today();
 }
 
+// Focus ONLY on: account name, transaction rows (description/amount/type/date),
+// and the current/new balance. Everything else (interest charts, fee tables,
+// terms pages, marketing, back-of-PDF info) is ignored for speed.
 const EXTRACT_SCHEMA = {
   type: "object",
   description:
@@ -131,23 +103,10 @@ const EXTRACT_SCHEMA = {
       items: {
         type: "object",
         properties: {
-          description: {
-            type: "string",
-            description: "Merchant/memo text exactly as shown.",
-          },
-          amount: {
-            type: "number",
-            description: "Absolute dollar amount as a positive number, no symbols.",
-          },
-          type: {
-            type: "string",
-            enum: ["income", "expense"],
-            description: "'expense' for charges/purchases/bills. 'income' for refunds/deposits/payroll.",
-          },
-          date: {
-            type: "string",
-            description: "Transaction date in yyyy-MM-dd. Relative labels resolve to today: 'Today' → today, 'Yesterday' → yesterday.",
-          },
+          description: { type: "string", description: "Merchant/memo text exactly as shown." },
+          amount: { type: "number", description: "Absolute dollar amount as a positive number, no symbols." },
+          type: { type: "string", enum: ["income", "expense"], description: "'expense' for charges/purchases/bills. 'income' for refunds/deposits/payroll." },
+          date: { type: "string", description: "Transaction date in yyyy-MM-dd. Relative labels resolve to today: 'Today' → today, 'Yesterday' → yesterday." },
         },
         required: ["description", "amount", "type", "date"],
       },
@@ -158,7 +117,7 @@ const EXTRACT_SCHEMA = {
 
 function normalizeRow(r) {
   const rawDesc = r.description || "";
-  const description = r.merchant_clean || cleanMerchant(rawDesc) || rawDesc;
+  const description = cleanMerchant(rawDesc) || rawDesc;
   const amount = Math.abs(Number(r.amount) || 0);
   const type = r.type === "income" ? "income" : "expense";
   let category = r.category && KNOWN_CATEGORIES.includes(r.category) ? r.category : null;
@@ -177,8 +136,6 @@ function normalizeRow(r) {
   };
 }
 
-// Match an AI-read card/account identity to one of the user's existing accounts.
-// Scores by exact substring (card name / last-4) plus token overlap. Returns "" if no match.
 function autoMatchAccount(row, opts) {
   if (!opts || !opts.length) return "";
   const cand = (row.source_card_name || "").toLowerCase();
@@ -207,6 +164,7 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
   const [files, setFiles] = React.useState([]);
   const [previews, setPreviews] = React.useState([]);
   const [parsing, setParsing] = React.useState(false);
+  const [parseIndex, setParseIndex] = React.useState(0);
   const [rows, setRows] = React.useState([]);
   const [error, setError] = React.useState("");
   const [importing, setImporting] = React.useState(false);
@@ -227,14 +185,19 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
     setError("");
     setDone(0);
     setBulkAccountId("");
+    setParseIndex(0);
   }
 
   function handleFiles(fileList) {
     const arr = Array.from(fileList || []);
     if (!arr.length) return;
-    const newPreviews = arr.map((f) => (f.type.startsWith("image/") ? URL.createObjectURL(f) : null));
-    setFiles((prev) => [...prev, ...arr]);
-    setPreviews((prev) => [...prev, ...newPreviews]);
+    setFiles((prev) => {
+      const seen = new Set(prev.map((f) => `${f.name}_${f.size}_${f.lastModified}`));
+      const added = arr.filter((f) => !seen.has(`${f.name}_${f.size}_${f.lastModified}`));
+      if (!added.length) return prev;
+      setPreviews((pp) => [...pp, ...added.map((f) => (f.type.startsWith("image/") ? URL.createObjectURL(f) : null))]);
+      return [...prev, ...added];
+    });
     setRows([]);
     setError("");
   }
@@ -263,12 +226,17 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
     setParsing(true);
     setError("");
     setRows([]);
+    const accountOptions = [
+      ...accounts.map((a) => ({ id: a.id, name: a.name, kind: "account" })),
+      ...debts.map((d) => ({ id: d.id, name: d.name, kind: "debt" })),
+    ];
+    const all = [];
+    let failures = 0;
     try {
-      const all = [];
-      let failures = 0;
-      for (const f of files) {
+      for (let i = 0; i < files.length; i++) {
+        setParseIndex(i + 1);
         try {
-          const up = await base44.integrations.Core.UploadFile({ file: f });
+          const up = await base44.integrations.Core.UploadFile({ file: files[i] });
           const res = await base44.integrations.Core.ExtractDataFromUploadedFile({
             file_url: up.file_url,
             json_schema: EXTRACT_SCHEMA,
@@ -295,16 +263,18 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
         }
       }
       if (!all.length) {
-        if (failures === files.length) setError("Could not parse — AI may be busy, please retry.");
-        else setError("No transactions found in those files. Try clearer screenshots or PDFs.");
+        setError(failures === files.length
+          ? "Could not parse — AI may be busy, please retry."
+          : "No transactions found in those files. Try clearer screenshots or PDFs.");
       } else {
         setRows(all);
         if (failures > 0) setError(`${failures} of ${files.length} file(s) could not be parsed and were skipped.`);
       }
-    } catch (e) {
+    } catch {
       setError("Could not parse these files — AI may be busy, please retry.");
     } finally {
       setParsing(false);
+      setParseIndex(0);
     }
   }
 
@@ -324,15 +294,13 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
           date: r.date,
           account_id: r.account_id || undefined,
         });
-        if (r.account_id) {
-          await applyTxAccountEffect(r);
-        }
+        if (r.account_id) await applyTxAccountEffect(r);
         setDone((d) => d + 1);
       }
       confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } });
       onSaved?.();
       onOpenChange?.(false);
-    } catch (e) {
+    } catch {
       setError("Import stopped partway — some transactions may not have saved.");
     } finally {
       setImporting(false);
@@ -343,7 +311,6 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
     ...accounts.map((a) => ({ id: a.id, name: a.name, kind: "account" })),
     ...debts.map((d) => ({ id: d.id, name: d.name, kind: "debt" })),
   ];
-
   const includedCount = rows.filter((r) => r.included).length;
 
   return (
@@ -352,84 +319,89 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
         <DialogHeader className="px-5 pt-5 pb-2">
           <DialogTitle className="text-zinc-50">Import Bank Statement</DialogTitle>
           <DialogDescription className="text-zinc-500">
-            Upload a screenshot or PDF — AI reads each transaction and lets you fix category, account, and type before importing.
+            Upload screenshots or PDFs — AI reads the transactions from every file and lets you fix category, account, and type before importing.
           </DialogDescription>
         </DialogHeader>
 
         <div className="px-5 pb-5 space-y-4">
-        {/* Upload zone */}
-        {rows.length === 0 && (
-          <>
-            <div
-              onClick={() => fileRef.current?.click()}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => { e.preventDefault(); handleFiles(e.dataTransfer.files); }}
-              className="cursor-pointer rounded-lg border border-dashed border-zinc-700 bg-zinc-950/60 hover:border-indigo-500/50 transition-colors p-6 sm:p-8 flex flex-col items-center justify-center gap-3 text-center touch-manipulation"
-            >
-              {parsing ? (
-                <>
-                  <Loader2 className="h-8 w-8 text-indigo-400 animate-spin" />
-                  <p className="text-sm text-zinc-400 font-mono">Reading {files.length > 1 ? `${files.length} files…` : "your statement…"}<br/><span className="text-[11px] text-zinc-600">extracting one at a time</span></p>
-                </>
-              ) : previews.length > 0 ? (
-                <div className="w-full space-y-2">
-                  <div className="flex flex-wrap justify-center gap-2">
-                    {files.map((f, i) => (
-                      <div key={i} className="relative rounded-lg border border-zinc-700 bg-zinc-950/60 p-1.5 w-28 flex flex-col items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={(e) => { e.stopPropagation(); removeFile(i); }}
-                          className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-400 hover:text-rose-400 hover:bg-rose-500/10"
-                          aria-label="Remove file"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                        {previews[i] ? (
-                          <img src={previews[i]} alt={f.name} className="h-20 w-full object-cover rounded" />
-                        ) : (
-                          <div className="h-20 w-full rounded flex items-center justify-center bg-zinc-900">
-                            <FileText className="h-6 w-6 text-zinc-500" />
-                          </div>
-                        )}
-                        <p className="text-[10px] text-zinc-400 truncate w-full text-left" title={f.name}>{f.name}</p>
-                      </div>
-                    ))}
+          {rows.length === 0 && (
+            <>
+              <div
+                onClick={() => !parsing && fileRef.current?.click()}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => { e.preventDefault(); if (!parsing) handleFiles(e.dataTransfer.files); }}
+                className={`cursor-pointer rounded-lg border border-dashed border-zinc-700 bg-zinc-950/60 transition-colors p-6 sm:p-8 flex flex-col items-center justify-center gap-3 text-center touch-manipulation ${parsing ? "pointer-events-none" : "hover:border-indigo-500/50"}`}
+              >
+                {parsing ? (
+                  <>
+                    <Loader2 className="h-8 w-8 text-indigo-400 animate-spin" />
+                    <p className="text-sm text-zinc-400 font-mono">
+                      Reading {parseIndex > 0 ? `file ${parseIndex} of ${files.length}…` : "your statement…"}
+                      <br />
+                      <span className="text-[11px] text-zinc-600">extracting one at a time</span>
+                    </p>
+                  </>
+                ) : previews.length > 0 ? (
+                  <div className="w-full space-y-2">
+                    <div className="flex flex-wrap justify-center gap-2">
+                      {files.map((f, i) => (
+                        <div key={i} className="relative rounded-lg border border-zinc-700 bg-zinc-950/60 p-1.5 w-28 flex flex-col items-center gap-1">
+                          <span className="absolute -top-1.5 -left-1.5 h-5 min-w-5 px-1 rounded-full bg-indigo-600 border border-zinc-700 flex items-center justify-center text-[10px] font-mono text-white">
+                            {i + 1}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); removeFile(i); }}
+                            className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-400 hover:text-rose-400 hover:bg-rose-500/10"
+                            aria-label="Remove file"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                          {previews[i] ? (
+                            <img src={previews[i]} alt={f.name} className="h-20 w-full object-cover rounded" />
+                          ) : (
+                            <div className="h-20 w-full rounded flex items-center justify-center bg-zinc-900">
+                              <FileText className="h-6 w-6 text-zinc-500" />
+                            </div>
+                          )}
+                          <p className="text-[10px] text-zinc-400 truncate w-full text-left" title={f.name}>{f.name}</p>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-xs text-zinc-500 text-center">
+                      {files.length} file{files.length === 1 ? "" : "s"} ready · tap to add more
+                    </p>
                   </div>
-                  <p className="text-xs text-zinc-500 text-center">
-                    {files.length} file{files.length === 1 ? "" : "s"} ready · tap to add more
-                  </p>
-                </div>
-              ) : (
-                <>
-                  <UploadCloud className="h-8 w-8 text-zinc-500" />
-                  <div>
-                    <p className="text-sm text-zinc-300">Tap to upload photos or statements</p>
-                    <p className="text-[11px] text-zinc-600 mt-0.5 hidden sm:block">PNG, JPG, or PDF · pick multiple at once on mobile</p>
-                    <p className="text-[11px] text-zinc-600 mt-0.5 sm:hidden flex items-center justify-center gap-1"><ImageIcon className="h-3 w-3" /> Gallery or files · multi-select</p>
-                  </div>
-                </>
+                ) : (
+                  <>
+                    <UploadCloud className="h-8 w-8 text-zinc-500" />
+                    <div>
+                      <p className="text-sm text-zinc-300">Tap to upload photos or statements</p>
+                      <p className="text-[11px] text-zinc-600 mt-0.5 hidden sm:block">PNG, JPG, or PDF · pick multiple at once on mobile</p>
+                      <p className="text-[11px] text-zinc-600 mt-0.5 sm:hidden flex items-center justify-center gap-1"><ImageIcon className="h-3 w-3" /> Gallery or files · multi-select</p>
+                    </div>
+                  </>
+                )}
+              </div>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*,application/pdf"
+                multiple
+                className="hidden"
+                onChange={(e) => { handleFiles(e.target.files); e.target.value = ""; }}
+              />
+
+              {error && <p className="text-xs text-rose-400">{error}</p>}
+
+              {files.length > 0 && !parsing && (
+                <Button onClick={handleParse} className="w-full h-11 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold">
+                  <UploadCloud className="h-4 w-4 mr-1.5" /> Scan{files.length > 1 ? ` ${files.length} files` : ""} with AI
+                </Button>
               )}
-            </div>
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*,application/pdf"
-              multiple
-              className="hidden"
-              onChange={(e) => { handleFiles(e.target.files); e.target.value = ""; }}
-            />
+            </>
+          )}
 
-            {error && <p className="text-xs text-rose-400">{error}</p>}
-
-            {files.length > 0 && !parsing && (
-              <Button onClick={handleParse} className="w-full h-11 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold">
-                <UploadCloud className="h-4 w-4 mr-1.5" /> Scan{files.length > 1 ? ` ${files.length} files` : ""} with AI
-              </Button>
-            )}
-          </>
-        )}
-
-          {/* Parsed rows */}
           {rows.length > 0 && (
             <>
               <div className="flex items-center justify-between">
@@ -480,7 +452,6 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
                       </button>
 
                       <div className="flex-1 grid grid-cols-12 gap-2">
-                        {/* description */}
                         <div className="col-span-12 sm:col-span-5">
                           <Input
                             value={r.description}
@@ -489,7 +460,6 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
                             placeholder="Description"
                           />
                         </div>
-                        {/* amount */}
                         <div className="col-span-6 sm:col-span-2">
                           <Input
                             type="number"
@@ -499,7 +469,6 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
                             className="h-10 sm:h-8 bg-zinc-950 border-zinc-800 text-sm tabular-nums"
                           />
                         </div>
-                        {/* type */}
                         <div className="col-span-6 sm:col-span-2">
                           <Select value={r.type} onValueChange={(v) => updateRow(i, { type: v })}>
                             <SelectTrigger className="h-10 sm:h-8 bg-zinc-950 border-zinc-800 text-sm"><SelectValue /></SelectTrigger>
@@ -509,7 +478,6 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
                             </SelectContent>
                           </Select>
                         </div>
-                        {/* date */}
                         <div className="col-span-12 sm:col-span-3">
                           <Input
                             type="date"
@@ -519,7 +487,6 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
                           />
                         </div>
 
-                        {/* category + account row */}
                         <div className="col-span-12 sm:col-span-4">
                           <Label className="text-[9px] text-zinc-600 uppercase tracking-wider">Category</Label>
                           <input
