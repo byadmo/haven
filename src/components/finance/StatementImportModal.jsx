@@ -165,6 +165,16 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  // When background parsing ends and the current index points past every
+  // ready group (the user already imported the last one), close the modal.
+  React.useEffect(() => {
+    if (!parsing && groups.length > 0 && gi >= groups.length) {
+      onSaved?.();
+      onOpenChange?.(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [parsing, groups.length, gi]);
+
   function reset() {
     previews.forEach((p) => p && URL.revokeObjectURL(p));
     setFiles([]);
@@ -235,9 +245,12 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
       ...accounts.map((a) => ({ id: a.id, name: a.name, kind: "account" })),
       ...debts.map((d) => ({ id: d.id, name: d.name, kind: "debt" })),
     ];
+    let failed = 0;
+    let valid = 0;
     try {
-      // Parse every file in parallel for speed.
-      const results = await Promise.all(files.map(async (f) => {
+      // Parse files one at a time, surfacing each group the moment it's ready
+      // so the user can start reviewing file 1 while file 2+ keep loading.
+      for (const f of files) {
         try {
           const up = await base44.integrations.Core.UploadFile({ file: f });
           const res = await base44.integrations.Core.ExtractDataFromUploadedFile({
@@ -262,21 +275,22 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
             n.account_id = autoMatchAccount(n, accountOptions);
             if (n.description || n.amount) rows.push(n);
           }
-          return { fileName: f.name, rows };
+          if (rows.length) {
+            valid++;
+            setGroups((gs) => [...gs, { fileName: f.name, rows }]);
+          } else {
+            failed++;
+          }
         } catch {
-          return { fileName: f.name, rows: null }; // null = parse failed
+          failed++;
         }
-      }));
-      const valid = results.filter((r) => r.rows && r.rows.length);
-      const failed = results.filter((r) => r.rows === null);
-      if (!valid.length) {
-        setError(failed.length === files.length
+      }
+      if (!valid) {
+        setError(failed === files.length
           ? "Could not parse — AI may be busy, please retry."
           : "No transactions found in those files. Try clearer screenshots or PDFs.");
-      } else {
-        setGroups(valid);
-        setGi(0);
-        if (failed.length > 0) setError(`${failed.length} of ${files.length} file(s) could not be parsed and were skipped.`);
+      } else if (failed > 0) {
+        setError(`${failed} of ${files.length} file(s) could not be parsed and were skipped.`);
       }
     } catch {
       setError("Could not parse these files — AI may be busy, please retry.");
@@ -331,11 +345,14 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
       setDone(toCreate.length);
       confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } });
 
-      // Advance to the next file's group, or finish.
-      if (gi < groups.length - 1) {
+      // Advance to the next group — if it isn't ready yet, a loading screen
+      // shows while the background parse finishes; when parsing is already
+      // done and nothing is left, close out.
+      const moreReady = gi + 1 < groups.length;
+      const moreComing = parsing;
+      if (moreReady || moreComing) {
         setGi(gi + 1);
         setBulkAccountId("");
-        setImporting(false);
       } else {
         onSaved?.();
         onOpenChange?.(false);
@@ -352,12 +369,11 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
     ...debts.map((d) => ({ id: d.id, name: d.name, kind: "debt" })),
   ];
   const includedCount = rows.filter((r) => r.included && r.amount > 0).length;
-  const totalGroups = groups.length;
-  const isLastGroup = gi >= totalGroups - 1;
+  const totalFiles = files.length;
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!importing) onOpenChange?.(v); }}>
-      <DialogContent className="bg-zinc-900 border-zinc-800 text-zinc-100 max-w-full sm:max-w-2xl p-0 max-h-[90vh] overflow-y-auto">
+      <DialogContent className="bg-zinc-900 border-zinc-800 text-zinc-100 max-w-full sm:max-w-3xl w-full p-0">
         <DialogHeader className="px-5 pt-5 pb-2">
           <DialogTitle className="text-zinc-50">Import Bank Statement</DialogTitle>
           <DialogDescription className="text-zinc-500">
@@ -451,7 +467,7 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
                 <div className="flex items-center gap-2 min-w-0">
                   <FileCheck className="h-4 w-4 text-indigo-400 shrink-0" />
                   <div className="min-w-0">
-                    <p className="text-[10px] uppercase tracking-wider text-white/40">File {gi + 1} of {totalGroups}</p>
+                    <p className="text-[10px] uppercase tracking-wider text-white/40">File {gi + 1} of {totalFiles}</p>
                     <p className="text-sm text-zinc-100 truncate font-mono" title={current.fileName}>{current.fileName}</p>
                   </div>
                 </div>
@@ -486,7 +502,7 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
                 </Button>
               </div>
 
-              <div className="max-h-[40vh] overflow-y-auto space-y-2 pr-1">
+              <div className="space-y-2">
                 {rows.map((r, i) => (
                   <div
                     key={i}
@@ -592,10 +608,17 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
                 {importing ? (
                   <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> Importing…</>
                 ) : (
-                  <><Check className="h-4 w-4 mr-1.5" /> Import {includedCount} transaction{includedCount === 1 ? "" : "s"}{!isLastGroup ? ` · next: ${groups[gi + 1].fileName}` : ""}</>
+                  <><Check className="h-4 w-4 mr-1.5" /> Import {includedCount} transaction{includedCount === 1 ? "" : "s"}</>
                 )}
               </Button>
             </>
+          )}
+
+          {groups.length > 0 && !current && parsing && (
+            <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+              <Loader2 className="h-8 w-8 text-indigo-400 animate-spin" />
+              <p className="text-sm text-zinc-400 font-mono">Reading the next file…</p>
+            </div>
           )}
         </div>
       </DialogContent>
