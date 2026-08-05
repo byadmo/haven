@@ -20,7 +20,7 @@ import {
 import { balanceApplies, txEffect } from "@/lib/accounts";
 import { useCategories, categoryOptions } from "@/lib/categories";
 import { format } from "date-fns";
-import { UploadCloud, Loader2, Trash2, Check, FileText, ImageIcon, X, FileCheck, AlertTriangle, ChevronRight } from "lucide-react";
+import { UploadCloud, Loader2, Trash2, Check, FileText, ImageIcon, X, FileCheck, AlertTriangle } from "lucide-react";
 import confetti from "canvas-confetti";
 
 const today = () => format(new Date(), "yyyy-MM-dd");
@@ -72,31 +72,40 @@ function parseDate(raw) {
 // Parse ONLY: account/card name, transaction rows, and the current/new balance.
 // Everything else (interest charts, APR/fee tables, terms pages, marketing,
 // back-of-PDF info) is ignored for speed.
-const EXTRACT_SCHEMA = {
-  type: "object",
-  description:
-    "Extract ONLY the transaction rows and the current/new balance. Ignore interest rate charts, APR/fee tables, terms pages, marketing, and any non-transaction summary.",
-  properties: {
-    card_name: { type: "string", description: "Card or account name shown, if visible." },
-    card_last4: { type: "string", description: "Last 4 digits of the card, if shown." },
-    new_balance: { type: "number", description: "Current/new balance after these transactions. 0 if not visible." },
-    transactions: {
-      type: "array",
-      description: "Every transaction row: description, amount, type, date. Skip totals and fee-detail rows.",
-      items: {
-        type: "object",
-        properties: {
-          description: { type: "string", description: "Merchant/memo text exactly as shown." },
-          amount: { type: "number", description: "Absolute dollar amount as a positive number, no symbols." },
-          type: { type: "string", enum: ["income", "expense"], description: "'expense' for charges/purchases/bills. 'income' for refunds/deposits/payroll." },
-          date: { type: "string", description: "Date in yyyy-MM-dd. 'Today'→today, 'Yesterday'→yesterday." },
+// Build the extraction schema with the user's own category list embedded so
+// the AI can auto-assign a fitting category per transaction during the single
+// extraction call (no extra round-trip).
+function buildSchema(categoryList = []) {
+  const catHint = categoryList.length
+    ? ` Pick the single best-matching category for this transaction from EXACTLY this list: ${JSON.stringify(categoryList)}. If none of them fit the description well, return an empty string.`
+    : "";
+  return {
+    type: "object",
+    description:
+      "Extract ONLY the transaction rows and the current/new balance. Ignore interest rate charts, APR/fee tables, terms pages, marketing, and any non-transaction summary.",
+    properties: {
+      card_name: { type: "string", description: "Card or account name shown, if visible." },
+      card_last4: { type: "string", description: "Last 4 digits of the card, if shown." },
+      new_balance: { type: "number", description: "Current/new balance after these transactions. 0 if not visible." },
+      transactions: {
+        type: "array",
+        description: "Every transaction row: description, amount, type, date, category. Skip totals and fee-detail rows.",
+        items: {
+          type: "object",
+          properties: {
+            description: { type: "string", description: "Merchant/memo text exactly as shown." },
+            amount: { type: "number", description: "Absolute dollar amount as a positive number, no symbols." },
+            type: { type: "string", enum: ["income", "expense"], description: "'expense' for charges/purchases/bills. 'income' for refunds/deposits/payroll." },
+            date: { type: "string", description: "Date in yyyy-MM-dd. 'Today'→today, 'Yesterday'→yesterday." },
+            category: { type: "string", description: "The category that best fits this transaction based on its description." + catHint },
+          },
+          required: ["description", "amount", "type", "date"],
         },
-        required: ["description", "amount", "type", "date"],
       },
     },
-  },
-  required: ["transactions"],
-};
+    required: ["transactions"],
+  };
+}
 
 function normalizeRow(r, knownCategories = []) {
   const rawDesc = r.description || "";
@@ -272,11 +281,12 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
     setError("");
   }
 
-  // Move on to the next file without importing (or close if it was the last).
-  function nextFile() {
+  // Re-uncheck every row detected as a duplicate of an existing or earlier row.
+  function uncheckDuplicates() {
     if (importing) return;
-    if (gi + 1 < groups.length) setGi(gi + 1);
-    else if (!parsing) { onSaved?.(); onOpenChange?.(false); }
+    setGroups((gs) => gs.map((g, idx) => idx === gi
+      ? { ...g, rows: g.rows.map((r, j) => (duplicateFlags[j] ? { ...r, included: false } : r)) }
+      : g));
   }
 
   async function handleParse() {
@@ -304,7 +314,7 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
           const up = await base44.integrations.Core.UploadFile({ file: f });
           const res = await base44.integrations.Core.ExtractDataFromUploadedFile({
             file_url: up.file_url,
-            json_schema: EXTRACT_SCHEMA,
+            json_schema: buildSchema(categoryList),
           });
           let list = [];
           let cardName = "";
@@ -461,6 +471,7 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
     ...debts.map((d) => ({ id: d.id, name: d.name, kind: "debt" })),
   ];
   const includedCount = rows.filter((r) => r.included && r.amount > 0).length;
+  const hasDuplicates = Object.keys(duplicateFlags).length > 0;
   const totalFiles = files.length;
 
   return (
@@ -577,15 +588,22 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
                 <Button variant="outline" onClick={disregardFile} disabled={importing} className="flex-1 h-10 border-zinc-800 text-zinc-300 hover:text-rose-400 hover:border-rose-500/40">
                   <X className="h-4 w-4 mr-1.5" /> Disregard
                 </Button>
-                <Button onClick={nextFile} disabled={importing} className="flex-1 h-10 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold">
-                  Next <ChevronRight className="h-4 w-4 ml-1" />
+                <Button onClick={handleImport} disabled={importing || includedCount === 0} className="flex-1 h-10 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold">
+                  {importing
+                    ? <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> Importing…</>
+                    : <><Check className="h-4 w-4 mr-1.5" /> Import {includedCount} transaction{includedCount === 1 ? "" : "s"}</>}
                 </Button>
               </div>
 
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
                 <p className="text-xs font-mono uppercase tracking-widest text-white/50">
                   {includedCount} transaction{includedCount === 1 ? "" : "s"} ready to import
                 </p>
+                {hasDuplicates && (
+                  <Button size="sm" variant="outline" onClick={uncheckDuplicates} disabled={importing} className="h-7 border-amber-500/40 text-amber-400 hover:bg-amber-500/10 hover:text-amber-300">
+                    <AlertTriangle className="h-3.5 w-3.5 mr-1" /> Uncheck duplicates
+                  </Button>
+                )}
               </div>
 
               <div className="flex flex-wrap items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-950/60 p-2">
@@ -707,18 +725,6 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
               </div>
 
               {error && <p className="text-xs text-rose-400">{error}</p>}
-
-              <Button
-                onClick={handleImport}
-                disabled={importing || includedCount === 0}
-                className="w-full h-11 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold"
-              >
-                {importing ? (
-                  <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> Importing…</>
-                ) : (
-                  <><Check className="h-4 w-4 mr-1.5" /> Import {includedCount} transaction{includedCount === 1 ? "" : "s"}</>
-                )}
-              </Button>
             </>
           )}
 
