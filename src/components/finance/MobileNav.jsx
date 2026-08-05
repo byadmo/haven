@@ -5,7 +5,7 @@ import { LayoutDashboard, Target, LineChart, PieChart, TrendingUp, Sparkles } fr
 const items = [
   { to: "/", label: "Overview", icon: LayoutDashboard, end: true },
   { to: "/forecast", label: "Forecast", icon: TrendingUp },
-  { to: "/assistant", label: "Assistant", icon: Sparkles },
+  { to: "/assistant", label: "Ask Wei", icon: Sparkles },
   { to: "/strategy", label: "Strategy", icon: Target },
   { to: "/portfolio", label: "Portfolio", icon: LineChart },
   { to: "/insights", label: "Insights", icon: PieChart },

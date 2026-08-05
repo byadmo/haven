@@ -15,7 +15,7 @@ export default function DashboardHeader({ actions }) {
   const planningGroup = [
     { to: "/forecast", label: "Forecast", icon: TrendingUp },
     { to: "/strategy", label: "Strategy", icon: Target },
-    { to: "/assistant", label: "Ask Adam", icon: Sparkles },
+    { to: "/assistant", label: "Ask Wei", icon: Sparkles },
   ];
 
   return (

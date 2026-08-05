@@ -4,6 +4,7 @@ import { Sparkles, Loader2, CheckCircle2, AlertTriangle, TrendingUp, DollarSign,
 import { base44 } from "@/api/base44Client";
 import { isWithinInterval, parseISO } from "date-fns";
 import { useCurrency } from "@/lib/currency-context";
+import { AGENTS } from "@/lib/agentPrompts";
 
 const SCHEMA = {
   type: "object",
@@ -78,7 +79,9 @@ export default function SpendingInsights({ monthLabel, start, end, transactions 
         .map(([k, v]) => `- ${k}: $${v.toFixed(2)}`)
         .join("\n");
 
-      const prompt = `You are a financial coach. Analyze this user's spending for the month of ${monthLabel} and give actionable, personalized feedback on their spending habits, the top categories they overspent on, and concrete suggestions to save.
+      const prompt = `${AGENTS.SNO.systemPrompt}
+
+Analyze this user's spending for the month of ${monthLabel} and give actionable, personalized feedback on their spending habits, the top categories they overspent on, and concrete suggestions to save.
 
 Return JSON with: headline, summary (1-2 sentences), top_category (name), top_category_amount (number), top_category_pct (number 0-100 of total spend), and 3-5 points (icon in trending-up|dollar|target|alert|check|activity, title, detail). Be specific and reference real numbers and category names.
 
@@ -114,8 +117,8 @@ ${catLines || "(no spending recorded)"}`;
             <Sparkles className="h-3.5 w-3.5 text-violet-400" />
           </div>
           <div>
-            <h2 className="font-semibold text-sm text-zinc-100">AI Spending Feedback</h2>
-            <p className="text-[10px] uppercase tracking-widest text-white/50">{monthLabel} · personalized analysis</p>
+            <h2 className="font-semibold text-sm text-zinc-100">Sno · Monthly Diagnostic</h2>
+            <p className="text-[10px] uppercase tracking-widest text-white/50">{monthLabel} · spending audit</p>
           </div>
         </div>
         <Button

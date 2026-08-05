@@ -5,6 +5,7 @@ import {
   RefreshCw, Rocket, Activity, AlertTriangle, Wand2,
 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { AGENTS } from "@/lib/agentPrompts";
 
 const STORAGE_KEY = "dd:strategy-advice-v1";
 
@@ -153,7 +154,9 @@ export default function StrategyAdvisor({ debts, accounts, transactions, surplus
     setLoading("generate");
     try {
       const ctx = buildContext({ debts, accounts, transactions, surplus });
-      const prompt = `You are a sharp financial advisor. Analyze the user's debt and cash-flow situation and give actionable, specific recommendations.
+      const prompt = `${AGENTS.OPI.systemPrompt}
+
+Analyze the user's debt and cash-flow situation and give actionable, specific recommendations.
 
 Return JSON with: heading, method (avalanche or snowball), recommended_surplus (number, USD/mo to commit), recommended_target_months (number), and 4-6 points (each with icon in trending-up|dollar|target|alert|check|activity, title, detail).
 
@@ -194,7 +197,9 @@ ${ctx.text}`;
         ? `Previous recommendations (heading: ${lastAdvice.heading}, method: ${lastAdvice.method}, recommended surplus: $${(lastAdvice.recommended_surplus || 0).toFixed(2)}/mo, target months: ${lastAdvice.recommended_target_months}, points: ${JSON.stringify(lastAdvice.points)}):`
         : "(no previous recommendations)";
 
-      const prompt = `You are a sharp financial advisor giving a PROGRESS UPDATE. Compare the user's current state to their last advice and produce a concise update.
+      const prompt = `${AGENTS.OPI.systemPrompt}
+
+You are giving a PROGRESS UPDATE. Compare the user's current state to their last advice and produce a concise update.
 
 Return JSON with: headline (short verdict), summary (1-2 sentences), on_track (boolean), 2-4 points (icon in trending-up|dollar|target|alert|check|activity, title, detail). Each point should be specific: am I doing well, should I reduce spending, should I allocate more to a specific debt (name + dollar), etc. Optionally include adjusted_surplus (number, USD/mo) if you think the monthly surplus should change.
 
@@ -242,8 +247,8 @@ ${ctx.text}`;
           <Sparkles className="h-3.5 w-3.5 text-violet-400" />
         </div>
         <div>
-          <h2 className="font-semibold text-sm text-zinc-100">AI Strategy Advisor</h2>
-          <p className="text-[10px] uppercase tracking-widest text-white/50">Personalized recommendations to accelerate your payoff</p>
+          <h2 className="font-semibold text-sm text-zinc-100">Opi · Debt Strategy Advisor</h2>
+          <p className="text-[10px] uppercase tracking-widest text-white/50">Tactical debt analyst · accelerate your payoff</p>
         </div>
       </div>
 

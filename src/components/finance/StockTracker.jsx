@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import StockChart from "@/components/finance/StockChart";
 import StockImportModal from "@/components/finance/StockImportModal";
+import StockAdvisor from "@/components/finance/StockAdvisor";
 
 const fmt = (v) =>
   (v || 0).toLocaleString(undefined, {
@@ -156,6 +157,8 @@ export default function StockTracker({ onChanged }) {
           </Button>
         </div>
       </div>
+
+      <StockAdvisor stocks={stocks} prices={prices} />
 
       <div className="mb-4">
         <StockChart stocks={stocks} />

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Sparkles, Loader2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useFinanceData } from "@/lib/FinanceDataContext";
+import { AGENTS } from "@/lib/agentPrompts";
 
 export default function ForecastTip({ series, extra, method }) {
   const { debts, accounts, transactions } = useFinanceData();
@@ -32,7 +33,9 @@ export default function ForecastTip({ series, extra, method }) {
       const highestAPR = Math.max(...debts.filter(d => d.current_balance > 0).map(d => d.interest_rate || 0));
       const smallestBalance = Math.min(...debts.filter(d => d.current_balance > 0).map(d => d.current_balance || 0));
 
-      const prompt = `You are a financial advisor. Give a concise, straight-to-the-point recommendation. Exactly 2 sentences. No fluff.
+      const prompt = `${AGENTS.CLU.systemPrompt}
+
+Give a concise, straight-to-the-point cash-flow recommendation. Exactly 2 sentences. No fluff.
 
 Sentence 1: Recommend Avalanche or Snowball strategy and say why based on their debts.
 Sentence 2: One specific action to take (e.g. "Add $X more per month to [debt name]" or "Your surplus of $Y is enough to pay off by [date] — just keep going").
@@ -66,7 +69,7 @@ Format: Two sentences only. Start with the strategy recommendation.`;
         className="border-indigo-500/40 text-indigo-300 hover:bg-indigo-500/10 hover:text-indigo-200 gap-2"
       >
         {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-        {loading ? "Analyzing..." : "Get AI Tip"}
+        {loading ? "Analyzing..." : "Ask Clu"}
       </Button>
       {tip && (
         <div className="mt-3 p-4 rounded-lg border border-indigo-500/20 bg-indigo-500/5">
