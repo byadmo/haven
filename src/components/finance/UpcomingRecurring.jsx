@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import RecurringFields from "@/components/finance/RecurringFields";
-import RecurringList from "@/components/finance/RecurringList";
+import RecurringRow from "@/components/finance/RecurringRow";
 import { useCategories, categoryOptions } from "@/lib/categories";
 import { useCurrency } from "@/lib/currency-context";
 import { getRecurring, normalizeDesc } from "@/lib/recurring";
@@ -256,7 +256,22 @@ export default function UpcomingRecurring({ transactions, accounts = [], onChang
         </div>
       </div>
 
-      <RecurringList items={recurring} />
+      {recurring.length === 0 ? (
+        <p className="text-xs text-white/40 py-2">No recurring patterns detected yet — add 3+ consistent occurrences and they'll appear here.</p>
+      ) : (
+        <div className="space-y-1">
+          {recurring.map((it) => (
+            <RecurringRow
+              key={it.normalized}
+              item={it}
+              transactions={transactions}
+              accountsMap={accountsMap}
+              categories={options}
+              onChanged={onChanged}
+            />
+          ))}
+        </div>
+      )}
 
       {oneTime.length > 0 && (
         <div className="mt-4 pt-3 border-t border-white/10">
