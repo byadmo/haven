@@ -1,5 +1,6 @@
 import React from "react";
 import { useLocation, useOutlet } from "react-router-dom";
+import PageErrorBoundary from "@/components/finance/PageErrorBoundary";
 
 // Keep-alive outlet: instead of unmounting a page when the user navigates
 // away, keep up to MAX_MOUNTED recently-visited pages mounted in the DOM and
@@ -40,7 +41,7 @@ export default function KeepAliveOutlet() {
             style={{ display: active ? "block" : "none" }}
             aria-hidden={!active}
           >
-            {entry.el}
+            <PageErrorBoundary>{entry.el}</PageErrorBoundary>
           </div>
         );
       })}
