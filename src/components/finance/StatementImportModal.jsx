@@ -110,60 +110,43 @@ function parseDate(raw) {
 
 const EXTRACT_SCHEMA = {
   type: "object",
+  description:
+    "Extract ONLY: the account/card name, the transaction rows (description, amount, type, date), and the current/new balance. IGNORE everything else — interest rate charts, APR/fee tables, terms & conditions pages, card-benefit pages, payment-due-date boxes, the last informational pages of a PDF, marketing text, and any non-transaction summary. Do not read or describe those.",
   properties: {
-    source_type: {
-      type: "string",
-      enum: ["apple_wallet_detail", "banking_app_list", "credit_card_summary", "statement_table", "receipt", "other"],
-      description: "What kind of image this is. 'apple_wallet_detail' = iOS Wallet transaction detail page (large amount, merchant, date/time, Status: Approved block, card name). 'banking_app_list' = RBC/TD/Scotia/BMO/CIBC app showing a card image plus 'Latest Transactions' rows. 'credit_card_summary' = card image with one or two highlighted transactions. 'statement_table' = printed/PDF statement with date/description/amount columns. 'receipt' = store or email receipt.",
-    },
     card_name: {
       type: "string",
-      description: "Name of the card or account shown (e.g. 'RBC Cash Back Mastercard', 'Royal Bank Cashback MasterCard', 'TD Every Day-A'). Leave empty if not visible.",
+      description: "Name of the card or account shown (e.g. 'RBC Cash Back Mastercard'). Leave empty if not visible.",
     },
     card_last4: {
       type: "string",
-      description: "Last 4 digits of the card if shown (e.g. '8615'). Leave empty otherwise.",
+      description: "Last 4 digits of the card if shown. Leave empty otherwise.",
+    },
+    new_balance: {
+      type: "number",
+      description: "The current/new account or card balance shown (the balance after the listed transactions), as a positive number. Use 0 if not visible.",
     },
     transactions: {
       type: "array",
-      description: "Every transaction visible in the image. A single Apple Wallet detail page still yields one entry here. Parse each row even if merchant text contains a raw processor suffix like 'Presto Appl/scvxd2kmd7'.",
+      description: "Every transaction row visible — description, amount, type, and date only. Skip totals rows, fee-detail pages, and interest lines.",
       items: {
         type: "object",
         properties: {
           description: {
             type: "string",
-            description: "Original merchant/memo text exactly as shown, including any raw processor suffix (e.g. 'Presto Appl/scvxd2kmd7'). This is preserved for matching.",
-          },
-          merchant_clean: {
-            type: "string",
-            description: "Human-readable merchant name with processor suffixes removed. 'Presto Appl/scvxd2kmd7' → 'Presto'. 'TIM HORTONS 1234' → 'Tim Hortons'. Used as the display description.",
+            description: "Merchant/memo text exactly as shown.",
           },
           amount: {
             type: "number",
-            description: "Absolute dollar amount as a positive number. Strip currency symbols and prefixes (CA$, CDN$, USD, $) and commas. E.g. 'CA$21.00' → 21.00.",
-          },
-          currency: {
-            type: "string",
-            enum: ["CAD", "USD", "other"],
-            description: "Currency indicated in the image. Use 'CAD' for CA$ / CDN$ / Royal Bank, 'USD' for $ with US context.",
+            description: "Absolute dollar amount as a positive number, no symbols.",
           },
           type: {
             type: "string",
             enum: ["income", "expense"],
-            description: "'expense' for purchases, charges, bills, transit, dining. 'income' for payroll, refunds, deposits, cashback credited.",
-          },
-          category: {
-            type: "string",
-            enum: KNOWN_CATEGORIES,
-            description: "Best-fit category. Hints: " + MERCHANT_CATEGORY_HINTS.join(" | ") + ". Choose the closest match; use 'Other' if none fit.",
+            description: "'expense' for charges/purchases/bills. 'income' for refunds/deposits/payroll.",
           },
           date: {
             type: "string",
-            description: "Transaction date in yyyy-MM-dd. Relative labels resolve to today's date: 'Just now' and 'Today' → today, 'Yesterday' → yesterday. '8/3/26, 9:52 PM' → 2026-08-03. If no date is visible, use today's date.",
-          },
-          payment_method: {
-            type: "string",
-            description: "Payment method if shown (e.g. 'Apple Pay', 'Google Pay', 'Tap', 'Chip'). Leave empty if not visible.",
+            description: "Transaction date in yyyy-MM-dd. Relative labels resolve to today: 'Today' → today, 'Yesterday' → yesterday.",
           },
         },
         required: ["description", "amount", "type", "date"],
