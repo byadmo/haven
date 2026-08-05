@@ -38,6 +38,14 @@ const EXTRACT_SCHEMA = {
             type: "number",
             description: "The CURRENT balance amount shown for this account. For credit cards and loans this is the outstanding/current balance owed (positive number). Strip currency symbols and prefixes (CA$, CDN$, USD, $) and commas. E.g. 'Outstanding Balance CA$621.77' → 621.77. If no current balance field is visible (only a single transaction amount), do NOT include this account — there is no balance to read.",
           },
+          credit_limit: {
+            type: "number",
+            description: "The CREDIT LIMIT (total limit) if shown (mostly for credit cards / lines of credit). E.g. 'Credit Limit 500.00' → 500. Strip currency symbols/commas. Leave empty/null if not shown.",
+          },
+          available_credit: {
+            type: "number",
+            description: "The AVAILABLE CREDIT amount if shown — how much credit is unused. E.g. 'Available Credit $389.69' → 389.69. Strip currency symbols/commas. Leave empty/null if not shown.",
+          },
           account_type: {
             type: "string",
             enum: ["chequing", "savings", "credit_card", "line_of_credit", "loan", "mortgage", "investment", "other"],
@@ -155,10 +163,24 @@ export default function AccountBalanceImportModal({ open, onOpenChange, accounts
 
       if (items.length === 1) {
         const accountName = items[0].account_name || "";
-        const bal = Number(items[0].balance) || 0;
         const atype = items[0].account_type || "other";
         const liability = isLiabilityType(atype);
-        setParsed({ account_name: accountName, balance: bal, account_type: atype, isLiability: liability });
+        const creditLimit = Number(items[0].credit_limit);
+        const availCredit = Number(items[0].available_credit);
+        let bal;
+        let balSource = "stated";
+        if (!isNaN(creditLimit) && !isNaN(availCredit)) {
+          bal = creditLimit - availCredit;
+          balSource = "computed";
+        } else {
+          bal = Number(items[0].balance) || 0;
+        }
+        setParsed({
+          account_name: accountName, balance: bal, account_type: atype, isLiability: liability,
+          balSource,
+          creditLimit: isNaN(creditLimit) ? null : creditLimit,
+          availCredit: isNaN(availCredit) ? null : availCredit,
+        });
         setBalance(String(bal));
         setNewAccountName(accountName);
         const pool = liability ? debts : accounts;
@@ -171,7 +193,7 @@ export default function AccountBalanceImportModal({ open, onOpenChange, accounts
           setSelectedAccountId(match.id);
         } else if (pool.length > 0) {
           setMode("existing");
-          setSelectedAccountId(pool[0].id);
+          setSelectedAccountId("");
         } else {
           setMode("new");
         }
@@ -186,13 +208,26 @@ export default function AccountBalanceImportModal({ open, onOpenChange, accounts
             (a) => a.name.toLowerCase().includes(name.toLowerCase()) ||
                    name.toLowerCase().includes(a.name.toLowerCase())
           );
+          const creditLimit = Number(item.credit_limit);
+          const availCredit = Number(item.available_credit);
+          let bal;
+          let balSource = "stated";
+          if (!isNaN(creditLimit) && !isNaN(availCredit)) {
+            bal = creditLimit - availCredit;
+            balSource = "computed";
+          } else {
+            bal = Number(item.balance) || 0;
+          }
           return {
             account_name: name,
-            balance: Number(item.balance) || 0,
+            balance: bal,
             account_type: atype,
             isLiability: liability,
-            editedBalance: String(Number(item.balance) || 0),
-            matchedAccountId: match?.id || (pool.length > 0 ? pool[0].id : ""),
+            balSource,
+            creditLimit: isNaN(creditLimit) ? null : creditLimit,
+            availCredit: isNaN(availCredit) ? null : availCredit,
+            editedBalance: String(bal),
+            matchedAccountId: match?.id || "",
             dismissed: false,
           };
         }));
@@ -356,6 +391,11 @@ export default function AccountBalanceImportModal({ open, onOpenChange, accounts
                   <p className={`text-[10px] uppercase tracking-widest ${parsed.isLiability ? "text-rose-400/60" : "text-emerald-400/60"}`}>{parsed.isLiability ? "Detected · Liability" : "Detected"}</p>
                   <p className="text-sm font-medium text-zinc-100 truncate">{parsed.account_name || "Unknown account"}</p>
                   <p className={`text-lg font-bold font-mono tabular-nums ${parsed.isLiability ? "text-rose-400" : "text-emerald-400"}`}>{fmt(parsed.balance)}</p>
+                  {parsed.balSource === "computed" && parsed.creditLimit != null && parsed.availCredit != null && (
+                    <p className="text-[10px] font-mono tabular-nums text-white/40 mt-0.5">
+                      {fmt(parsed.creditLimit)} limit − {fmt(parsed.availCredit)} available
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -502,6 +542,9 @@ export default function AccountBalanceImportModal({ open, onOpenChange, accounts
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-zinc-100 truncate">{item.account_name || "Unknown account"}</p>
                         <p className="text-[10px] font-mono tabular-nums text-white/40">{item.isLiability ? "Liability" : "Detected"}: {fmt(item.balance)}</p>
+                        {item.balSource === "computed" && item.creditLimit != null && item.availCredit != null && (
+                          <p className="text-[9px] font-mono tabular-nums text-white/30">{fmt(item.creditLimit)} − {fmt(item.availCredit)} avail</p>
+                        )}
                       </div>
                     </div>
                     <button
