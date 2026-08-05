@@ -1,4 +1,5 @@
 import { parseISO, format, add, addDays } from "date-fns";
+import { isRecurringSuppressed } from "@/lib/recurringSuppression";
 
 // True recurring cadences.
 export const RECUR_FREQ = ["weekly", "biweekly", "monthly", "yearly"];
@@ -126,7 +127,9 @@ export function getRecurring(transactions) {
     }
   }
 
-  return [...auto, ...manual].sort((a, b) =>
-    a.predicted_next_date < b.predicted_next_date ? -1 : a.predicted_next_date > b.predicted_next_date ? 1 : 0
-  );
+  return [...auto, ...manual]
+    .filter((r) => !isRecurringSuppressed(r.normalized))
+    .sort((a, b) =>
+      a.predicted_next_date < b.predicted_next_date ? -1 : a.predicted_next_date > b.predicted_next_date ? 1 : 0
+    );
 }

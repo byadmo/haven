@@ -12,8 +12,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import SuppressChoiceDialog from "@/components/finance/SuppressChoiceDialog";
 import { normalizeDesc } from "@/lib/recurring";
 import { useCurrency } from "@/lib/currency-context";
+import { suppressRecurring } from "@/lib/recurringSuppression";
 
 const keyOf = (t) => `${t.type || "expense"}::${normalizeDesc(t.description)}`;
 
@@ -27,6 +29,7 @@ export default function RecurringRow({ item, transactions, accountsMap, categori
   const [open, setOpen] = React.useState(false);
   const [edit, setEdit] = React.useState(null);
   const [busy, setBusy] = React.useState(false);
+  const [showDelete, setShowDelete] = React.useState(false);
 
   const sourceTxns = useMemo(
     () => transactions.filter((t) => keyOf(t) === item.normalized),
@@ -66,17 +69,18 @@ export default function RecurringRow({ item, transactions, accountsMap, categori
     }
   }
 
-  async function remove() {
-    if (!sourceTxns.length) return;
-    const ok = window.confirm(
-      `Delete all ${sourceTxns.length} occurrence${
-        sourceTxns.length === 1 ? "" : "s"
-      } of "${item.description}"? This removes those transactions.`
-    );
-    if (!ok) return;
+  function removeFromListOnly() {
+    suppressRecurring(item.normalized);
+    setShowDelete(false);
+    onChanged?.();
+  }
+
+  async function removeFromHistory() {
+    if (!sourceTxns.length) { setShowDelete(false); return; }
     setBusy(true);
     try {
       await Promise.all(sourceTxns.map((t) => base44.entities.Transaction.delete(t.id)));
+      setShowDelete(false);
       onChanged?.();
     } finally {
       setBusy(false);
@@ -122,7 +126,7 @@ export default function RecurringRow({ item, transactions, accountsMap, categori
           </button>
           <button
             type="button"
-            onClick={remove}
+            onClick={() => setShowDelete(true)}
             disabled={busy}
             className="h-6 w-6 rounded-md flex items-center justify-center text-zinc-600 hover:text-rose-400 hover:bg-rose-500/10 transition-colors disabled:opacity-40"
             aria-label="Delete recurring pattern"
@@ -131,6 +135,20 @@ export default function RecurringRow({ item, transactions, accountsMap, categori
           </button>
         </div>
       </div>
+
+      <SuppressChoiceDialog
+        open={showDelete}
+        onOpenChange={setShowDelete}
+        title={`Remove "${item.description}"?`}
+        description={`This recurring pattern has ${sourceTxns.length} occurrence${sourceTxns.length === 1 ? "" : "s"}. Choose how to remove it.`}
+        suppressLabel="Remove from this list only"
+        suppressDescription="Hides the pattern here. Your transactions and statistics stay the same."
+        deleteLabel={`Also remove ${sourceTxns.length} occurrence${sourceTxns.length === 1 ? "" : "s"} from history`}
+        deleteDescription="Permanently deletes the underlying transactions. This affects your statistics."
+        busy={busy}
+        onSuppress={removeFromListOnly}
+        onDelete={removeFromHistory}
+      />
 
       {open && edit && (
         <form onSubmit={save} className="mb-2 rounded-lg border border-white/10 bg-black p-3 space-y-3">

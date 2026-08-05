@@ -14,9 +14,11 @@ import {
 } from "@/components/ui/select";
 import RecurringFields from "@/components/finance/RecurringFields";
 import RecurringRow from "@/components/finance/RecurringRow";
+import SuppressChoiceDialog from "@/components/finance/SuppressChoiceDialog";
 import { useCategories, categoryOptions } from "@/lib/categories";
 import { useCurrency } from "@/lib/currency-context";
 import { getRecurring, normalizeDesc } from "@/lib/recurring";
+import { suppressTransaction, isTransactionSuppressed } from "@/lib/recurringSuppression";
 
 function Row({ t, accountsMap, categories, onChanged, dueLabel }) {
   const { fmtMoney: fmt } = useCurrency();
@@ -26,6 +28,7 @@ function Row({ t, accountsMap, categories, onChanged, dueLabel }) {
   const [edit, setEdit] = React.useState(null);
   const [saving, setSaving] = React.useState(false);
   const [deleting, setDeleting] = React.useState(false);
+  const [showDelete, setShowDelete] = React.useState(false);
 
   function startEdit() {
     setEdit({
@@ -72,10 +75,17 @@ function Row({ t, accountsMap, categories, onChanged, dueLabel }) {
     }
   }
 
-  async function remove() {
+  async function removeFromListOnly() {
+    suppressTransaction(t.id);
+    setShowDelete(false);
+    onChanged?.();
+  }
+
+  async function removeFromHistory() {
     setDeleting(true);
     try {
       await base44.entities.Transaction.delete(t.id);
+      setShowDelete(false);
       onChanged?.();
     } finally {
       setDeleting(false);
@@ -111,7 +121,7 @@ function Row({ t, accountsMap, categories, onChanged, dueLabel }) {
           </button>
           <button
             type="button"
-            onClick={remove}
+            onClick={() => setShowDelete(true)}
             disabled={deleting}
             className="h-6 w-6 rounded-md flex items-center justify-center text-zinc-600 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
             aria-label="Delete"
@@ -120,6 +130,20 @@ function Row({ t, accountsMap, categories, onChanged, dueLabel }) {
           </button>
         </div>
       </div>
+
+      <SuppressChoiceDialog
+        open={showDelete}
+        onOpenChange={setShowDelete}
+        title={`Remove "${t.description}"?`}
+        description="Choose how to remove this upcoming transaction."
+        suppressLabel="Remove from this list only"
+        suppressDescription="Hides it here without deleting it. Your statistics stay the same."
+        deleteLabel="Also remove from transaction history"
+        deleteDescription="Permanently deletes this transaction. This affects your statistics."
+        busy={deleting}
+        onSuppress={removeFromListOnly}
+        onDelete={removeFromHistory}
+      />
 
       {open && edit && (
         <form onSubmit={save} className="mb-2 rounded-lg border border-white/10 bg-black p-3 space-y-3">
@@ -238,6 +262,7 @@ export default function UpcomingRecurring({ transactions, accounts = [], onChang
       .filter((t) => {
         try { if (!isFuture(parseISO(t.date))) return false; } catch { return false; }
         if (t.is_scheduled) return false;
+        if (isTransactionSuppressed(t.id)) return false;
         return !recurringKeys.has(`${t.type || "expense"}::${normalizeDesc(t.description)}`);
       })
       .sort((a, b) => new Date(a.date) - new Date(b.date))
