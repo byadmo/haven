@@ -326,40 +326,6 @@ export default function LiabilityLedger({ debts, onChanged, showPayoffTarget = t
                 <div className="text-[10px] uppercase tracking-widest text-white/30 mb-3 font-mono">T+{fc.timelineIndex} · future state · log disabled</div>
               )}
 
-              <button
-                onClick={() => setExpanded((prev) => ({ ...prev, [d.id]: !prev[d.id] }))}
-                className="w-full flex items-center justify-between text-[10px] uppercase tracking-widest text-white/50 hover:text-white/80 transition-colors py-1.5 border-t border-white/10"
-              >
-                <span className="font-medium font-mono tabular-nums">
-                  History · {history.length} {history.length === 1 ? "payment" : "payments"} · {fmt(totalPaid)} paid
-                </span>
-                <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isOpen ? "rotate-180" : ""}`} />
-              </button>
-
-              {isOpen && (
-                <div className="mt-1 space-y-1 max-h-40 overflow-y-auto">
-                  {history.length === 0 ? (
-                    <p className="text-xs text-white/30 py-2 text-center">No payments logged yet.</p>
-                  ) : (
-                    history.map((p) => (
-                      <div key={p.id} className="group flex items-center gap-2 px-2 py-1.5 hover:bg-white/5">
-                        <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-medium font-mono tabular-nums text-zinc-200">-{fmt(p.amount)}
-                            {p.note && <span className="text-white/40 font-normal ml-1.5 truncate">· {p.note}</span>}
-                          </p>
-                          <p className="text-[10px] font-mono tabular-nums text-white/40">{format(parseISO(p.date), "MMM d, yyyy")}</p>
-                        </div>
-                        {!isFuture && (
-                          <button onClick={() => removePayment(p)} className="h-11 w-11 flex items-center justify-center text-white/30 hover:text-rose-400 hover:bg-rose-500/10 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity" aria-label="Delete payment">
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        )}
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
           </div>
         );
       })}
