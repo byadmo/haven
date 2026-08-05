@@ -124,6 +124,7 @@ export default function AccountHistory({ accounts = [], debts = [], transactions
         accounts={accounts}
         debts={debts}
         onChanged={onChanged}
+        groupByAccount
       />
     </div>
   );

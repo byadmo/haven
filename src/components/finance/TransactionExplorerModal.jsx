@@ -37,7 +37,7 @@ function matchesDateFilter(dateStr, filter, customStart, customEnd) {
   }
 }
 
-export default function TransactionExplorerModal({ open, onOpenChange, transactions, debtRows, accountsMap, accounts = [], debts = [], onChanged }) {
+export default function TransactionExplorerModal({ open, onOpenChange, transactions, debtRows, accountsMap, accounts = [], debts = [], onChanged, groupByAccount = false }) {
   const { categories } = useCategories();
   const options = categoryOptions(categories);
   const [dateFilter, setDateFilter] = React.useState("all");
@@ -54,6 +54,7 @@ export default function TransactionExplorerModal({ open, onOpenChange, transacti
   const [groupIds, setGroupIds] = React.useState(new Set());
   const [dupClusters, setDupClusters] = React.useState([]);
   const [keeping, setKeeping] = React.useState(false);
+  const [byAccount, setByAccount] = React.useState(!!groupByAccount);
 
   const allRows = React.useMemo(() => [...transactions, ...debtRows], [transactions, debtRows]);
 
@@ -78,6 +79,14 @@ export default function TransactionExplorerModal({ open, onOpenChange, transacti
     { id: "income", label: "In" },
     { id: "expense", label: "Out" },
   ];
+
+  const groups = React.useMemo(() => {
+    const byAcc = {};
+    filtered.forEach((t) => { const k = t.account_id || "_none"; (byAcc[k] ||= []).push(t); });
+    return Object.entries(byAcc)
+      .map(([key, items]) => ({ key, items }))
+      .sort((a, b) => (accountsMap?.[a.key]?.name || "Unassigned").localeCompare(accountsMap?.[b.key]?.name || "Unassigned"));
+  }, [filtered, accountsMap]);
 
   const selectableIds = React.useMemo(() => filtered.filter((t) => t._kind !== "debt_payment").map((t) => t.id), [filtered]);
 
@@ -270,6 +279,14 @@ export default function TransactionExplorerModal({ open, onOpenChange, transacti
             ))}
           </div>
 
+          <button
+            type="button"
+            onClick={() => setByAccount((v) => !v)}
+            className={`h-8 px-3 rounded-md text-xs font-medium border transition-colors ${byAccount ? "bg-white/10 border-white/20 text-zinc-50" : "bg-black border-white/10 text-white/60 hover:text-white/90"}`}
+          >
+            By account
+          </button>
+
           <div className="relative flex-1 min-w-[120px]">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/30" />
             <input
@@ -363,6 +380,22 @@ export default function TransactionExplorerModal({ open, onOpenChange, transacti
         <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden -mx-1 px-1 pb-1">
           {filtered.length === 0 ? (
             <p className="text-sm text-zinc-500 text-center py-8">No transactions match.</p>
+          ) : byAccount ? (
+            <div className="space-y-4">
+              {groups.map((g) => (
+                <div key={g.key}>
+                  <p className="text-[10px] uppercase tracking-widest text-white/40 mb-1.5 px-1 flex items-center gap-2">
+                    <span className="truncate">{accountsMap?.[g.key]?.name || "Unassigned"}</span>
+                    <span className="text-white/20 tabular-nums">{g.items.length}</span>
+                  </p>
+                  {g.items.map((t) =>
+                    t._kind === "debt_payment"
+                      ? <DebtPaymentRow key={t.id} t={t} />
+                      : <TransactionRow key={t.id} t={t} accountsMap={accountsMap || {}} onChanged={onChanged} categories={options} bulkMode={bulkMode} selected={selected.has(t.id)} onToggleSelect={toggle} flagged={groupIds.has(t.id)} />
+                  )}
+                </div>
+              ))}
+            </div>
           ) : (
             filtered.map((t) =>
               t._kind === "debt_payment"
