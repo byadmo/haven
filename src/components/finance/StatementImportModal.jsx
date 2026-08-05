@@ -20,7 +20,7 @@ import {
 import { balanceApplies, txEffect } from "@/lib/accounts";
 import { useCategories, categoryOptions } from "@/lib/categories";
 import { format } from "date-fns";
-import { UploadCloud, Loader2, Trash2, Check, FileText, ImageIcon, X, FileCheck } from "lucide-react";
+import { UploadCloud, Loader2, Trash2, Check, FileText, ImageIcon, X, FileCheck, AlertTriangle } from "lucide-react";
 import confetti from "canvas-confetti";
 
 const today = () => format(new Date(), "yyyy-MM-dd");
@@ -159,11 +159,22 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
   const [importing, setImporting] = React.useState(false);
   const [done, setDone] = React.useState(0);
   const [bulkAccountId, setBulkAccountId] = React.useState("");
+  const [existingTxns, setExistingTxns] = React.useState([]);
   const fileRef = React.useRef(null);
 
   React.useEffect(() => {
     if (open) reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  // Load existing transactions so we can flag duplicates during import review.
+  React.useEffect(() => {
+    if (!open) return;
+    let alive = true;
+    base44.entities.Transaction.list("-updated_date", 5000)
+      .then((t) => { if (alive) setExistingTxns(t); })
+      .catch(() => {});
+    return () => { alive = false; };
   }, [open]);
 
   // When background parsing ends and the current index points past every
@@ -216,6 +227,22 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
   const current = groups[gi];
   const rows = current?.rows || [];
 
+  // Flag rows that look like duplicates: same date, name, amount and account as
+  // an already-imported transaction or an earlier row in the same import batch.
+  const duplicateFlags = React.useMemo(() => {
+    const flags = {};
+    const exKeys = new Set(existingTxns.map((t) =>
+      `${(t.date || "").slice(0, 10)}|${(t.description || "").trim().toLowerCase()}|${t.account_id || ""}|${Number(t.amount) || 0}`));
+    const seen = {};
+    rows.forEach((r, i) => {
+      const k = `${(r.date || "").slice(0, 10)}|${(r.description || "").trim().toLowerCase()}|${r.account_id || ""}|${Number(r.amount) || 0}`;
+      const dup = exKeys.has(k) || seen[k] !== undefined;
+      if (dup) flags[i] = true;
+      if (seen[k] === undefined) seen[k] = i;
+    });
+    return flags;
+  }, [rows, existingTxns]);
+
   function updateRow(i, patch) {
     setGroups((gs) => gs.map((g, idx) => {
       if (idx !== gi) return g;
@@ -242,6 +269,12 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
     setParsing(true);
     setError("");
     setGroups([]);
+    let existing = existingTxns;
+    if (!existing.length) {
+      try { existing = await base44.entities.Transaction.list("-updated_date", 5000); setExistingTxns(existing); } catch { /* ignore */ }
+    }
+    const dupKey = (r) => `${(r.date || "").slice(0, 10)}|${(r.description || "").trim().toLowerCase()}|${r.account_id || ""}|${Number(r.amount) || 0}`;
+    const exKeys = new Set(existing.map(dupKey));
     const accountOptions = [
       ...accounts.map((a) => ({ id: a.id, name: a.name, kind: "account" })),
       ...debts.map((d) => ({ id: d.id, name: d.name, kind: "debt" })),
@@ -277,6 +310,13 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
             if (n.description || n.amount) rows.push(n);
           }
           if (rows.length) {
+            const seen = new Set();
+            rows.forEach((n) => {
+              const k = dupKey(n);
+              n.duplicate = exKeys.has(k) || seen.has(k);
+              if (n.duplicate) n.included = false;
+              seen.add(k);
+            });
             valid++;
             setGroups((gs) => [...gs, { fileName: f.name, rows }]);
           } else {
@@ -558,6 +598,11 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
                       </button>
 
                       <div className="flex-1 grid grid-cols-12 gap-2">
+                        {duplicateFlags[i] && (
+                          <div className="col-span-12 mb-1 flex items-center gap-1 text-[10px] text-amber-400">
+                            <AlertTriangle className="h-3 w-3" /> Possible duplicate — same day, name, amount &amp; account as an existing or earlier row (unchecked)
+                          </div>
+                        )}
                         <div className="col-span-12 sm:col-span-5">
                           <Input
                             value={r.description}
