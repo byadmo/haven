@@ -375,7 +375,7 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
                 <div className="w-full space-y-2">
                   <div className="flex flex-wrap justify-center gap-2">
                     {files.map((f, i) => (
-                      <div key={i} className="relative rounded-lg border border-zinc-700 bg-zinc-950/60 p-1.5 w-28 flex flex-col items-center gap-1">
+                      <div key={i} className="relative rounded-lg border border-zinc-700 bg-zinc-950/60 p-1.5 w-32 flex flex-col items-center gap-1">
                         <button
                           type="button"
                           onClick={(e) => { e.stopPropagation(); removeFile(i); }}
@@ -391,7 +391,7 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
                             <FileText className="h-6 w-6 text-zinc-500" />
                           </div>
                         )}
-                        <p className="text-[10px] text-zinc-400 truncate w-full text-center" title={f.name}>{f.name}</p>
+                        <p className="text-[11px] text-zinc-300 leading-tight line-clamp-2 w-full text-center break-all" title={f.name}>{f.name}</p>
                       </div>
                     ))}
                   </div>
