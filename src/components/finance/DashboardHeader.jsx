@@ -9,6 +9,7 @@ import NavDropdown from "@/components/finance/NavDropdown";
 export default function DashboardHeader({ actions }) {
   const financesGroup = [
     { to: "/", label: "Overview", icon: LayoutDashboard, end: true },
+    { to: "/accounts", label: "Accounts", icon: Wallet },
     { to: "/portfolio", label: "Portfolio", icon: LineChart },
     { to: "/insights", label: "Insights", icon: PieChart },
   ];
