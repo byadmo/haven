@@ -123,7 +123,7 @@ function cleanData(data) {
   return out;
 }
 
-function buildContext({ accounts, debts, transactions, debtPayments, stocks, categories }) {
+function buildContext({ accounts, debts, transactions, debtPayments, stocks, categories, activeAgent }) {
   const money = (v) =>
     (v || 0).toLocaleString(undefined, {
       style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 0,
@@ -170,6 +170,8 @@ function buildContext({ accounts, debts, transactions, debtPayments, stocks, cat
     const exp = monthExpense(r);
     series.push(`- ${format(r, "MMM")} · in ${money(inc)} / out ${money(exp)} / net ${money(inc - exp)}`);
   }
+  // Clu's dynamic-budget baseline: the min monthly income over the trailing 3 months.
+  const minIncomeBaseline = Math.min(...[0, 1, 2].map((i) => monthIncome(subMonths(now, i))));
 
   const catMap = {};
   txns.filter((t) => t.type === "expense" && inMonth(t.date, now)).forEach((t) => {
@@ -220,6 +222,10 @@ function buildContext({ accounts, debts, transactions, debtPayments, stocks, cat
     `- Lifetime debt payments logged: ${money(lifetimePayments)}`,
     `- Recurring / scheduled items: ${recurring.length}`,
     "",
+    "=== DYNAMIC AGENT BASELINES ===",
+    `- Trailing 3-Month Minimum Income: ${money(minIncomeBaseline)}`,
+    `- Active Agent Mode: ${activeAgent ? `${activeAgent.name} (${activeAgent.title})` : "Wei (Master Financial Strategist)"}`,
+    "",
     "=== 3-MONTH CASH FLOW ===",
     ...series,
     "",
@@ -268,7 +274,8 @@ export default function AssistantChat({ accounts, debts, transactions, debtPayme
   const [ops, setOps] = React.useState(null);
   const [opsOpen, setOpsOpen] = React.useState(false);
   const [opsBusy, setOpsBusy] = React.useState(false);
-  const [activeAgent, setActiveAgent] = React.useState("WEI");
+  const [activeAgentKey, setActiveAgentKey] = React.useState("WEI");
+  const activeAgent = AGENTS[activeAgentKey];
   const [pendingFile, setPendingFile] = React.useState(null);
   const [pendingPreview, setPendingPreview] = React.useState(null);
   const fileRef = React.useRef(null);
@@ -387,11 +394,10 @@ export default function AssistantChat({ accounts, debts, transactions, debtPayme
         }
       }
 
-      const agent = AGENTS[activeAgent] || AGENTS.WEI;
-      const prompt = `${agent.systemPrompt}\n\n${SHARED_CAPABILITIES}\n\n${buildContext(ctxData)}${goalSection}\n\nUSER: ${userText}`;
+      const prompt = `${activeAgent.systemPrompt}\n\n${SHARED_CAPABILITIES}\n\n${buildContext({ ...ctxData, activeAgent })}${goalSection}\n\nUSER: ${userText}`;
       const obj = await callLLM(prompt, fileUrls);
       setMessages((s) => s.filter((m) => m.id !== thinking));
-      if (obj?.message) addMsg({ role: "assistant", kind: "text", text: obj.message, agentId: activeAgent });
+      if (obj?.message) addMsg({ role: "assistant", kind: "text", text: obj.message, agentId: activeAgentKey });
       const opsList = opsFromResponse(obj);
       if (opsList.length) { setOps(opsList); setOpsOpen(true); }
       else if (!obj?.message) addMsg({ role: "assistant", kind: "text", text: "Done." });
@@ -498,7 +504,7 @@ export default function AssistantChat({ accounts, debts, transactions, debtPayme
     try {
       const slim = priorOps.map(({ summary, entity, action, targetId, data }) => ({ entity, action, targetId, summary, data }));
       const prompt =
-        `${(AGENTS[activeAgent] || AGENTS.WEI).systemPrompt}\n\n${SHARED_CAPABILITIES}\n\n${buildContext(ctxData)}\n\n` +
+        `${activeAgent.systemPrompt}\n\n${SHARED_CAPABILITIES}\n\n${buildContext({ ...ctxData, activeAgent })}\n\n` +
         `PREVIOUS PROPOSALS (JSON):\n${JSON.stringify(slim, null, 0)}\n\n` +
         `USER FEEDBACK: ${feedback}\n\nRevise the operations to satisfy the feedback. Return the same JSON shape (message + operations).`;
       const obj = await callLLM(prompt);
@@ -524,7 +530,7 @@ export default function AssistantChat({ accounts, debts, transactions, debtPayme
           <div className="flex items-center gap-2 min-w-0">
             <Sparkles className="h-3.5 w-3.5 text-indigo-400 shrink-0" />
             <span className="text-[10px] font-mono uppercase tracking-widest text-white/50 truncate">
-              {AGENTS[activeAgent]?.name || "Wei"} · {AGENTS[activeAgent]?.title || ""} · saved on this device
+              {activeAgent?.name || "Wei"} · {activeAgent?.title || ""} · saved on this device
             </span>
           </div>
           <button
@@ -539,10 +545,10 @@ export default function AssistantChat({ accounts, debts, transactions, debtPayme
           {AGENT_LIST.map((a) => (
             <button
               key={a.id}
-              onClick={() => setActiveAgent(a.id)}
+              onClick={() => setActiveAgentKey(a.id)}
               title={a.description}
               className={`shrink-0 rounded-md border px-2.5 py-1 text-[10px] font-mono uppercase tracking-wider transition-colors ${
-                a.id === activeAgent ? a.badgeColor : "border-white/10 text-white/40 hover:text-white hover:border-white/30"
+                a.id === activeAgentKey ? a.badgeColor : "border-white/10 text-white/40 hover:text-white hover:border-white/30"
               }`}
             >
               {a.name}
