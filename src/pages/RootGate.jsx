@@ -1,7 +1,7 @@
 import React from "react";
 import { useAuth } from "@/lib/AuthContext";
 import Splash from "@/pages/Splash";
-import Home from "@/pages/Home";
+import Dashboard from "@/pages/Dashboard";
 import { FinanceShell } from "@/lib/FinanceDataContext";
 
 function FullSpinner() {
@@ -28,7 +28,7 @@ export default function RootGate() {
 
   return (
     <FinanceShell>
-      <Home />
+      <Dashboard />
     </FinanceShell>
   );
 }
