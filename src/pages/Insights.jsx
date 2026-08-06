@@ -7,7 +7,6 @@ import PageTitle from "@/components/finance/PageTitle";
 import Reveal from "@/components/finance/Reveal";
 import InsightMetrics from "@/components/finance/InsightMetrics";
 import IncomeVsSpendingChart from "@/components/finance/IncomeVsSpendingChart";
-import CategoryBreakdownChart from "@/components/finance/CategoryBreakdownChart";
 import SpendingInsights from "@/components/finance/SpendingInsights";
 import InsightsStrategyCompare from "@/components/finance/InsightsStrategyCompare";
 import { OverviewSavings, OverviewHeatmap, useOverviewData } from "@/components/dashboard/OverviewTab";
@@ -41,24 +40,6 @@ export default function Insights() {
 
   const current = monthlyData[monthlyData.length - 1] || { income: 0, spending: 0, savings: 0 };
   const savingsRate = current.income > 0 ? (current.savings / current.income) * 100 : 0;
-
-  const categoryData = React.useMemo(() => {
-    const m = months[months.length - 1];
-    const map = {};
-    txns.forEach((t) => {
-      if (!t.date) return;
-      try {
-        if (isWithinInterval(parseISO(t.date), { start: m.start, end: m.end }) && t.type !== "income") {
-          const cat = t.category || "Uncategorized";
-          map[cat] = (map[cat] || 0) + t.amount;
-        }
-      } catch { /* skip */ }
-    });
-    return Object.entries(map)
-      .map(([category, amount]) => ({ category, amount }))
-      .sort((a, b) => b.amount - a.amount)
-      .slice(0, 8);
-  }, [months, txns]);
 
   return (
     <div className="dd-page-enter dark min-h-screen bg-black text-zinc-100 selection:bg-emerald-500/30">
@@ -97,10 +78,7 @@ export default function Insights() {
           <Reveal delay={0.03}><OverviewHeatmap transactions={txns} /></Reveal>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Reveal><IncomeVsSpendingChart data={monthlyData} /></Reveal>
-          <Reveal delay={0.05}><CategoryBreakdownChart data={categoryData} monthLabel={format(anchor, "MMM yyyy")} /></Reveal>
-        </div>
+        <Reveal><IncomeVsSpendingChart data={monthlyData} /></Reveal>
 
         <Reveal><InsightsStrategyCompare /></Reveal>
       </main>

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Bell, Check, Receipt } from "lucide-react";
+import { Bell, Check, Receipt, Ban } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import { filterGenuineBills } from "@/lib/billFilters";
@@ -36,6 +36,7 @@ function addInterval(dateStr, freq, interval, unit) {
 export default function UpcomingBills({ transactions, onChanged }) {
   const { toast } = useToast();
   const [paying, setPaying] = useState(null);
+  const [stopping, setStopping] = useState(null);
 
   const bills = useMemo(() => {
     return filterGenuineBills(transactions)
@@ -62,6 +63,19 @@ export default function UpcomingBills({ transactions, onChanged }) {
       toast({ title: "Couldn't update bill", variant: "destructive" });
     } finally {
       setPaying(null);
+    }
+  }
+
+  async function stopBill(t) {
+    setStopping(t.id);
+    try {
+      await base44.entities.Transaction.update(t.id, { recurring_suppressed: true, is_scheduled: false, next_date: null });
+      toast({ title: "Payment stopped", description: `${t.description} will no longer appear in Upcoming.` });
+      onChanged?.();
+    } catch (e) {
+      toast({ title: "Couldn't stop payment", variant: "destructive" });
+    } finally {
+      setStopping(null);
     }
   }
 
@@ -101,6 +115,14 @@ export default function UpcomingBills({ transactions, onChanged }) {
                     className="h-6 w-6 grid place-items-center rounded border border-emerald-400/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 disabled:opacity-40"
                   >
                     <Check className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onClick={() => stopBill(b)}
+                    disabled={stopping === b.id}
+                    title="Stop this payment from appearing"
+                    className="h-6 w-6 grid place-items-center rounded border border-white/10 text-white/50 hover:text-rose-300 hover:border-rose-400/30 hover:bg-rose-500/10 disabled:opacity-40 transition-colors"
+                  >
+                    <Ban className="h-3.5 w-3.5" />
                   </button>
                 </div>
               </div>

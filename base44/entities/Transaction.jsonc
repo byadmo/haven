@@ -74,6 +74,11 @@
       "type": "boolean",
       "default": false,
       "description": "Whether this transaction is tax-deductible (tracked for the annual tax summary)"
+    },
+    "recurring_suppressed": {
+      "type": "boolean",
+      "default": false,
+      "description": "When true the user has stopped this transaction from appearing in the Upcoming & Recurring section. The recurring auto-scan skips it so it will never be re-surfaced, even on re-runs."
     }
   },
   "required": [

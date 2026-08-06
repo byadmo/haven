@@ -10,10 +10,7 @@ import MetricsRow from "@/components/finance/MetricsRow";
 import ChartSwitcher from "@/components/finance/ChartSwitcher";
 import RecentTransactions from "@/components/finance/RecentTransactions";
 import UpcomingBills from "@/components/finance/UpcomingBills";
-import SpendingDonut from "@/components/finance/SpendingDonut";
 import FinancialHealthScore from "@/components/finance/FinancialHealthScore";
-import NetWorthHistory from "@/components/finance/NetWorthHistory";
-import TaxSummary from "@/components/finance/TaxSummary";
 import UpcomingRecurring from "@/components/finance/UpcomingRecurring";
 import AccountsSummary from "@/components/finance/AccountsSummary";
 import Reveal from "@/components/finance/Reveal";
@@ -138,21 +135,14 @@ export default function Dashboard() {
             />
           </Reveal>
 
-          {/* Row 1.5 — financial health · upcoming bills · spending donut */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Row 1.5 — financial health · upcoming bills */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Reveal><FinancialHealthScore /></Reveal>
             <Reveal delay={0.03}><UpcomingBills transactions={txns} onChanged={refresh} /></Reveal>
-            <Reveal delay={0.06}><SpendingDonut transactions={txns} /></Reveal>
           </div>
 
           {/* Row 2 — accounts ledger */}
           <Reveal delay={0.04}><AccountsSummary /></Reveal>
-
-          {/* Row 2.5 — net worth history · tax summary */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Reveal><NetWorthHistory /></Reveal>
-            <Reveal delay={0.03}><TaxSummary transactions={txns} /></Reveal>
-          </div>
 
           {/* Row 4 — chart + upcoming recurring */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

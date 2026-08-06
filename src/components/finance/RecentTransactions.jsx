@@ -22,7 +22,6 @@ export default function RecentTransactions({ transactions, accounts = [], onChan
   const [payments, setPayments] = React.useState([]);
   const [bulkMode, setBulkMode] = React.useState(false);
   const [selected, setSelected] = React.useState(() => new Set());
-  const [taxOnly, setTaxOnly] = React.useState(false);
   const [targetAccountId, setTargetAccountId] = React.useState("");
   const [balanceMode, setBalanceMode] = React.useState("keep");
   const [customBalance, setCustomBalance] = React.useState("");
@@ -72,18 +71,6 @@ export default function RecentTransactions({ transactions, accounts = [], onChan
     }
   }
 
-  async function applyBulkTax() {
-    if (!selected.size) return;
-    setApplying(true);
-    try {
-      const sel = transactions.filter((t) => selected.has(t.id));
-      await Promise.all(sel.map((t) => base44.entities.Transaction.update(t.id, { is_tax_deductible: true })));
-      onChanged?.();
-      setSelected(new Set());
-      setBulkMode(false);
-    } finally { setApplying(false); }
-  }
-
   React.useEffect(() => {
     base44.entities.DebtPayment.list("-date", 500).then(setPayments).catch(() => {});
   }, [refreshKey]);
@@ -101,7 +88,6 @@ export default function RecentTransactions({ transactions, accounts = [], onChan
 
   const allFiltered = [...transactions, ...debtRows]
     .filter((t) => (filter === "all" ? true : t.type === filter))
-    .filter((t) => (taxOnly ? t.is_tax_deductible : true))
     .filter((t) =>
       query.trim()
         ? (t.description + " " + (t.category || "")).toLowerCase().includes(query.toLowerCase().trim())
@@ -144,10 +130,6 @@ export default function RecentTransactions({ transactions, accounts = [], onChan
               </button>
             ))}
           </div>
-          <button
-            onClick={() => setTaxOnly((v) => !v)}
-            className={`px-2.5 py-1 rounded-md text-[11px] border transition-colors ${taxOnly ? "border-emerald-400/40 bg-emerald-500/15 text-emerald-200" : "border-zinc-800 text-zinc-400 hover:text-zinc-100"}`}
-          >Tax-only</button>
         </div>
       </div>
 
@@ -165,11 +147,6 @@ export default function RecentTransactions({ transactions, accounts = [], onChan
         <div className="flex items-center justify-between mb-2 text-[11px] text-zinc-500">
           <span>{selected.size} selected</span>
           <div className="flex gap-2 items-center">
-            <button
-              onClick={applyBulkTax}
-              disabled={applying || !selected.size}
-              className="text-emerald-300 hover:text-emerald-200 disabled:opacity-40"
-            >Mark tax-deductible</button>
             <button
               onClick={() => setSelected(new Set(visible.filter((t) => t._kind !== "debt_payment").map((t) => t.id)))}
               className="text-indigo-300 hover:text-indigo-200"

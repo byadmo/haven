@@ -18,7 +18,7 @@ import SuppressChoiceDialog from "@/components/finance/SuppressChoiceDialog";
 import { useCategories, categoryOptions } from "@/lib/categories";
 import { useCurrency } from "@/lib/currency-context";
 import { getRecurring, normalizeDesc } from "@/lib/recurring";
-import { suppressTransaction, isTransactionSuppressed } from "@/lib/recurringSuppression";
+import { isTransactionSuppressed } from "@/lib/recurringSuppression";
 
 function Row({ t, accountsMap, categories, onChanged, dueLabel }) {
   const { fmtMoney: fmt } = useCurrency();
@@ -28,6 +28,7 @@ function Row({ t, accountsMap, categories, onChanged, dueLabel }) {
   const [edit, setEdit] = React.useState(null);
   const [saving, setSaving] = React.useState(false);
   const [deleting, setDeleting] = React.useState(false);
+  const [stopping, setStopping] = React.useState(false);
   const [showDelete, setShowDelete] = React.useState(false);
 
   function startEdit() {
@@ -75,10 +76,15 @@ function Row({ t, accountsMap, categories, onChanged, dueLabel }) {
     }
   }
 
-  async function removeFromListOnly() {
-    suppressTransaction(t.id);
-    setShowDelete(false);
-    onChanged?.();
+  async function stopOneTime() {
+    setStopping(true);
+    try {
+      await base44.entities.Transaction.update(t.id, { recurring_suppressed: true, is_scheduled: false });
+      setShowDelete(false);
+      onChanged?.();
+    } finally {
+      setStopping(false);
+    }
   }
 
   async function removeFromHistory() {
@@ -134,14 +140,14 @@ function Row({ t, accountsMap, categories, onChanged, dueLabel }) {
       <SuppressChoiceDialog
         open={showDelete}
         onOpenChange={setShowDelete}
-        title={`Remove "${t.description}"?`}
+        title={`Stop "${t.description}"?`}
         description="Choose how to remove this upcoming transaction."
-        suppressLabel="Remove from this list only"
-        suppressDescription="Hides it here without deleting it. Your statistics stay the same."
+        suppressLabel="Stop this payment"
+        suppressDescription="Stops it from appearing in Upcoming & Recurring — even after the AI re-scans. Your statistics stay the same."
         deleteLabel="Also remove from transaction history"
         deleteDescription="Permanently deletes this transaction. This affects your statistics."
-        busy={deleting}
-        onSuppress={removeFromListOnly}
+        busy={deleting || stopping}
+        onSuppress={stopOneTime}
         onDelete={removeFromHistory}
       />
 
@@ -262,6 +268,7 @@ export default function UpcomingRecurring({ transactions, accounts = [], onChang
       .filter((t) => {
         try { if (!isFuture(parseISO(t.date))) return false; } catch { return false; }
         if (t.is_scheduled) return false;
+        if (t.recurring_suppressed) return false;
         if (isTransactionSuppressed(t.id)) return false;
         return !recurringKeys.has(`${t.type || "expense"}::${normalizeDesc(t.description)}`);
       })

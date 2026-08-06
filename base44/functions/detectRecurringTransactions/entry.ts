@@ -31,6 +31,9 @@ export default async function(req) {
     const txs = await base44.entities.Transaction.list();
     const groups = {};
     for (const t of txs) {
+      // Stopped payments never feed recurring detection — once a user stops a
+      // payment it stays out of Upcoming & Recurring across every re-scan.
+      if (t.recurring_suppressed) continue;
       const key = normalize(t.description);
       if (!key) continue;
       if (!groups[key]) groups[key] = [];

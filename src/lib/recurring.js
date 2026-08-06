@@ -58,6 +58,7 @@ export function detectRecurring(transactions) {
   const groups = {};
   for (const t of transactions) {
     if (!t.description) continue;
+    if (t.recurring_suppressed) continue;
     const key = groupKey(t);
     if (!key.endsWith("::")) (groups[key] ||= []).push(t);
   }
@@ -108,6 +109,7 @@ export function getRecurring(transactions) {
 
   const manual = [];
   for (const t of transactions) {
+    if (t.recurring_suppressed) continue;
     if (!(t.is_scheduled && RECUR_FREQ.includes(t.frequency))) continue;
     const key = groupKey(t);
     if (!key.endsWith("::") && !seen.has(key)) {

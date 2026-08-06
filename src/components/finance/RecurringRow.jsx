@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import SuppressChoiceDialog from "@/components/finance/SuppressChoiceDialog";
 import { normalizeDesc } from "@/lib/recurring";
 import { useCurrency } from "@/lib/currency-context";
-import { suppressRecurring } from "@/lib/recurringSuppression";
+
 
 const keyOf = (t) => `${t.type || "expense"}::${normalizeDesc(t.description)}`;
 
@@ -69,10 +69,18 @@ export default function RecurringRow({ item, transactions, accountsMap, categori
     }
   }
 
-  function removeFromListOnly() {
-    suppressRecurring(item.normalized);
-    setShowDelete(false);
-    onChanged?.();
+  async function stopRecurring() {
+    if (!sourceTxns.length) { setShowDelete(false); return; }
+    setBusy(true);
+    try {
+      await base44.entities.Transaction.bulkUpdate(
+        sourceTxns.map((t) => ({ id: t.id, recurring_suppressed: true, is_scheduled: false }))
+      );
+      setShowDelete(false);
+      onChanged?.();
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function removeFromHistory() {
@@ -139,14 +147,14 @@ export default function RecurringRow({ item, transactions, accountsMap, categori
       <SuppressChoiceDialog
         open={showDelete}
         onOpenChange={setShowDelete}
-        title={`Remove "${item.description}"?`}
+        title={`Stop "${item.description}"?`}
         description={`This recurring pattern has ${sourceTxns.length} occurrence${sourceTxns.length === 1 ? "" : "s"}. Choose how to remove it.`}
-        suppressLabel="Remove from this list only"
-        suppressDescription="Hides the pattern here. Your transactions and statistics stay the same."
+        suppressLabel="Stop this payment"
+        suppressDescription="Stops it from appearing in Upcoming & Recurring — even after the AI re-scans. Your transactions and statistics stay intact."
         deleteLabel={`Also remove ${sourceTxns.length} occurrence${sourceTxns.length === 1 ? "" : "s"} from history`}
         deleteDescription="Permanently deletes the underlying transactions. This affects your statistics."
         busy={busy}
-        onSuppress={removeFromListOnly}
+        onSuppress={stopRecurring}
         onDelete={removeFromHistory}
       />
 
