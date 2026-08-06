@@ -16,6 +16,7 @@ import Reveal from "@/components/finance/Reveal";
 import { useEduSyncData, GCALENDAR_CONNECTOR_ID } from "@/lib/eduSyncContext";
 import TaskTypesSettings from "@/components/edu/TaskTypesSettings";
 import UiSizeSetting from "@/components/finance/UiSizeSetting";
+import ThemeSettings from "@/components/settings/ThemeSettings";
 import ProfileWizard from "@/components/edu/ProfileWizard";
 import EduDangerZone from "@/components/edu/EduDangerZone";
 import { isProfileComplete } from "@/lib/eduProfile";
@@ -237,6 +238,11 @@ export default function EduSettings() {
         {/* Display Size — shared with Haven Finance */}
         <Reveal delay={0.06}>
           <UiSizeSetting />
+        </Reveal>
+
+        {/* Theme */}
+        <Reveal delay={0.06}>
+          <ThemeSettings currentTheme={settings?.theme || "midnight"} onChange={(k) => updateSettings({ theme: k })} />
         </Reveal>
 
         {/* Finance app link */}

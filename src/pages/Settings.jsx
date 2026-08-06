@@ -11,6 +11,7 @@ import { FINANCE_PAGES, FINANCE_DEFAULT_NAV, FINANCE_LOCKED } from "@/lib/navCon
 import { motion, AnimatePresence } from "framer-motion";
 import MonthlyReport from "@/components/finance/MonthlyReport";
 import UiSizeSetting from "@/components/finance/UiSizeSetting";
+import ThemeSettings from "@/components/settings/ThemeSettings";
 import AutomatedReportSettings from "@/components/finance/AutomatedReportSettings";
 import CalendarSyncSettings from "@/components/finance/CalendarSyncSettings";
 import CurrencySettings from "@/components/finance/CurrencySettings";
@@ -34,7 +35,7 @@ export default function Settings() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
-  const { refresh: refreshData, navItems, saveNavItems } = useFinanceData();
+  const { refresh: refreshData, navItems, saveNavItems, theme, setTheme } = useFinanceData();
   const [navOpen, setNavOpen] = React.useState(false);
 
   async function handleDeleteAccount() {
@@ -122,6 +123,8 @@ export default function Settings() {
         </Reveal>
 
         <Reveal><UiSizeSetting /></Reveal>
+
+        <Reveal><ThemeSettings currentTheme={theme} onChange={setTheme} /></Reveal>
 
         <Reveal>
           <div className="rounded-lg border border-white/10 bg-black p-5">

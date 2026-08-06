@@ -13,10 +13,10 @@ export default function EduSplash({ onDone }) {
   return (
     <div
       className={`fixed inset-0 z-[120] flex flex-col items-center justify-center bg-black transition-opacity duration-320 ${leaving ? "opacity-0" : "opacity-100"}`}
-      style={{ background: "radial-gradient(120% 120% at 50% 0%, #042f2e 0%, #000 55%)" }}
+      style={{ background: "radial-gradient(120% 120% at 50% 0%, color-mix(in srgb, var(--th-surface, #042f2e) 65%, transparent) 0%, var(--th-bg, #000) 55%)" }}
     >
-      <div className="pointer-events-none absolute -top-24 -left-16 h-72 w-72 rounded-full" style={{ background: "radial-gradient(circle, rgba(16,185,129,0.18), transparent 70%)", animation: "splash-float 9s ease-in-out infinite" }} />
-      <div className="pointer-events-none absolute top-1/2 -right-20 h-80 w-80 rounded-full" style={{ background: "radial-gradient(circle, rgba(13,148,136,0.16), transparent 70%)", animation: "splash-float 12s ease-in-out infinite", animationDelay: "1.5s" }} />
+      <div className="pointer-events-none absolute -top-24 -left-16 h-72 w-72 rounded-full" style={{ background: "radial-gradient(circle, color-mix(in srgb, var(--th-primary, #10b981) 18%, transparent), transparent 70%)", animation: "splash-float 9s ease-in-out infinite" }} />
+      <div className="pointer-events-none absolute top-1/2 -right-20 h-80 w-80 rounded-full" style={{ background: "radial-gradient(circle, color-mix(in srgb, var(--th-secondary, #0d9488) 16%, transparent), transparent 70%)", animation: "splash-float 12s ease-in-out infinite", animationDelay: "1.5s" }} />
 
       <div className="relative z-10 flex flex-col items-center">
         <div className="splash-logo-in flex items-center justify-center rounded-2xl border border-emerald-400/30 bg-emerald-500/10" style={{ height: 64, width: 64 }}>

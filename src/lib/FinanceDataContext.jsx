@@ -5,6 +5,7 @@ import { CurrencyProvider } from "@/lib/currency-context";
 import { computeAnalytics } from "@/lib/financeAnalytics";
 import { fetchLivePrices } from "@/lib/netWorth";
 import { computeCategoryUpdates } from "@/lib/categorizeAuto";
+import ThemeRoot from "@/components/ThemeRoot";
 import { useToast } from "@/components/ui/use-toast";
 
 const FinanceDataContext = React.createContext(null);
@@ -144,6 +145,26 @@ export function FinanceDataProvider({ children }) {
     }
   }
 
+  // Theme — persisted on the user's financial profile (survives logout/login).
+  // Applied instantly via optimistic local state, then written to the entity.
+  async function setTheme(theme) {
+    setData((prev) => ({
+      ...prev,
+      profile: prev.profile ? { ...prev.profile, theme } : { income_type: "fixed", theme },
+    }));
+    try {
+      if (data.profile?.id) {
+        await base44.entities.UserFinancialProfile.update(data.profile.id, { theme });
+      } else {
+        const created = await base44.entities.UserFinancialProfile.create({ income_type: "fixed", theme });
+        setData((prev) => ({ ...prev, profile: created }));
+      }
+    } catch (e) {
+      refresh();
+      toast({ title: "Could not save theme", variant: "destructive" });
+    }
+  }
+
   const value = {
     ...data,
     // Aliases the rest of the app expects
@@ -155,6 +176,8 @@ export function FinanceDataProvider({ children }) {
     refreshKey,
     navItems,
     saveNavItems,
+    theme: data.profile?.theme || "midnight",
+    setTheme,
     ...analytics,
   };
 
@@ -188,7 +211,7 @@ export function FinanceLayout() {
 }
 
 function FinanceLayoutInner({ children }) {
-  const { loading } = useFinanceData();
+  const { loading, theme } = useFinanceData();
   if (loading) {
     return (
       <div className="dark min-h-screen bg-black flex items-center justify-center">
@@ -199,5 +222,9 @@ function FinanceLayoutInner({ children }) {
   // Wrap finance pages in .finance-accent so the brand-accent palette
   // resolves to indigo (see index.css). Education pages are not wrapped and
   // keep the default emerald.
-  return <div className="finance-accent">{children ?? <Outlet />}</div>;
+  return (
+    <ThemeRoot theme={theme} app="finance" className="dark min-h-screen relative">
+      {children ?? <Outlet />}
+    </ThemeRoot>
+  );
 }

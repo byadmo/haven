@@ -33,15 +33,15 @@ export default function IncomeVsSpendingChart({ data }) {
           <XAxis dataKey="label" tick={{ fontSize: 10, fill: "rgba(255,255,255,0.4)" }} axisLine={{ stroke: "rgba(255,255,255,0.1)" }} tickLine={false} />
           <YAxis tick={{ fontSize: 10, fill: "rgba(255,255,255,0.4)" }} axisLine={false} tickLine={false} tickFormatter={fmtAxis} width={48} />
           <Tooltip content={<Tip />} cursor={{ fill: "rgba(255,255,255,0.03)" }} />
-          <Bar dataKey="income" name="Income" fill="#10b981" radius={[4, 4, 0, 0]} barSize={16} />
-          <Bar dataKey="spending" name="Spending" fill="#f43f5e" radius={[4, 4, 0, 0]} barSize={16} />
-          <Line dataKey="savings" name="Net Savings" stroke="#6366f1" strokeWidth={2} dot={{ r: 3, fill: "#6366f1" }} />
+          <Bar dataKey="income" name="Income" fill="var(--th-success, #10b981)" radius={[4, 4, 0, 0]} barSize={16} />
+          <Bar dataKey="spending" name="Spending" fill="var(--th-danger, #f43f5e)" radius={[4, 4, 0, 0]} barSize={16} />
+          <Line dataKey="savings" name="Net Savings" stroke="var(--th-primary, #6366f1)" strokeWidth={2} dot={{ r: 3, fill: "var(--th-primary, #6366f1)" }} />
         </ComposedChart>
       </ResponsiveContainer>
       <div className="flex items-center gap-4 mt-3 text-[10px] uppercase tracking-widest text-white/40 font-mono">
-        <span className="flex items-center gap-1.5"><span className="h-2 w-2 bg-emerald-500" />Income</span>
-        <span className="flex items-center gap-1.5"><span className="h-2 w-2 bg-rose-500" />Spending</span>
-        <span className="flex items-center gap-1.5"><span className="h-0.5 w-3 bg-indigo-500" />Savings</span>
+        <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: "var(--th-success, #10b981)" }} />Income</span>
+        <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: "var(--th-danger, #f43f5e)" }} />Spending</span>
+        <span className="flex items-center gap-1.5"><span className="h-0.5 w-3 rounded-sm" style={{ background: "var(--th-primary, #6366f1)" }} />Savings</span>
       </div>
     </div>
   );

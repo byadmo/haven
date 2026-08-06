@@ -168,6 +168,69 @@
   .text-zinc-500 { color: rgb(255 255 255 / 0.50) !important; }
   .text-zinc-600 { color: rgb(255 255 255 / 0.30) !important; }
 
+  /* ---- Theme system (applied to the document root by ThemeRoot) ----
+     The app leans on zinc/black utility classes + white/opacity text. We retint
+     those utilities to the active theme's CSS variables whenever a theme is
+     active (html[data-theme]). Gating on the attribute keeps auth/standalone
+     routes on the default black canvas, and applying to the document root means
+     Radix-ported dialogs/menus/tooltips inherit the theme too. These gated
+     selectors outrank the telemetry overrides above among !important rules, so
+     they only win while a theme is mounted. Variables come from
+     src/lib/themes.js via applyTheme(). */
+  html[data-theme] { background-color: var(--th-bg); }
+  html[data-theme] body { background-color: var(--th-bg) !important; color: var(--th-text); }
+
+  html[data-theme] .bg-black { background-color: var(--th-surface) !important; }
+  html[data-theme] .bg-zinc-900,
+  html[data-theme] .bg-zinc-900\/60,
+  html[data-theme] .bg-zinc-900\/70,
+  html[data-theme] .bg-zinc-900\/80 { background-color: var(--th-surface) !important; }
+  html[data-theme] .bg-zinc-950,
+  html[data-theme] .bg-zinc-950\/60,
+  html[data-theme] .bg-zinc-950\/70 { background-color: var(--th-bg) !important; }
+
+  html[data-theme] .border-white\/5,
+  html[data-theme] .border-white\/10,
+  html[data-theme] .border-white\/15,
+  html[data-theme] .border-white\/20,
+  html[data-theme] .border-white\/30,
+  html[data-theme] .border-zinc-700,
+  html[data-theme] .border-zinc-800,
+  html[data-theme] .border-zinc-800\/60,
+  html[data-theme] .border-zinc-800\/70 { border-color: var(--th-border) !important; }
+
+  html[data-theme] .text-white,
+  html[data-theme] .text-zinc-100,
+  html[data-theme] .text-zinc-200 { color: var(--th-text) !important; }
+  html[data-theme] .text-white\/30,
+  html[data-theme] .text-white\/40,
+  html[data-theme] .text-white\/50,
+  html[data-theme] .text-zinc-400,
+  html[data-theme] .text-zinc-500,
+  html[data-theme] .text-zinc-600 { color: var(--th-muted) !important; }
+
+  /* Danger / negative tones follow the theme danger color. */
+  html[data-theme] .text-rose-300,
+  html[data-theme] .text-rose-400,
+  html[data-theme] .text-rose-500,
+  html[data-theme] .text-rose-600 { color: var(--th-danger) !important; }
+  html[data-theme] .bg-rose-600 { background-color: var(--th-danger) !important; }
+
+  /* Daylight (light tint): typed text & form controls switch to dark-on-light,
+     overriding the standing white-text rule. Inputs sit on the theme surface. */
+  html[data-theme][data-tint="light"] input,
+  html[data-theme][data-tint="light"] textarea,
+  html[data-theme][data-tint="light"] select {
+    color: var(--th-text) !important;
+    -webkit-text-fill-color: var(--th-text) !important;
+    -webkit-box-shadow: 0 0 0 1000px var(--th-surface) inset !important;
+  }
+  html[data-theme][data-tint="light"] input::placeholder,
+  html[data-theme][data-tint="light"] textarea::placeholder { color: var(--th-muted) !important; }
+  html[data-theme][data-tint="light"] select option { color: var(--th-text); background-color: var(--th-surface); }
+  html[data-theme][data-tint="light"] input[type="date"]::-webkit-calendar-picker-indicator,
+  html[data-theme][data-tint="light"] input[type="time"]::-webkit-calendar-picker-indicator { filter: none; opacity: 0.55; }
+
   /* mono + tabular nums for numerals */
   .tnum { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
   /* Hide scrollbars for horizontally-scrollable nav rows while keeping scroll. */

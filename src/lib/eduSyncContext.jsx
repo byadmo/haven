@@ -7,6 +7,8 @@ import EduSplash from "@/components/edu/EduSplash";
 import { useToast } from "@/components/ui/use-toast";
 import ProfileWizard from "@/components/edu/ProfileWizard";
 import { isProfileAddressed, markProfileSkipped } from "@/lib/eduProfile";
+import ThemeRoot from "@/components/ThemeRoot";
+import { DEFAULT_THEME } from "@/lib/themes";
 
 // Workspace-registered per-user Google Calendar connector (app-user mode).
 export const GCALENDAR_CONNECTOR_ID = "6a70ef7e9f47c094588c220b";
@@ -318,7 +320,8 @@ export function EduLayout() {
 }
 
 function EduShell({ children }) {
-  const { loading } = useEduSync();
+  const { loading, settings } = useEduSync();
+  const theme = settings?.theme || DEFAULT_THEME;
   if (loading) {
     return (
       <div className="dark min-h-screen bg-black flex items-center justify-center">
@@ -327,10 +330,12 @@ function EduShell({ children }) {
     );
   }
   return (
-    <div className="dark min-h-screen bg-black text-zinc-100 selection:bg-emerald-500/30 flex flex-col">
-      {children}
-      <div className="pb-24 sm:pb-0" />
-    </div>
+    <ThemeRoot theme={theme} app="education" className="dark min-h-screen relative">
+      <div className="flex flex-col min-h-screen selection:bg-emerald-500/30">
+        {children}
+        <div className="pb-24 sm:pb-0" />
+      </div>
+    </ThemeRoot>
   );
 }
 

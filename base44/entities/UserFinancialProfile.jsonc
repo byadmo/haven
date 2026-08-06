@@ -49,6 +49,11 @@
       "items": {
         "type": "string"
       }
+    },
+    "theme": {
+      "type": "string",
+      "default": "midnight",
+      "description": "Selected Haven Finance theme key (midnight, daylight, cottonCandy, forest, sunset)."
     }
   },
   "required": [

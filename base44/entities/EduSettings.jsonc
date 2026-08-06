@@ -74,6 +74,11 @@
       "items": {
         "type": "string"
       }
+    },
+    "theme": {
+      "type": "string",
+      "default": "midnight",
+      "description": "Selected Haven Education theme key (midnight, daylight, cottonCandy, forest, sunset)."
     }
   },
   "required": [],

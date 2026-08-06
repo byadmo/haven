@@ -2,6 +2,8 @@ import React from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ShieldCheck, Wallet, GraduationCap, ArrowRight } from "lucide-react";
+import ThemeRoot from "@/components/ThemeRoot";
+import { getStoredTheme } from "@/lib/themes";
 
 const CARDS = [
   {
@@ -30,9 +32,11 @@ const CARDS = [
 
 export default function Hub() {
   const navigate = useNavigate();
+  const theme = React.useMemo(() => getStoredTheme("finance"), []);
 
   return (
-    <div className="dd-page-enter dark min-h-screen bg-black text-zinc-100 selection:bg-white/20 relative overflow-hidden">
+    <ThemeRoot theme={theme} app="finance" className="dd-page-enter dark min-h-screen overflow-hidden">
+      <div className="min-h-screen selection:bg-white/20 relative">
       {/* Ambient blobs */}
       <div className="pointer-events-none absolute inset-0 opacity-60">
         <div className="absolute -top-24 -left-20 h-72 w-72 rounded-full bg-indigo-500/10 blur-3xl" />
@@ -109,6 +113,7 @@ export default function Hub() {
           <p className="text-[10px] uppercase tracking-widest text-white/30">Haven · One workspace, many paths</p>
         </footer>
       </main>
-    </div>
+      </div>
+    </ThemeRoot>
   );
 }
