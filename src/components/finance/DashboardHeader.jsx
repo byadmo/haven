@@ -4,11 +4,8 @@ import {
   ShieldCheck,
   Settings as SettingsIcon,
   LayoutDashboard,
-  Target,
   PiggyBank,
-  Wallet,
   ArrowLeft,
-  ArrowLeftRight,
   CreditCard,
   PieChart,
   TrendingUp,
@@ -22,24 +19,20 @@ import BackupModal from "@/components/finance/BackupModal";
 import MobileNav from "@/components/finance/MobileNav";
 import NavDropdown from "@/components/finance/NavDropdown";
 
-// PRIMARY — shown directly in the top nav and bottom pill.
+// PRIMARY — always-visible top-nav buttons (horizontal scroll on narrow widths).
 const primary = [
   { to: "/overview", label: "Overview", icon: LayoutDashboard, end: true },
-  { to: "/goals", label: "Goals", icon: Target },
-  { to: "/accounts", label: "Accounts", icon: Wallet },
-  { to: "/transactions", label: "Transactions", icon: ArrowLeftRight },
-];
-
-// SECONDARY — grouped under the "More" dropdown.
-const moreItems = [
   { to: "/debts", label: "Debts", icon: CreditCard },
   { to: "/budgeting", label: "Budgets", icon: PiggyBank },
-  { to: "/settings", label: "Settings", icon: SettingsIcon },
   { to: "/insights", label: "Insights", icon: PieChart },
   { to: "/cashflow", label: "Cash Flow", icon: Activity },
   { to: "/portfolio", label: "Portfolio", icon: Briefcase },
   { to: "/forecast", label: "Forecast", icon: TrendingUp },
   { to: "/credit-utilization", label: "Credit Utilization", icon: Gauge },
+];
+
+// SECONDARY — tucked under the small "More" dropdown.
+const moreItems = [
   { to: "/assistant", label: "Ask Wei", icon: Sparkles },
   { to: "/", label: "Haven Hub", icon: ShieldCheck, end: true },
 ];
@@ -50,7 +43,7 @@ function TopNavLink({ to, label, icon: Icon, end }) {
       to={to}
       end={end}
       className={({ isActive }) =>
-        `flex items-center gap-1.5 px-3 h-9 rounded-md text-xs font-medium transition-colors ${
+        `flex items-center gap-1.5 px-3 h-9 rounded-md text-xs font-medium whitespace-nowrap shrink-0 transition-colors ${
           isActive
             ? "text-emerald-300 bg-emerald-500/10 border border-emerald-400/30"
             : "text-white/55 hover:text-white hover:bg-white/5 border border-transparent"
@@ -85,14 +78,32 @@ export default function DashboardHeader({ actions }) {
           </Link>
 
           {/* Desktop top nav: primary pages + "More" dropdown for secondary */}
-          <nav className="hidden sm:flex items-center gap-1 shrink-0 mr-auto">
-            {primary.map((p) => (
-              <TopNavLink key={p.to} {...p} />
-            ))}
-            <NavDropdown label="More" items={moreItems} />
+          <nav className="hidden sm:flex items-center gap-2 sm:mr-auto min-w-0">
+            <div className="flex items-center gap-1 overflow-x-auto no-scrollbar min-w-0">
+              {primary.map((p) => (
+                <TopNavLink key={p.to} {...p} />
+              ))}
+            </div>
+            <div className="shrink-0">
+              <NavDropdown label="More" items={moreItems} />
+            </div>
           </nav>
 
           <div className="flex items-center gap-2.5 ml-auto shrink-0">
+            <NavLink
+              to="/settings"
+              aria-label="Settings"
+              title="Settings"
+              className={({ isActive }) =>
+                `hidden sm:grid place-items-center h-9 w-9 rounded-md border transition-colors ${
+                  isActive
+                    ? "text-emerald-300 bg-emerald-500/10 border-emerald-400/30"
+                    : "text-white/55 hover:text-white hover:bg-white/5 border-transparent"
+                }`
+              }
+            >
+              <SettingsIcon className="h-4 w-4" strokeWidth={1.75} />
+            </NavLink>
             <BackupModal />
             <div className="hidden xl:block">
               <CommandPalette />

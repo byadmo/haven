@@ -170,6 +170,9 @@
 
   /* mono + tabular nums for numerals */
   .tnum { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  /* Hide scrollbars for horizontally-scrollable nav rows while keeping scroll. */
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
   /* Performance & mobile-smoothness pass (UI-only, no logic changes). */
 
