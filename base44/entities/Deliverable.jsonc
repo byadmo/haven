@@ -32,6 +32,17 @@
       ],
       "default": "assignment"
     },
+    "status": {
+      "type": "string",
+      "enum": [
+        "not_started",
+        "in_progress",
+        "submitted",
+        "graded"
+      ],
+      "default": "not_started",
+      "description": "Workflow status of the deliverable"
+    },
     "grade": {
       "type": "number",
       "description": "Achieved percentage (0-100). Null until graded."

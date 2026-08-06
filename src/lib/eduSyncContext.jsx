@@ -60,7 +60,7 @@ function computeStreak(sessions) {
 
 export function EduSyncProvider({ children }) {
   const [data, setData] = React.useState({
-    semesters: [], courses: [], deliverables: [], materials: [], studySessions: [], settings: null,
+    semesters: [], courses: [], deliverables: [], materials: [], studySessions: [], focuses: [], settings: null,
   });
   const [loading, setLoading] = React.useState(true);
   const [refreshKey, setRefreshKey] = React.useState(0);
@@ -75,10 +75,11 @@ export function EduSyncProvider({ children }) {
       base44.entities.Deliverable.list("-due_date", 500).catch(() => []),
       base44.entities.Material.list("-created_date", 500).catch(() => []),
       base44.entities.StudySession.list("-completed_at", 1000).catch(() => []),
+      base44.entities.Focus.list("-target_date", 500).catch(() => []),
       base44.entities.EduSettings.list("-created_date", 1).catch(() => []),
-    ]).then(([semesters, courses, deliverables, materials, studySessions, settingsRows]) => {
+    ]).then(([semesters, courses, deliverables, materials, studySessions, focuses, settingsRows]) => {
       if (cancelled) return;
-      setData({ semesters, courses, deliverables, materials, studySessions, settings: settingsRows?.[0] || null });
+      setData({ semesters, courses, deliverables, materials, studySessions, focuses: focuses || [], settings: settingsRows?.[0] || null });
       setLoading(false);
     });
     return () => { cancelled = true; };
@@ -105,6 +106,13 @@ export function EduSyncProvider({ children }) {
     materials.forEach((m) => { (map[m.course_id] = map[m.course_id] || []).push(m); });
     return map;
   }, [materials]);
+
+  const focuses = React.useMemo(() => (data.focuses || []).filter((f) => !f.course_id || courseIds.has(f.course_id)), [data.focuses, courseIds]);
+  const focusesByCourse = React.useMemo(() => {
+    const map = {};
+    focuses.forEach((f) => { (map[f.course_id] = map[f.course_id] || []).push(f); });
+    return map;
+  }, [focuses]);
 
   const streak = React.useMemo(() => computeStreak(data.studySessions), [data.studySessions]);
 
@@ -189,7 +197,12 @@ export function EduSyncProvider({ children }) {
   async function updateMaterial(id, patch) { await base44.entities.Material.update(id, patch); refresh(); }
   async function deleteMaterial(id) { await base44.entities.Material.delete(id); refresh(); }
   async function logStudySession(payload) { const s = await base44.entities.StudySession.create(payload); refresh(); return s; }
+  async function updateStudySession(id, patch) { await base44.entities.StudySession.update(id, patch); refresh(); }
   async function deleteStudySession(id) { await base44.entities.StudySession.delete(id); refresh(); }
+  async function clearStudySessions(ids) { await Promise.all((ids || []).map((id) => base44.entities.StudySession.delete(id))); refresh(); }
+  async function createFocus(payload) { const f = await base44.entities.Focus.create(payload); refresh(); return f; }
+  async function updateFocus(id, patch) { await base44.entities.Focus.update(id, patch); refresh(); }
+  async function deleteFocus(id) { await base44.entities.Focus.delete(id); refresh(); }
 
   async function updateSettings(patch) {
     if (data.settings?.id) { await base44.entities.EduSettings.update(data.settings.id, patch); }
@@ -225,7 +238,14 @@ export function EduSyncProvider({ children }) {
     updateMaterial,
     deleteMaterial,
     logStudySession,
+    updateStudySession,
     deleteStudySession,
+    clearStudySessions,
+    focuses,
+    focusesByCourse,
+    createFocus,
+    updateFocus,
+    deleteFocus,
     updateSettings,
   };
 

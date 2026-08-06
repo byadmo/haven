@@ -1,0 +1,67 @@
+{
+  "name": "Focus",
+  "type": "object",
+  "properties": {
+    "course_id": {
+      "type": "string",
+      "description": "The Course this study focus is planned for"
+    },
+    "deliverable_id": {
+      "type": "string",
+      "description": "Optional linked deliverable to study for"
+    },
+    "title": {
+      "type": "string",
+      "description": "Focus / study intention title"
+    },
+    "target_date": {
+      "type": "string",
+      "format": "date",
+      "description": "The date this focus is scheduled for"
+    },
+    "suggested_duration": {
+      "type": "number",
+      "default": 25,
+      "description": "Suggested study duration in minutes"
+    },
+    "priority": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "default": "medium"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "planned",
+        "completed"
+      ],
+      "default": "planned",
+      "description": "Whether this focus has been studied yet"
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "title"
+  ],
+  "rls": {
+    "read": {
+      "created_by_id": "{{user.id}}"
+    },
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}

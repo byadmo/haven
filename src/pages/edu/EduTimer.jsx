@@ -10,6 +10,7 @@ import EduTopBar from "@/components/edu/EduTopBar";
 import EduBottomNav from "@/components/edu/EduBottomNav";
 import PageTitle from "@/components/finance/PageTitle";
 import AmbientAudio from "@/components/edu/AmbientAudio";
+import TodaySessions from "@/components/edu/TodaySessions";
 import { useEduSync } from "@/lib/eduSyncContext";
 
 const MODES = [
@@ -18,7 +19,7 @@ const MODES = [
 ];
 
 export default function EduTimer() {
-  const { courses, deliverablesByCourse, logStudySession } = useEduSync();
+  const { courses, deliverablesByCourse, logStudySession, updateFocus } = useEduSync();
   const [params] = useSearchParams();
   const [modeId, setModeId] = React.useState("flowmodoro");
   const [customMin, setCustomMin] = React.useState(60);
@@ -33,9 +34,11 @@ export default function EduTimer() {
 
   const [courseId, setCourseId] = React.useState(params.get("course") || "__free__");
   const [deliverableId, setDeliverableId] = React.useState(params.get("deliverable") || "__free__");
+  const [focusId, setFocusId] = React.useState(params.get("focus") || "");
   React.useEffect(() => {
     if (params.get("course")) setCourseId(params.get("course"));
     if (params.get("deliverable")) setDeliverableId(params.get("deliverable"));
+    if (params.get("focus")) setFocusId(params.get("focus"));
   }, [params]);
 
   const courseDeliverables = deliverablesByCourse[courses.find((c) => c.id === courseId)?.id] || [];
@@ -91,13 +94,14 @@ export default function EduTimer() {
       mode: modeId,
       completed_at: new Date().toISOString(),
     });
+    if (focusId) { try { updateFocus(focusId, { status: "completed", completed_at: new Date().toISOString() }); } catch {} setFocusId(""); }
     setBlockLogged(true);
   }
 
   function takeBreak() {
     if (phase !== "study" || studySeconds < 10) return;
     endStudy();
-    const brkSec = Math.max(60, Math.round(studySeconds / 5)); // 1/5th of study (min 1 min)
+    const brkSec = Math.floor(studySeconds / 5); // 1/5th of study time
     setBreakTotal(brkSec);
     setBreakSecondsLeft(brkSec);
     setPhase("break");
@@ -170,13 +174,24 @@ export default function EduTimer() {
               <circle cx="150" cy="150" r={R} fill="none" stroke={ringColor} strokeWidth="10" strokeLinecap="round" strokeDasharray={C} strokeDashoffset={strokeOffset} style={{ transition: "stroke-dashoffset 1s linear" }} />
             </svg>
             <div className="absolute text-center">
-              <p className="text-5xl font-bold font-mono tabular-nums text-zinc-50">{fmt(display)}</p>
-              <p className="text-[10px] uppercase tracking-widest text-white/40 mt-1">{isBreak ? "Break" : "Focus"}</p>
-              {!isBreak && studySeconds > 0 && (
-                <p className="text-[10px] text-white/30 mt-0.5 font-mono">break will be {fmt(Math.max(60, Math.round(studySeconds / 5)))}</p>
+              <p className="text-[10px] uppercase tracking-widest text-white/40">Study Time</p>
+              <p className="text-5xl font-bold font-mono tabular-nums text-zinc-50">{fmt(studySeconds)}</p>
+              {isBreak ? (
+                <>
+                  <p className="text-[10px] uppercase tracking-widest text-sky-400/70 mt-2">Break</p>
+                  <p className="text-2xl font-mono tabular-nums text-sky-300">{fmt(breakSecondsLeft)}</p>
+                </>
+              ) : (
+                studySeconds > 0 ? (
+                  <p className="text-[10px] text-white/30 mt-1 font-mono">break will be {fmt(Math.floor(studySeconds / 5))}</p>
+                ) : null
               )}
             </div>
           </div>
+
+          {isBreak ? (
+            <p className="mt-4 text-[11px] text-white/40 font-mono">Break: {fmt(breakTotal)} (1/5 of {fmt(breakTotal * 5)} study)</p>
+          ) : null}
 
           {/* Task */}
           <div className="mt-6 text-center">
@@ -227,6 +242,9 @@ export default function EduTimer() {
             </Select>
           </div>
         </div>
+
+        {/* Today's sessions */}
+        <TodaySessions />
 
         {/* Ambient audio */}
         <div className="rounded-lg border border-white/10 bg-black p-5">
