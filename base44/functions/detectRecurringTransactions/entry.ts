@@ -41,6 +41,10 @@ export default async function(req) {
     for (const key of Object.keys(groups)) {
       const items = groups[key].sort((a, b) => (a.date < b.date ? -1 : 1));
       if (items.length < 3) continue;
+      // Skip interest / finance-charge groups — these are auto-accrued line
+      // items from statements, not real recurring bills the user pays. They
+      // belong in debt tracking, not the bills widget, so never promote them.
+      if (/\b(interest|finance\s+charge|fin\s+charge)\b/i.test(items[0].description || '')) continue;
       const dates = items.map((t) => new Date(t.date + 'T00:00:00Z'));
       const diffs = [];
       for (let i = 1; i < dates.length; i++) diffs.push((dates[i] - dates[i - 1]) / 86400000);

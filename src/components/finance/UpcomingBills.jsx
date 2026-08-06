@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { Bell, Check, Receipt } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
+import { filterGenuineBills } from "@/lib/billFilters";
 
 function dayDiff(dateStr) {
   const d = new Date((dateStr || "") + "T00:00:00");
@@ -37,8 +38,8 @@ export default function UpcomingBills({ transactions, onChanged }) {
   const [paying, setPaying] = useState(null);
 
   const bills = useMemo(() => {
-    return (transactions || [])
-      .filter((t) => t.is_scheduled && t.next_date && dayDiff(t.next_date) != null)
+    return filterGenuineBills(transactions)
+      .filter((t) => dayDiff(t.next_date) != null)
       .filter((t) => {
         const dd = dayDiff(t.next_date);
         return dd >= 0 && dd <= 14;
