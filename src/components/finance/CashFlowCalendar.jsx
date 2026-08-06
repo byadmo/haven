@@ -81,19 +81,27 @@ export default function CashFlowCalendar() {
       map[key][bucket] += Math.abs(amt || 0);
     };
 
-    // 1) Projected recurring occurrences (income + expenses) onto their days.
-    for (const p of recurring) {
-      for (const key of occurrencesInWindow(p, start, end)) {
-        add(key, p.type, p.average_amount);
-      }
-    }
-
-    // 2) One-time (non-recurring) transactions whose date lands in this month.
+    // 1) Real transaction rows in this month — actuals, scheduled one-time
+    //    items, and scheduled recurring bills. Only what genuinely exists;
+    //    no invented future expenses are ever added here.
+    const literalDatesByGroup = {};
     for (const t of transactions) {
       if (!t.date || t.date < startKey || t.date > endKey) continue;
-      const key = `${t.type || "expense"}::${normalizeDesc(t.description)}`;
-      if (recurringKeys.has(key)) continue; // already counted via projection
       add(t.date, t.type, t.amount);
+      const gk = `${t.type || "expense"}::${normalizeDesc(t.description)}`;
+      if (recurringKeys.has(gk)) (literalDatesByGroup[gk] ||= new Set()).add(t.date);
+    }
+
+    // 2) Project recurring INCOME occurrences across the month so every
+    //    paycheck lands on its day, deduped against rows already recorded.
+    //    Expenses are never projected — only real rows + debt min-payments show.
+    for (const p of recurring) {
+      if (p.type !== "income") continue;
+      const seen = literalDatesByGroup[p.normalized] || new Set();
+      for (const key of occurrencesInWindow(p, start, end)) {
+        if (seen.has(key)) continue;
+        add(key, "income", p.average_amount);
+      }
     }
 
     // 3) Upcoming minimum debt payments due this month.
