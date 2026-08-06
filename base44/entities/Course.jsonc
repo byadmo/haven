@@ -1,0 +1,71 @@
+{
+  "name": "Course",
+  "type": "object",
+  "properties": {
+    "semester_id": {
+      "type": "string",
+      "description": "The Semester this course belongs to"
+    },
+    "code": {
+      "type": "string",
+      "description": "Course code e.g. CSC110"
+    },
+    "title": {
+      "type": "string"
+    },
+    "professor_name": {
+      "type": "string"
+    },
+    "professor_email": {
+      "type": "string"
+    },
+    "office_hours": {
+      "type": "string"
+    },
+    "schedule_days": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Day abbreviations: M, T, W, Th, F, S, Su"
+    },
+    "schedule_time": {
+      "type": "string",
+      "description": "e.g. 10:00-11:30"
+    },
+    "location": {
+      "type": "string"
+    },
+    "target_weekly_hours": {
+      "type": "number",
+      "default": 6
+    },
+    "credits": {
+      "type": "number",
+      "default": 3
+    },
+    "color": {
+      "type": "string",
+      "default": "emerald"
+    }
+  },
+  "required": [
+    "semester_id",
+    "code",
+    "title"
+  ],
+  "rls": {
+    "read": {
+      "created_by_id": "{{user.id}}"
+    },
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}

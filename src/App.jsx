@@ -10,7 +10,12 @@ import ScrollToTop from './components/ScrollToTop';
 import Dashboard from '@/pages/Dashboard';
 import Splash from '@/pages/Splash';
 import Hub from '@/pages/Hub';
-import Education from '@/pages/Education';
+import { EduLayout } from '@/lib/eduSyncContext';
+import EduDashboard from '@/pages/edu/EduDashboard';
+import EduCourses from '@/pages/edu/EduCourses';
+import EduTimer from '@/pages/edu/EduTimer';
+import EduGrades from '@/pages/edu/EduGrades';
+import EduAnalytics from '@/pages/edu/EduAnalytics';
 import Insights from '@/pages/Insights';
 import Settings from '@/pages/Settings';
 import Forecast from '@/pages/Forecast';
@@ -62,7 +67,13 @@ const AuthenticatedApp = () => {
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route element={<ProtectedRoute unauthenticatedElement={<Splash />} />}>
         <Route path="/" element={<Hub />} />
-        <Route path="/education" element={<Education />} />
+        <Route element={<EduLayout />}>
+          <Route path="/education" element={<EduDashboard />} />
+          <Route path="/education/courses" element={<EduCourses />} />
+          <Route path="/education/timer" element={<EduTimer />} />
+          <Route path="/education/grades" element={<EduGrades />} />
+          <Route path="/education/analytics" element={<EduAnalytics />} />
+        </Route>
         <Route element={<FinanceLayout />}>
           <Route element={<OnboardingGate><KeepAliveOutlet /></OnboardingGate>}>
             <Route path="/overview" element={<Dashboard />} />

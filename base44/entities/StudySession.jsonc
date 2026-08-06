@@ -1,0 +1,48 @@
+{
+  "name": "StudySession",
+  "type": "object",
+  "properties": {
+    "course_id": {
+      "type": "string",
+      "description": "Associated course, null for free study"
+    },
+    "deliverable_id": {
+      "type": "string",
+      "description": "Associated deliverable, null for free study"
+    },
+    "duration_minutes": {
+      "type": "number"
+    },
+    "mode": {
+      "type": "string",
+      "enum": [
+        "standard",
+        "extended",
+        "custom"
+      ],
+      "default": "standard"
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "duration_minutes",
+    "completed_at"
+  ],
+  "rls": {
+    "read": {
+      "created_by_id": "{{user.id}}"
+    },
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}

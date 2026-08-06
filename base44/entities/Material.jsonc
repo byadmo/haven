@@ -1,0 +1,42 @@
+{
+  "name": "Material",
+  "type": "object",
+  "properties": {
+    "course_id": {
+      "type": "string",
+      "description": "The Course this material is required for"
+    },
+    "title": {
+      "type": "string"
+    },
+    "estimated_cost": {
+      "type": "number",
+      "default": 0
+    },
+    "required": {
+      "type": "boolean",
+      "default": true
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "course_id",
+    "title"
+  ],
+  "rls": {
+    "read": {
+      "created_by_id": "{{user.id}}"
+    },
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}

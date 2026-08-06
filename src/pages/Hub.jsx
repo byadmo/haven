@@ -18,13 +18,13 @@ const CARDS = [
   {
     to: "/education",
     title: "Haven Education",
-    desc: "Learning hub — content coming soon.",
+    desc: "Courses, focus timer, grades & analytics.",
     icon: GraduationCap,
     ring: "group-hover:border-sky-400/50",
     iconWrap: "border-sky-400/30 bg-sky-500/10",
     iconColor: "text-sky-300",
     glow: "from-sky-500/15",
-    label: "Preview",
+    label: "Open",
   },
 ];
 

@@ -1,0 +1,35 @@
+{
+  "name": "EduSettings",
+  "type": "object",
+  "properties": {
+    "scholarship_threshold_gpa": {
+      "type": "number",
+      "description": "GPA floor to keep scholarship; alert if cumulative drops below"
+    },
+    "weekly_sleep_hours": {
+      "type": "number",
+      "default": 56,
+      "description": "Weekly hours reserved for sleep (used by work-study balance)"
+    },
+    "google_synced": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether Google Calendar sync is enabled"
+    }
+  },
+  "required": [],
+  "rls": {
+    "read": {
+      "created_by_id": "{{user.id}}"
+    },
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}

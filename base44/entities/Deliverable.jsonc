@@ -1,0 +1,75 @@
+{
+  "name": "Deliverable",
+  "type": "object",
+  "properties": {
+    "course_id": {
+      "type": "string",
+      "description": "The Course this deliverable belongs to"
+    },
+    "title": {
+      "type": "string"
+    },
+    "due_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "weight": {
+      "type": "number",
+      "default": 0,
+      "description": "Weight as percentage of final grade (0-100)"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "assignment",
+        "exam",
+        "quiz",
+        "project",
+        "midterm",
+        "final",
+        "lab",
+        "other"
+      ],
+      "default": "assignment"
+    },
+    "grade": {
+      "type": "number",
+      "description": "Achieved percentage (0-100). Null until graded."
+    },
+    "max_grade": {
+      "type": "number",
+      "default": 100
+    },
+    "is_exam": {
+      "type": "boolean",
+      "default": false
+    },
+    "completed": {
+      "type": "boolean",
+      "default": false
+    },
+    "graded": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [
+    "course_id",
+    "title",
+    "due_date"
+  ],
+  "rls": {
+    "read": {
+      "created_by_id": "{{user.id}}"
+    },
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}

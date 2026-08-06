@@ -1,0 +1,272 @@
+import React from "react";
+import { Outlet, Link } from "react-router-dom";
+import { base44 } from "@/api/base44Client";
+import { LayoutDashboard, BookOpen, Timer, GraduationCap, BarChart3, ShieldCheck } from "lucide-react";
+import { percentToGpa } from "@/lib/eduGrading";
+
+export const EDU_NAV = [
+  { to: "/education", label: "Dashboard", icon: LayoutDashboard, end: true },
+  { to: "/education/courses", label: "Courses", icon: BookOpen },
+  { to: "/education/timer", label: "Timer", icon: Timer },
+  { to: "/education/grades", label: "Grades", icon: GraduationCap },
+  { to: "/education/analytics", label: "Analytics", icon: BarChart3 },
+];
+
+const EduSyncContext = React.createContext(null);
+
+function dayKey(d) {
+  return d.toISOString().slice(0, 10);
+}
+
+// Auto-detect current term from today's date.
+export function detectTerm(now = new Date()) {
+  const y = now.getFullYear();
+  const m = now.getMonth(); // 0-11
+  let term_type, start, end, label;
+  if (m >= 8) {
+    term_type = "fall"; start = new Date(y, 8, 1); end = new Date(y, 11, 31); label = `Fall ${y}`;
+  } else if (m <= 3) {
+    term_type = "winter"; start = new Date(y, 0, 1); end = new Date(y, 3, 30); label = `Winter ${y}`;
+  } else {
+    term_type = "spring_summer"; start = new Date(y, 4, 1); end = new Date(y, 7, 31); label = `Spring/Summer ${y}`;
+  }
+  return { term_type, term_label: label, year: y, start_date: dayKey(start), end_date: dayKey(end) };
+}
+
+function computeStreak(sessions) {
+  const set = new Set((sessions || []).map((s) => s.completed_at?.slice(0, 10)).filter(Boolean));
+  if (!set.size) return { current: 0, longest: 0 };
+  let current = 0;
+  let d = new Date();
+  if (!set.has(dayKey(d))) {
+    d = new Date(); d.setDate(d.getDate() - 1);
+    if (!set.has(dayKey(d))) current = 0;
+  }
+  if (current === 0 && set.has(dayKey(d))) {
+    while (set.has(dayKey(d))) { current++; d.setDate(d.getDate() - 1); }
+  }
+  const sorted = [...set].sort();
+  let longest = 1, run = 1;
+  for (let i = 1; i < sorted.length; i++) {
+    const prev = new Date(sorted[i - 1]); prev.setDate(prev.getDate() + 1);
+    run = dayKey(prev) === sorted[i] ? run + 1 : 1;
+    longest = Math.max(longest, run);
+  }
+  return { current, longest: Math.max(longest, current) };
+}
+
+export function EduSyncProvider({ children }) {
+  const [data, setData] = React.useState({
+    semesters: [], courses: [], deliverables: [], materials: [], studySessions: [], settings: null,
+  });
+  const [loading, setLoading] = React.useState(true);
+  const [refreshKey, setRefreshKey] = React.useState(0);
+
+  const refresh = React.useCallback(() => setRefreshKey((k) => k + 1), []);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    Promise.all([
+      base44.entities.Semester.list("-created_date", 50).catch(() => []),
+      base44.entities.Course.list("-created_date", 200).catch(() => []),
+      base44.entities.Deliverable.list("-due_date", 500).catch(() => []),
+      base44.entities.Material.list("-created_date", 500).catch(() => []),
+      base44.entities.StudySession.list("-completed_at", 1000).catch(() => []),
+      base44.entities.EduSettings.list("-created_date", 1).catch(() => []),
+    ]).then(([semesters, courses, deliverables, materials, studySessions, settingsRows]) => {
+      if (cancelled) return;
+      setData({ semesters, courses, deliverables, materials, studySessions, settings: settingsRows?.[0] || null });
+      setLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [refreshKey]);
+
+  const activeSemester = React.useMemo(() => {
+    return data.semesters.find((s) => s.is_active) || data.semesters[0] || null;
+  }, [data.semesters]);
+
+  const semesterId = activeSemester?.id;
+  const courses = React.useMemo(() => data.courses.filter((c) => c.semester_id === semesterId), [data.courses, semesterId]);
+  const courseIds = React.useMemo(() => new Set(courses.map((c) => c.id)), [courses]);
+
+  const deliverables = React.useMemo(() => data.deliverables.filter((d) => courseIds.has(d.course_id)), [data.deliverables, courseIds]);
+  const materials = React.useMemo(() => data.materials.filter((m) => courseIds.has(m.course_id)), [data.materials, courseIds]);
+
+  const deliverablesByCourse = React.useMemo(() => {
+    const map = {};
+    deliverables.forEach((d) => { (map[d.course_id] = map[d.course_id] || []).push(d); });
+    return map;
+  }, [deliverables]);
+  const materialsByCourse = React.useMemo(() => {
+    const map = {};
+    materials.forEach((m) => { (map[m.course_id] = map[m.course_id] || []).push(m); });
+    return map;
+  }, [materials]);
+
+  const streak = React.useMemo(() => computeStreak(data.studySessions), [data.studySessions]);
+
+  // Per-course derived: next deliverable + progress + hours studied
+  const coursesRich = React.useMemo(() => {
+    const today = dayKey(new Date());
+    return courses.map((c) => {
+      const dlvs = (deliverablesByCourse[c.id] || []).slice().sort((a, b) => (a.due_date || "").localeCompare(b.due_date || ""));
+      const upcoming = dlvs.filter((d) => !d.completed && (d.due_date || "") >= today);
+      const next = upcoming[0] || null;
+      const completedCount = dlvs.filter((d) => d.completed).length;
+      const sessions = data.studySessions.filter((s) => s.course_id === c.id);
+      const minutes = sessions.reduce((s, x) => s + (x.duration_minutes || 0), 0);
+      return { ...c, deliverables: dlvs, next, progress: dlvs.length ? Math.round((completedCount / dlvs.length) * 100) : 0, completedCount, totalCount: dlvs.length, studiedMinutes: minutes, studiedHours: +(minutes / 60).toFixed(1) };
+    });
+  }, [courses, deliverablesByCourse, data.studySessions]);
+
+  // Weekly study minutes (last 7 days)
+  const weekStart = new Date(); weekStart.setDate(weekStart.getDate() - 6); weekStart.setHours(0, 0, 0, 0);
+  const weeklyMinutes = React.useMemo(() => data.studySessions.filter((s) => new Date(s.completed_at) >= weekStart).reduce((sum, s) => sum + (s.duration_minutes || 0), 0), [data.studySessions, weekStart]);
+
+  // Hours by hour-of-day (peak energy) — minutes per hour bucket
+  const hourlyBuckets = React.useMemo(() => {
+    const buckets = new Array(24).fill(0);
+    data.studySessions.forEach((s) => {
+      const h = new Date(s.completed_at).getHours();
+      buckets[h] += s.duration_minutes || 0;
+    });
+    return buckets;
+  }, [data.studySessions]);
+
+  // Cumulative GPA across courses with at least one graded deliverable
+  const cumulativeGpa = React.useMemo(() => {
+    const gpas = [];
+    courses.forEach((c) => {
+      const dlvs = deliverablesByCourse[c.id] || [];
+      const graded = dlvs.filter((d) => d.graded && d.grade != null && d.weight > 0);
+      if (graded.length) {
+        const totalW = graded.reduce((s, d) => s + d.weight, 0);
+        const earned = graded.reduce((s, d) => s + (d.grade / (d.max_grade || 100)) * 100 * d.weight, 0);
+        const pct = totalW > 0 ? earned / totalW : null;
+        if (pct != null) gpas.push(percentToGpa(pct));
+      }
+    });
+    return gpas.length ? +(gpas.reduce((a, b) => a + b, 0) / gpas.length).toFixed(2) : null;
+  }, [courses, deliverablesByCourse]);
+
+  // ---- Mutations (all refresh after) ----
+  async function setActiveSemester(id) {
+    const others = data.semesters.filter((s) => s.is_active && s.id !== id);
+    await Promise.all(others.map((s) => base44.entities.Semester.update(s.id, { is_active: false })).concat(base44.entities.Semester.update(id, { is_active: true })));
+    refresh();
+  }
+
+  async function createSemester(payload) {
+    const created = await base44.entities.Semester.create({ ...payload, is_active: true });
+    // deactivate others
+    const others = data.semesters.filter((s) => s.id !== created.id && s.is_active);
+    await Promise.all(others.map((s) => base44.entities.Semester.update(s.id, { is_active: false }))).catch(() => {});
+    refresh();
+    return created;
+  }
+
+  async function createCourse({ course, deliverables: dlvs = [], materials: mats = [] }) {
+    const created = await base44.entities.Course.create(course);
+    if (dlvs.length) await base44.entities.Deliverable.bulkCreate(dlvs.map((d) => ({ ...d, course_id: created.id })));
+    if (mats.length) await base44.entities.Material.bulkCreate(mats.map((m) => ({ ...m, course_id: created.id })));
+    refresh();
+    return created;
+  }
+  async function updateCourse(id, patch) { await base44.entities.Course.update(id, patch); refresh(); }
+  async function deleteCourse(id) {
+    await base44.entities.Deliverable.deleteMany({ course_id: id }).catch(() => {});
+    await base44.entities.Material.deleteMany({ course_id: id }).catch(() => {});
+    await base44.entities.Course.delete(id);
+    refresh();
+  }
+  async function createDeliverable(payload) { const d = await base44.entities.Deliverable.create(payload); refresh(); return d; }
+  async function updateDeliverable(id, patch) { await base44.entities.Deliverable.update(id, patch); refresh(); }
+  async function deleteDeliverable(id) { await base44.entities.Deliverable.delete(id); refresh(); }
+  async function createMaterial(payload) { const m = await base44.entities.Material.create(payload); refresh(); return m; }
+  async function updateMaterial(id, patch) { await base44.entities.Material.update(id, patch); refresh(); }
+  async function deleteMaterial(id) { await base44.entities.Material.delete(id); refresh(); }
+  async function logStudySession(payload) { const s = await base44.entities.StudySession.create(payload); refresh(); return s; }
+  async function deleteStudySession(id) { await base44.entities.StudySession.delete(id); refresh(); }
+
+  async function updateSettings(patch) {
+    if (data.settings?.id) { await base44.entities.EduSettings.update(data.settings.id, patch); }
+    else { await base44.entities.EduSettings.create({ weekly_sleep_hours: 56, google_synced: false, ...patch }); }
+    refresh();
+  }
+
+  const value = {
+    ...data,
+    loading,
+    refresh,
+    refreshKey,
+    activeSemester,
+    courses: coursesRich,
+    allCourses: data.courses,
+    deliverables,
+    materials,
+    deliverablesByCourse,
+    materialsByCourse,
+    streak,
+    weeklyMinutes,
+    hourlyBuckets,
+    cumulativeGpa,
+    setActiveSemester,
+    createSemester,
+    createCourse,
+    updateCourse,
+    deleteCourse,
+    createDeliverable,
+    updateDeliverable,
+    deleteDeliverable,
+    createMaterial,
+    updateMaterial,
+    deleteMaterial,
+    logStudySession,
+    deleteStudySession,
+    updateSettings,
+  };
+
+  return <EduSyncContext.Provider value={value}>{children}</EduSyncContext.Provider>;
+}
+
+export function useEduSync() {
+  const ctx = React.useContext(EduSyncContext);
+  if (!ctx) throw new Error("useEduSync must be used within EduSyncProvider");
+  return ctx;
+}
+
+export function EduLayout() {
+  return (
+    <EduSyncProvider>
+      <EduShell><Outlet /></EduShell>
+    </EduSyncProvider>
+  );
+}
+
+function EduShell({ children }) {
+  const { loading } = useEduSync();
+  if (loading) {
+    return (
+      <div className="dark min-h-screen bg-black flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-zinc-800 border-t-emerald-400 rounded-full animate-spin" />
+      </div>
+    );
+  }
+  return (
+    <div className="dark min-h-screen bg-black text-zinc-100 selection:bg-emerald-500/30 flex flex-col">
+      {children}
+      <div className="pb-24 sm:pb-0" />
+    </div>
+  );
+}
+
+export function HavenEduLogo({ to = "/education" }) {
+  return (
+    <Link to={to} className="flex items-center gap-2.5 shrink-0">
+      <div className="flex items-center justify-center rounded-xl border border-emerald-400/30 bg-emerald-500/10" style={{ height: 30, width: 30 }}>
+        <ShieldCheck className="text-emerald-400" style={{ height: 16, width: 16 }} />
+      </div>
+      <span className="text-sm font-semibold tracking-tight text-white">Haven <span className="text-emerald-400">Education</span></span>
+    </Link>
+  );
+}
