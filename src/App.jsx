@@ -9,13 +9,10 @@ import ScrollToTop from './components/ScrollToTop';
 // Add page imports here
 import Dashboard from '@/pages/Dashboard';
 import Splash from '@/pages/Splash';
-import Strategy from '@/pages/Strategy';
-import Portfolio from '@/pages/Portfolio';
 import Insights from '@/pages/Insights';
 import Settings from '@/pages/Settings';
 import Forecast from '@/pages/Forecast';
 import Budgeting from '@/pages/Budgeting';
-import CashFlow from '@/pages/CashFlow';
 import Assistant from '@/pages/Assistant';
 import Accounts from '@/pages/Accounts';
 import Setup from '@/pages/Setup';
@@ -63,13 +60,10 @@ const AuthenticatedApp = () => {
         <Route element={<FinanceLayout />}>
           <Route element={<OnboardingGate><KeepAliveOutlet /></OnboardingGate>}>
             <Route path="/" element={<Dashboard />} />
-            <Route path="/strategy" element={<Strategy />} />
-            <Route path="/portfolio" element={<Portfolio />} />
             <Route path="/insights" element={<Insights />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/forecast" element={<Forecast />} />
             <Route path="/budgeting" element={<Budgeting />} />
-            <Route path="/cashflow" element={<CashFlow />} />
             <Route path="/assistant" element={<Assistant />} />
             <Route path="/accounts" element={<Accounts />} />
             <Route path="/credit-utilization" element={<CreditUtilization />} />

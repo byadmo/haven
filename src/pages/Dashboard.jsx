@@ -75,7 +75,7 @@ export default function Dashboard() {
   const netWorth = ctxNetWorth;
   const spendRatio = mIncome > 0 ? mExpense / mIncome : (mExpense > 0 ? 1 : 0);
   const forecastData = useMemo(
-    () => computeTrajectory({ debts: activeLiabilities(debts), accounts, transactions: txns }).series,
+    () => computeTrajectory({ debts: activeLiabilities(debts), accounts, transactions: txns, stopAfterDebtFree: true }).series,
     [debts, accounts, txns]
   );
 

@@ -2,11 +2,8 @@ import React, { useLayoutEffect, useRef, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   Home,
-  ArrowLeftRight,
-  TrendingUp,
   PiggyBank,
   Ellipsis,
-  Activity,
   LineChart,
   PieChart,
   Sparkles,
@@ -23,16 +20,13 @@ import {
 
 const primary = [
   { to: "/", label: "Overview", icon: Home, end: true },
-  { to: "/insights", label: "Insights", icon: PieChart },
-  { to: "/strategy", label: "Debts", icon: ArrowLeftRight },
-  { to: "/portfolio", label: "Investments", icon: TrendingUp },
   { to: "/budgeting", label: "Goals", icon: PiggyBank },
 ];
 
 const secondary = [
-  { to: "/credit-utilization", label: "Credit Util.", icon: Gauge },
-  { to: "/cashflow", label: "Cash Flow", icon: Activity },
+  { to: "/insights", label: "Insights", icon: PieChart },
   { to: "/forecast", label: "Forecast", icon: LineChart },
+  { to: "/credit-utilization", label: "Credit Util.", icon: Gauge },
   { to: "/assistant", label: "Ask Wei", icon: Sparkles },
   { to: "/settings", label: "Settings", icon: SettingsIcon },
 ];

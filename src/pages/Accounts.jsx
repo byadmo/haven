@@ -13,7 +13,7 @@ export default function Accounts() {
   const { transactions: txns, debts, accounts, refresh } = useFinanceData();
 
   const forecastData = React.useMemo(
-    () => computeTrajectory({ debts, accounts, transactions: txns }).series,
+    () => computeTrajectory({ debts, accounts, transactions: txns, stopAfterDebtFree: true }).series,
     [debts, accounts, txns]
   );
 

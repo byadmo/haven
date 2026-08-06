@@ -23,19 +23,24 @@ export default function Forecast() {
   const [extra, setExtra] = React.useState(0);
   const [incomeAdjust, setIncomeAdjust] = React.useState(0);
 
-  // Always compute 120-month projection, then auto-size the view to the debt-free date
+  // Compute up to 120 months, but stop 2 months after debt hits zero (when
+  // there is debt to clear) so charts don't flatline. With no debt, cap at 60.
+  const hasDebt = debts.some((d) => (d.current_balance || 0) > 0.005);
   const { series: fullSeries, order } = React.useMemo(
-    () => computeTrajectory({ debts, accounts, transactions: txns, months: 120, method, extraPayment: extra, incomeAdjust }),
+    () => computeTrajectory({ debts, accounts, transactions: txns, months: 120, method, extraPayment: extra, incomeAdjust, stopAfterDebtFree: true }),
     [debts, accounts, txns, method, extra, incomeAdjust]
   );
 
   const debtFreeMonth = React.useMemo(
-    () => fullSeries.findIndex((p) => p.debtRemaining <= 0.005),
-    [fullSeries]
+    () => hasDebt ? fullSeries.findIndex((p) => p.debtRemaining <= 0.005) : -1,
+    [fullSeries, hasDebt]
   );
-  // Auto-adjust: show up to debt-free month + 6 months padding (min 12)
-  const autoMonths = debtFreeMonth >= 0 ? Math.min(120, debtFreeMonth + 7) : 120;
-  const series = React.useMemo(() => fullSeries.slice(0, autoMonths), [fullSeries, autoMonths]);
+  // With debt: the series already ends 2 months after payoff (stopAfterDebtFree).
+  // Without debt (or debt that never clears within the cap): a reasonable 60-month view.
+  const series = React.useMemo(
+    () => hasDebt ? fullSeries : fullSeries.slice(0, 60),
+    [fullSeries, hasDebt]
+  );
 
   const debtFreeDate = debtFreeMonth >= 0 && debtFreeMonth < fullSeries.length
     ? format(fullSeries[debtFreeMonth].date, "MMM yyyy") : null;

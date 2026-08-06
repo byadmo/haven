@@ -72,6 +72,7 @@ export function computeTrajectory({
   let cash = startingCash;
   let cumInterest = 0;
   let debtFreeMonth = null;
+  let cashZeroMonth = null;
 
   for (let m = 1; m <= months; m++) {
     cash += monthlyNet; // net living cash flow
@@ -120,11 +121,16 @@ export function computeTrajectory({
     });
 
     const debtRemaining = balances.reduce((s, d) => s + Math.max(0, d.balance), 0);
-    if (debtRemaining <= 0.005 && !keyframeMonths.has(m)) {
+    // Only flag "DEBT FREE" when there was actual debt to clear — otherwise a
+    // user who starts debt-free gets a spurious keyframe and the chart truncates.
+    if (totalDebt0 > 0.005 && debtRemaining <= 0.005 && !keyframeMonths.has(m)) {
       keyframeMonths.add(m);
       keyframeLabels[m] = "DEBT FREE";
     }
-    if (debtFreeMonth === null && debtRemaining <= 0.005) debtFreeMonth = m;
+    if (debtFreeMonth === null && totalDebt0 > 0.005 && debtRemaining <= 0.005) debtFreeMonth = m;
+    // Track a cash-balance depletion as a second "series hits 0" event so the
+    // graph also ends 2 months after the balance is drained to zero.
+    if (cashZeroMonth === null && startingCash > 0.005 && cash <= 0.005) cashZeroMonth = m;
 
     const libs = {};
     balances.forEach((d) => { libs[d.id || d.name] = Math.max(0, d.balance); });
@@ -144,9 +150,16 @@ export function computeTrajectory({
       keyframeLabel: keyframeLabels[m] || "",
     });
 
-    // Stop calculating once debt hits zero + 2-month buffer (used by flat payoff
-    // projections so charts don't flatline for hundreds of months).
-    if (stopAfterDebtFree && debtFreeMonth !== null && m - debtFreeMonth >= 2) break;
+    // Stop calculating 2 months after the LAST series that hits zero (debt
+    // payoff and/or cash depletion) so charts don't flatline for hundreds of
+    // months. If no series ever hits zero, the loop runs the full `months` cap
+    // (a reasonable fixed range) instead.
+    if (stopAfterDebtFree) {
+      let stopMonth = -1;
+      if (debtFreeMonth !== null) stopMonth = Math.max(stopMonth, debtFreeMonth);
+      if (cashZeroMonth !== null) stopMonth = Math.max(stopMonth, cashZeroMonth);
+      if (stopMonth >= 0 && m - stopMonth >= 2) break;
+    }
   }
 
   return { series, keyframes: [...keyframeMonths].sort((a, b) => a - b), order };

@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { ShieldCheck, Settings as SettingsIcon, LayoutDashboard, LineChart, PieChart, TrendingUp, Target, Gauge, Sparkles, PiggyBank, Activity, Wallet } from "lucide-react";
+import { ShieldCheck, Settings as SettingsIcon, LayoutDashboard, PieChart, TrendingUp, Gauge, Sparkles, PiggyBank, Wallet } from "lucide-react";
 import CommandPalette from "@/components/finance/CommandPalette";
 import BackupModal from "@/components/finance/BackupModal";
 import MobileNav from "@/components/finance/MobileNav";
@@ -10,14 +10,11 @@ export default function DashboardHeader({ actions }) {
   const financesGroup = [
     { to: "/", label: "Overview", icon: LayoutDashboard, end: true },
     { to: "/accounts", label: "Accounts", icon: Wallet },
-    { to: "/portfolio", label: "Portfolio", icon: LineChart },
     { to: "/insights", label: "Insights", icon: PieChart },
   ];
   const planningGroup = [
     { to: "/budgeting", label: "Budgeting", icon: PiggyBank },
-    { to: "/cashflow", label: "Cash Flow", icon: Activity },
     { to: "/forecast", label: "Forecast", icon: TrendingUp },
-    { to: "/strategy", label: "Strategy", icon: Target },
     { to: "/credit-utilization", label: "Credit Utilization", icon: Gauge },
     { to: "/assistant", label: "Ask Wei", icon: Sparkles },
   ];

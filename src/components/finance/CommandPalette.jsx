@@ -1,12 +1,10 @@
 import React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Search, Home, TrendingUp, Briefcase, PlusCircle, CornerDownLeft } from "lucide-react";
+import { Search, Home, PlusCircle, CornerDownLeft } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const ACTIONS = [
   { id: "overview", label: "Go to Overview", hint: "Dashboard", icon: Home, to: "/" },
-  { id: "strategy", label: "Go to Strategy", hint: "Debt projection", icon: TrendingUp, to: "/strategy" },
-  { id: "portfolio", label: "Go to Portfolio", hint: "Stock holdings", icon: Briefcase, to: "/portfolio" },
   { id: "add-txn", label: "Add Transaction", hint: "Quick add", icon: PlusCircle, action: "add-txn" },
 ];
 
