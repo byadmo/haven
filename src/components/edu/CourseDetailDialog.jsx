@@ -8,6 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Plus, Trash2, Check } from "lucide-react";
 import { useEduSync } from "@/lib/eduSyncContext";
 import { currentGrade, percentToLetter } from "@/lib/eduGrading";
+import ProfessorContact from "@/components/edu/ProfessorContact";
+import GradeCalculator from "@/components/edu/GradeCalculator";
 
 const TYPES = ["assignment", "exam", "quiz", "project", "midterm", "final", "lab", "other"];
 
@@ -52,6 +54,7 @@ export default function CourseDetailDialog({ course, open, onOpenChange }) {
         </DialogHeader>
 
         <div className="space-y-5 max-h-[65vh] overflow-y-auto pr-1">
+          <ProfessorContact course={course} />
           {/* Grading breakdown */}
           <div className="rounded-lg border border-white/10 p-4">
             <div className="flex items-center justify-between mb-2">
@@ -70,6 +73,8 @@ export default function CourseDetailDialog({ course, open, onOpenChange }) {
               ))}
             </div>
           </div>
+
+          <GradeCalculator course={course} deliverables={dlvs} />
 
           {/* Deliverables */}
           <div>

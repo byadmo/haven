@@ -9,6 +9,9 @@ import StatementImportModal from "@/components/finance/StatementImportModal";
 import MetricsRow from "@/components/finance/MetricsRow";
 import ChartSwitcher from "@/components/finance/ChartSwitcher";
 import RecentTransactions from "@/components/finance/RecentTransactions";
+import UpcomingBills from "@/components/finance/UpcomingBills";
+import SpendingDonut from "@/components/finance/SpendingDonut";
+import FinancialHealthScore from "@/components/finance/FinancialHealthScore";
 import UpcomingRecurring from "@/components/finance/UpcomingRecurring";
 import AccountsSummary from "@/components/finance/AccountsSummary";
 import Reveal from "@/components/finance/Reveal";
@@ -132,6 +135,13 @@ export default function Dashboard() {
               spendRatio={spendRatio}
             />
           </Reveal>
+
+          {/* Row 1.5 — financial health · upcoming bills · spending donut */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <Reveal><FinancialHealthScore /></Reveal>
+            <Reveal delay={0.03}><UpcomingBills transactions={txns} onChanged={refresh} /></Reveal>
+            <Reveal delay={0.06}><SpendingDonut transactions={txns} /></Reveal>
+          </div>
 
           {/* Row 2 — accounts ledger */}
           <Reveal delay={0.04}><AccountsSummary /></Reveal>

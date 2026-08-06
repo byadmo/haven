@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { useEduSync, detectTerm } from "@/lib/eduSyncContext";
 import { daysFromNow, badgeColor } from "@/components/edu/CourseCard";
 import FocusRow from "@/components/edu/FocusRow";
+import ExamCountdown from "@/components/edu/ExamCountdown";
 import TaskFormModal from "@/components/edu/TaskFormModal";
 
 const PRIORITY_BADGE = {
@@ -137,6 +138,9 @@ export default function EduDashboard() {
 
           {/* SECONDARY — col-span-5 (schedule + stats + AI panel on lg) */}
           <div className="lg:col-span-5 space-y-6 lg:flex lg:flex-col">
+            <Reveal>
+              <ExamCountdown />
+            </Reveal>
             <Reveal>
               <div className="rounded-lg border border-white/10 bg-black p-5">
                 <div className="flex items-center justify-between mb-3">
