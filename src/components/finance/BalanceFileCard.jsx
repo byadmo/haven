@@ -87,7 +87,7 @@ export default function BalanceFileCard({ entryId, file, initialPreview, account
       cancelled = true;
       if (preview) URL.revokeObjectURL(preview);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   async function runParse() {

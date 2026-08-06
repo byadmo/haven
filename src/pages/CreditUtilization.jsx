@@ -5,7 +5,6 @@ import {
 } from "lucide-react";
 import DashboardHeader from "@/components/finance/DashboardHeader";
 import PageTitle from "@/components/finance/PageTitle";
-import { useFinanceData } from "@/lib/FinanceDataContext";
 import { invokeFunc, money, pct } from "@/lib/dashboard";
 import { Loader } from "@/components/dashboard/ui";
 import Reveal from "@/components/finance/Reveal";

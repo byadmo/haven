@@ -4,7 +4,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Card } from "@/components/ui/card";
 import { simulateFlatRun } from "@/lib/trajectory";
 import { format } from "date-fns";
-import { Sparkles, TrendingDown, CalendarCheck, ArrowRight, Wand2, PiggyBank } from "lucide-react";
+import { Sparkles, CalendarCheck, ArrowRight, Wand2, PiggyBank } from "lucide-react";
 import { ResponsiveContainer, ComposedChart, Line, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { useCurrency } from "@/lib/currency-context";
 

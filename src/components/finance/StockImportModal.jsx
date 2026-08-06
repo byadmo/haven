@@ -66,7 +66,7 @@ export default function StockImportModal({ open, onOpenChange, onSaved }) {
 
   React.useEffect(() => {
     if (open) reset();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [open]);
 
   function reset() {

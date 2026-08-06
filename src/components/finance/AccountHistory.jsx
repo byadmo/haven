@@ -1,6 +1,6 @@
 import React from "react";
 import { History, CreditCard, Landmark } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence } from "framer-motion";
 import { useCategories, categoryOptions } from "@/lib/categories";
 import { TransactionRow } from "@/components/finance/TransactionRows";
 import TransactionExplorerModal from "@/components/finance/TransactionExplorerModal";

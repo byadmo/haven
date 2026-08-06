@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Plus, CreditCard, Trash2, ChevronDown, Eye } from "lucide-react";
 import PayoffTarget from "@/components/finance/PayoffTarget";
-import { format, parseISO } from "date-fns";
+import { format } from "date-fns";
 import { motion } from "framer-motion";
 import confetti from "canvas-confetti";
 import { useForecast } from "@/lib/forecast-context";

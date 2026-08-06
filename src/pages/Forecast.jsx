@@ -10,7 +10,6 @@ import HoverTimeline from "@/components/finance/HoverTimeline";
 import ForecastCharts from "@/components/finance/ForecastCharts";
 import GoalPlanner from "@/components/finance/GoalPlanner";
 import Reveal from "@/components/finance/Reveal";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { TrendingUp, Flame, Snowflake } from "lucide-react";

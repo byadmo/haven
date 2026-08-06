@@ -195,7 +195,7 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
 
   React.useEffect(() => {
     if (open) reset();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [open]);
 
   // Load existing transactions so we can flag duplicates during import review.
@@ -216,7 +216,7 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
       onSaved?.();
       onOpenChange?.(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [parsing, groups.length, gi, failedFiles.length]);
 
   function reset() {

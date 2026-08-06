@@ -79,7 +79,7 @@ export default function MobileNav() {
   useLayoutEffect(() => {
     const raf = requestAnimationFrame(measure);
     return () => cancelAnimationFrame(raf);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [activeIndex]);
 
   // Re-measure (debounced) on resize/orientation change so the pill stays aligned.
@@ -100,7 +100,7 @@ export default function MobileNav() {
       window.removeEventListener("resize", handler);
       window.removeEventListener("orientationchange", handler);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [activeIndex]);
 
   const iconClass = (isActive) =>

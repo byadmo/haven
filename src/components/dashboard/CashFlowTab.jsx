@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { invokeFunc, money, pct, moneyCompact } from "@/lib/dashboard";
+import { invokeFunc, money, moneyCompact } from "@/lib/dashboard";
 import { Loader, Card3 } from "@/components/dashboard/ui";
-import { Calendar, RefreshCw, Repeat, Activity } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import RecurringList from "@/components/finance/RecurringList";
 
 export default function CashFlowTab({ refreshKey, transactions = [], onRefresh }) {

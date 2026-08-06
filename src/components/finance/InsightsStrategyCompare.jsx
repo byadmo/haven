@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Snowflake, Flame, TrendingDown, Clock } from "lucide-react";
-import { invokeFunc, money, pct } from "@/lib/dashboard";
+import { invokeFunc, money } from "@/lib/dashboard";
 import { Loader } from "@/components/dashboard/ui";
 
 /**

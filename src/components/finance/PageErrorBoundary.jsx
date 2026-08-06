@@ -15,7 +15,7 @@ export default class PageErrorBoundary extends React.Component {
   }
 
   componentDidCatch(err, info) {
-    // eslint-disable-next-line no-console
+     
     console.error("[PageErrorBoundary]", err, info);
   }
 

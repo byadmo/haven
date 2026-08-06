@@ -13,7 +13,6 @@ import RecentTransactions from "@/components/finance/RecentTransactions";
 import UpcomingRecurring from "@/components/finance/UpcomingRecurring";
 import { computeTrajectory } from "@/lib/trajectory";
 import { ForecastProvider } from "@/lib/forecast-context";
-import DebtForm from "@/components/finance/DebtForm";
 import StatementImportModal from "@/components/finance/StatementImportModal";
 import AccountsSummary from "@/components/finance/AccountsSummary";
 import Reveal from "@/components/finance/Reveal";

@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { invokeFunc, money, pct } from "@/lib/dashboard";
 import { Loader, Card3, Bar } from "@/components/dashboard/ui";
-import { PieChart } from "lucide-react";
 
 export default function InvestmentsTab({ refreshKey }) {
   const [prices, setPrices] = useState(null);

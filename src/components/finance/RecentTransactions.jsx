@@ -1,10 +1,7 @@
 import React from "react";
-import { parseISO, format, isToday, isFuture } from "date-fns";
-import { ArrowDownLeft, ArrowUpRight, Pencil, X, Search, CalendarClock, CreditCard, Check } from "lucide-react";
+import { Search } from "lucide-react";
 import { base44 } from "@/api/base44Client";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger, DialogClose,
-} from "@/components/ui/dialog";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,10 +9,8 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { applyTxAccountEffect, reverseTxAccountEffect } from "@/lib/accounts";
-import { AnimatePresence, motion } from "framer-motion";
-import RecurringFields from "@/components/finance/RecurringFields";
+import { AnimatePresence } from "framer-motion";
 import { useCategories, categoryOptions } from "@/lib/categories";
-import { useCurrency } from "@/lib/currency-context";
 import TransactionExplorerModal from "@/components/finance/TransactionExplorerModal";
 import { TransactionRow as Row, DebtPaymentRow } from "@/components/finance/TransactionRows";
 

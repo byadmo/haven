@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { invokeFunc, money, pct } from "@/lib/dashboard";
+import { invokeFunc, money } from "@/lib/dashboard";
 import { Loader, Card3 } from "@/components/dashboard/ui";
-import { Flame, CalendarClock, Trophy } from "lucide-react";
+import { Flame, Trophy } from "lucide-react";
 
 export default function DebtTab({ refreshKey }) {
   const [interest, setInterest] = useState(null);
