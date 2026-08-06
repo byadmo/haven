@@ -93,7 +93,7 @@ export default function EduCourses() {
       </main>
       <EduBottomNav />
 
-      <CourseFormModal open={addOpen} onOpenChange={setAddOpen} semesterId={activeSemester?.id} />
+      <CourseFormModal open={addOpen} onOpenChange={setAddOpen} semesterId={activeSemester?.id} semesterStart={activeSemester?.start_date} />
       <CourseDetailDialog course={detailCourse} open={!!detailCourse} onOpenChange={(o) => !o && setDetailCourse(null)} />
     </>
   );

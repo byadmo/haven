@@ -5,19 +5,20 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { UploadCloud, Keyboard, ArrowLeft } from "lucide-react";
+import { CalendarClock, UploadCloud, Keyboard, ArrowLeft } from "lucide-react";
 import SyllabusUpload from "@/components/edu/SyllabusUpload";
+import CalendarImport from "@/components/edu/CalendarImport";
 import { useEduSync } from "@/lib/eduSyncContext";
 
 const DAYS = ["M", "T", "W", "Th", "F", "S", "Su"];
 
-export default function CourseFormModal({ open, onOpenChange, semesterId }) {
+export default function CourseFormModal({ open, onOpenChange, semesterId, semesterStart }) {
   const { createCourse } = useEduSync();
-  const [step, setStep] = React.useState("choose"); // choose | manual | upload
+  const [step, setStep] = React.useState("choose"); // choose | calendar | manual | upload
   const [saving, setSaving] = React.useState(false);
   const [form, setForm] = React.useState(emptyForm());
 
-  React.useEffect(() => { if (open) { setStep("choose"); setForm(emptyForm()); } }, [open]);
+  React.useEffect(() => { if (open) { setStep("choose"); setForm(emptyForm()); setSaving(false); } }, [open]);
 
   function emptyForm() {
     return { code: "", title: "", professor_name: "", professor_email: "", office_hours: "", schedule_days: [], schedule_time: "", location: "", target_weekly_hours: 6, credits: 3 };
@@ -46,34 +47,55 @@ export default function CourseFormModal({ open, onOpenChange, semesterId }) {
     } finally { setSaving(false); }
   }
 
+  const options = [
+    { id: "calendar", icon: CalendarClock, title: "Import from Calendar", desc: "AI detects recurring classes from your Google Calendar.", primary: true },
+    { id: "upload", icon: UploadCloud, title: "Upload Syllabus", desc: "AI extracts course, deliverables & materials." },
+    { id: "manual", icon: Keyboard, title: "Enter Manually", desc: "Type in the course details yourself." },
+  ];
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="bg-black border-white/10 text-zinc-100 max-w-lg">
         <DialogHeader>
           <DialogTitle className="text-zinc-100">
             {step === "choose" && "Add Course"}
+            {step === "calendar" && "Import from Calendar"}
             {step === "manual" && "Enter Manually"}
             {step === "upload" && "Upload Syllabus"}
           </DialogTitle>
           <DialogDescription className="text-white/50">
-            {step === "choose" && "Add a course by uploading a syllabus or entering details manually."}
+            {step === "choose" && "Import courses from your calendar, enrich with a syllabus, or enter details manually."}
+            {step === "calendar" && "We scan one week of your calendar and detect recurring classes."}
             {step === "manual" && "Fill in the course details."}
             {step === "upload" && "Drop a syllabus and we'll extract the details."}
           </DialogDescription>
         </DialogHeader>
 
         {step === "choose" && (
-          <div className="grid grid-cols-2 gap-3 py-2">
-            <button onClick={() => setStep("upload")} className="rounded-lg border border-white/10 p-5 text-left hover:border-emerald-400/30 transition-colors">
-              <UploadCloud className="h-6 w-6 text-emerald-400 mb-2" />
-              <p className="text-sm font-medium text-zinc-100">Upload Syllabus</p>
-              <p className="text-[11px] text-white/40 mt-1">AI extracts course, deliverables & materials.</p>
-            </button>
-            <button onClick={() => setStep("manual")} className="rounded-lg border border-white/10 p-5 text-left hover:border-emerald-400/30 transition-colors">
-              <Keyboard className="h-6 w-6 text-emerald-400 mb-2" />
-              <p className="text-sm font-medium text-zinc-100">Enter Manually</p>
-              <p className="text-[11px] text-white/40 mt-1">Type in the course details yourself.</p>
-            </button>
+          <div className="grid grid-cols-1 gap-3 py-2">
+            {options.map((o) => (
+              <button key={o.id} onClick={() => setStep(o.id)} className={`flex items-start gap-3 rounded-lg border p-4 text-left hover:border-emerald-400/30 transition-colors ${o.primary ? "border-emerald-400/30 bg-emerald-500/5" : "border-white/10"}`}>
+                <o.icon className={`h-6 w-6 shrink-0 ${o.primary ? "text-emerald-400" : "text-emerald-400/80"}`} />
+                <div>
+                  <p className="text-sm font-medium text-zinc-100 flex items-center gap-2">
+                    {o.title}
+                    {o.primary && <span className="text-[9px] uppercase tracking-widest text-emerald-400 border border-emerald-400/30 rounded px-1 py-0.5">Primary</span>}
+                  </p>
+                  <p className="text-[11px] text-white/40 mt-0.5">{o.desc}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {step === "calendar" && (
+          <div className="space-y-3">
+            <CalendarImport
+              semesterId={semesterId}
+              semesterStart={semesterStart}
+              onDone={() => onOpenChange(false)}
+            />
+            <Button type="button" variant="ghost" onClick={() => setStep("choose")} className="text-white/50"><ArrowLeft className="h-4 w-4 mr-1" /> Back</Button>
           </div>
         )}
 

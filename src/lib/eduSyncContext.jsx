@@ -4,6 +4,9 @@ import { base44 } from "@/api/base44Client";
 import { LayoutDashboard, BookOpen, Timer, GraduationCap, BarChart3, ShieldCheck } from "lucide-react";
 import { percentToGpa } from "@/lib/eduGrading";
 
+// Workspace-registered per-user Google Calendar connector (app-user mode).
+export const GCALENDAR_CONNECTOR_ID = "6a70ef7e9f47c094588c220b";
+
 export const EDU_NAV = [
   { to: "/education", label: "Dashboard", icon: LayoutDashboard, end: true },
   { to: "/education/courses", label: "Courses", icon: BookOpen },
@@ -234,6 +237,9 @@ export function useEduSync() {
   if (!ctx) throw new Error("useEduSync must be used within EduSyncProvider");
   return ctx;
 }
+
+// Preferred hook name (mirrors FinanceDataContext's useFinanceData).
+export const useEduSyncData = useEduSync;
 
 export function EduLayout() {
   return (

@@ -12,7 +12,7 @@ import { daysFromNow, badgeColor } from "@/components/edu/CourseCard";
 
 export default function EduDashboard() {
   const navigate = useNavigate();
-  const { activeSemester, courses, deliverables, streak, weeklyMinutes, settings, updateSettings, createSemester } = useEduSync();
+  const { activeSemester, courses, deliverables, streak, weeklyMinutes, settings, createSemester } = useEduSync();
   const [detectOpen, setDetectOpen] = React.useState(false);
   const detected = React.useMemo(() => detectTerm(), []);
 
@@ -104,7 +104,7 @@ export default function EduDashboard() {
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-[10px] uppercase tracking-widest text-white/50">Daily Schedule</p>
                   {!synced && (
-                    <button onClick={() => updateSettings({ google_synced: true })} className="flex items-center gap-1 text-[10px] uppercase tracking-widest text-emerald-300 hover:text-emerald-200">
+                    <button onClick={() => navigate("/education/settings")} className="flex items-center gap-1 text-[10px] uppercase tracking-widest text-emerald-300 hover:text-emerald-200">
                       <WifiOff className="h-3 w-3" /> Connect
                     </button>
                   )}

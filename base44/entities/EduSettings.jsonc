@@ -14,7 +14,40 @@
     "google_synced": {
       "type": "boolean",
       "default": false,
-      "description": "Whether Google Calendar sync is enabled"
+      "description": "Whether Google Calendar is connected"
+    },
+    "calendar_id": {
+      "type": "string",
+      "description": "Google Calendar ID of the 'EduSync - Academic Schedule' secondary calendar"
+    },
+    "calendar_email": {
+      "type": "string",
+      "description": "Email of the connected Google account"
+    },
+    "daily_study_goal": {
+      "type": "number",
+      "default": 120,
+      "description": "Target study minutes per day"
+    },
+    "push_classes": {
+      "type": "boolean",
+      "default": true,
+      "description": "Push class schedules to calendar"
+    },
+    "push_assignments": {
+      "type": "boolean",
+      "default": true,
+      "description": "Push assignment deadlines to calendar"
+    },
+    "push_exams": {
+      "type": "boolean",
+      "default": true,
+      "description": "Push exam dates to calendar"
+    },
+    "detect_conflicts": {
+      "type": "boolean",
+      "default": true,
+      "description": "Auto-detect calendar conflicts when scheduling study sessions"
     }
   },
   "required": [],
