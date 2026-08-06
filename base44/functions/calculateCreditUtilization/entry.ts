@@ -15,8 +15,14 @@ export default async function(req) {
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     const debts = await base44.entities.Debt.list();
+    // Detect revolving credit accounts: either the name looks like a credit
+    // card / line of credit, OR the user explicitly set a credit_limit on the
+    // liability (credit_limit is the dedicated "track my utilization" field).
+    const isCreditAccount = (d) =>
+      /credit|card|mastercard|visa|amex|heloc|line of credit|\bloc\b/i.test(d.name || '') ||
+      (d.credit_limit || 0) > 0;
     const cards = debts
-      .filter((d) => /credit/i.test(d.name || '') && d.status !== 'paid_off' && (d.current_balance || 0) > 0)
+      .filter((d) => isCreditAccount(d) && d.status !== 'paid_off' && (d.current_balance || 0) > 0)
       .map((d) => {
         const bal = d.current_balance || 0;
         const limit = d.credit_limit > 0 ? d.credit_limit : (d.original_balance || 0);

@@ -84,7 +84,7 @@ export default function CreditUtilization() {
               <h2 className="text-sm font-semibold text-zinc-100">Cards</h2>
             </div>
             {!data ? <Loader /> : cards.length === 0 ? (
-              <p className="text-xs text-white/40">No credit card debts detected. Add a debt with "credit" in the name and a credit limit to track utilization.</p>
+              <p className="text-xs text-white/40">No credit accounts detected. Add a liability named Mastercard/Visa/Card/credit line — or set a credit limit on any debt — to track utilization here.</p>
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                 {cards.map((c) => {
