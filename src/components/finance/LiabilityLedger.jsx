@@ -50,14 +50,20 @@ export default function LiabilityLedger({ debts, onChanged, showPayoffTarget = t
     if (!editing?.id) return;
     setSaving(true);
     try {
-      await base44.entities.Debt.update(editing.id, {
+      const update = {
         current_balance: Math.max(0, parseFloat(editing.current_balance) || 0),
+        original_balance: parseFloat(editing.original_balance) || 0,
+        credit_limit: parseFloat(editing.credit_limit) || 0,
         interest_rate: parseFloat(editing.interest_rate) || 0,
         interest_type: editing.interest_type || "APR",
         minimum_payment: parseFloat(editing.minimum_payment) || 0,
+        due_date: editing.due_date || null,
         target_payoff_date: editing.target_payoff_date || null,
         status: parseFloat(editing.current_balance) <= 0 ? "paid_off" : "active",
-      });
+      };
+      const nm = (editing.name ?? "").trim();
+      if (nm) update.name = nm;
+      await base44.entities.Debt.update(editing.id, update);
       setEditing(null);
       onChanged?.();
     } finally {
@@ -268,12 +274,32 @@ export default function LiabilityLedger({ debts, onChanged, showPayoffTarget = t
                     <DialogContent className="bg-black border-white/10 text-zinc-100">
                       <DialogHeader>
                         <DialogTitle className="text-zinc-100">Edit {d.name}</DialogTitle>
-                        <DialogDescription className="text-white/50">Update balance, rate, or minimum payment.</DialogDescription>
+                        <DialogDescription className="text-white/50">Update name, balance, limit, rate, or payment details.</DialogDescription>
                       </DialogHeader>
                       <form onSubmit={saveEdit} className="space-y-3">
                         <div className="space-y-1.5">
-                          <Label className="text-white/50">Current Balance ($)</Label>
-                          <Input type="number" step="any" defaultValue={d.current_balance} onChange={(e) => setEditing((prev) => ({ ...prev, current_balance: e.target.value }))} className="bg-black border-white/10 text-zinc-100" />
+                          <Label className="text-white/50">Name</Label>
+                          <Input defaultValue={d.name} onChange={(e) => setEditing((prev) => ({ ...prev, name: e.target.value }))} className="bg-black border-white/10 text-zinc-100" autoFocus />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1.5">
+                            <Label className="text-white/50">Current Balance ($)</Label>
+                            <Input type="number" step="any" defaultValue={d.current_balance} onChange={(e) => setEditing((prev) => ({ ...prev, current_balance: e.target.value }))} className="bg-black border-white/10 text-zinc-100" />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-white/50">Original Balance ($)</Label>
+                            <Input type="number" step="any" defaultValue={d.original_balance || ""} onChange={(e) => setEditing((prev) => ({ ...prev, original_balance: e.target.value }))} className="bg-black border-white/10 text-zinc-100" />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1.5">
+                            <Label className="text-white/50">Credit Limit ($)</Label>
+                            <Input type="number" step="any" defaultValue={d.credit_limit || ""} onChange={(e) => setEditing((prev) => ({ ...prev, credit_limit: e.target.value }))} className="bg-black border-white/10 text-zinc-100" />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-white/50">Min. Payment ($)</Label>
+                            <Input type="number" step="any" defaultValue={d.minimum_payment} onChange={(e) => setEditing((prev) => ({ ...prev, minimum_payment: e.target.value }))} className="bg-black border-white/10 text-zinc-100" />
+                          </div>
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                           <div className="space-y-1.5">
@@ -281,8 +307,8 @@ export default function LiabilityLedger({ debts, onChanged, showPayoffTarget = t
                             <Input type="number" step="any" defaultValue={d.interest_rate} onChange={(e) => setEditing((prev) => ({ ...prev, interest_rate: e.target.value }))} className="bg-black border-white/10 text-zinc-100" />
                           </div>
                           <div className="space-y-1.5">
-                            <Label className="text-white/50">Min. Payment ($)</Label>
-                            <Input type="number" step="any" defaultValue={d.minimum_payment} onChange={(e) => setEditing((prev) => ({ ...prev, minimum_payment: e.target.value }))} className="bg-black border-white/10 text-zinc-100" />
+                            <Label className="text-white/50">Due Date</Label>
+                            <Input type="date" defaultValue={d.due_date || ""} onChange={(e) => setEditing((prev) => ({ ...prev, due_date: e.target.value }))} className="bg-black border-white/10 text-zinc-100" />
                           </div>
                         </div>
                         <div className="space-y-1.5">
