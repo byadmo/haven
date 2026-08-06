@@ -47,7 +47,7 @@ export default function CurrencySettings() {
 
       <p className="text-[11px] text-white/40 mt-3 tabular-nums">
         1 CAD = {rate.toFixed(4)} {code}
-        {loading && <span className="ml-2 text-violet-300">updating…</span>}
+        {loading && <span className="ml-2 text-emerald-300">updating…</span>}
         {code === "CAD" && <span className="ml-2 text-white/30">· default (no conversion)</span>}
       </p>
     </div>

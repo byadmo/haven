@@ -6,13 +6,13 @@ import { ShieldCheck, Wallet, GraduationCap, ArrowRight } from "lucide-react";
 const CARDS = [
   {
     to: "/overview",
-    title: "Haven Finance",
+    title: "Haven Financial",
     desc: "Net worth, debts, cash flow, budgets & forecasts.",
     icon: Wallet,
-    ring: "group-hover:border-emerald-400/50",
-    iconWrap: "border-emerald-400/30 bg-emerald-500/10",
-    iconColor: "text-emerald-300",
-    glow: "from-emerald-500/15",
+    ring: "group-hover:border-indigo-400/50",
+    iconWrap: "border-indigo-400/30 bg-indigo-500/10",
+    iconColor: "text-indigo-300",
+    glow: "from-indigo-500/15",
     label: "Open",
   },
   {
@@ -20,10 +20,10 @@ const CARDS = [
     title: "Haven Education",
     desc: "Courses, focus timer, grades & analytics.",
     icon: GraduationCap,
-    ring: "group-hover:border-sky-400/50",
-    iconWrap: "border-sky-400/30 bg-sky-500/10",
-    iconColor: "text-sky-300",
-    glow: "from-sky-500/15",
+    ring: "group-hover:border-emerald-400/50",
+    iconWrap: "border-emerald-400/30 bg-emerald-500/10",
+    iconColor: "text-emerald-300",
+    glow: "from-emerald-500/15",
     label: "Open",
   },
 ];
@@ -32,19 +32,19 @@ export default function Hub() {
   const navigate = useNavigate();
 
   return (
-    <div className="dd-page-enter dark min-h-screen bg-black text-zinc-100 selection:bg-emerald-500/30 relative overflow-hidden">
+    <div className="dd-page-enter dark min-h-screen bg-black text-zinc-100 selection:bg-white/20 relative overflow-hidden">
       {/* Ambient blobs */}
       <div className="pointer-events-none absolute inset-0 opacity-60">
-        <div className="absolute -top-24 -left-20 h-72 w-72 rounded-full bg-emerald-500/10 blur-3xl" />
-        <div className="absolute top-1/3 -right-24 h-80 w-80 rounded-full bg-sky-500/10 blur-3xl" />
+        <div className="absolute -top-24 -left-20 h-72 w-72 rounded-full bg-indigo-500/10 blur-3xl" />
+        <div className="absolute top-1/3 -right-24 h-80 w-80 rounded-full bg-emerald-500/10 blur-3xl" />
       </div>
 
       <main className="relative max-w-5xl mx-auto px-5 sm:px-8 min-h-screen flex flex-col">
         {/* Header / logo */}
         <header className="flex items-center justify-between py-6 sm:py-8">
           <div className="flex items-center gap-2.5 splash-logo-in">
-            <div className="flex items-center justify-center rounded-xl border border-emerald-400/30 bg-emerald-500/10" style={{ height: 32, width: 32 }}>
-              <ShieldCheck className="text-emerald-400" style={{ height: 18, width: 18 }} />
+            <div className="flex items-center justify-center rounded-xl border border-white/15 bg-white/5" style={{ height: 32, width: 32 }}>
+              <ShieldCheck className="text-white/80" style={{ height: 18, width: 18 }} />
             </div>
             <span className="text-base font-semibold tracking-tight text-white">Haven</span>
           </div>
@@ -64,7 +64,7 @@ export default function Hub() {
             transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
             className="mb-8 sm:mb-12"
           >
-            <p className="text-[10px] uppercase tracking-[0.2em] text-emerald-300/80 mb-2">Welcome back</p>
+            <p className="text-[10px] uppercase tracking-[0.2em] text-white/50 mb-2">Welcome back</p>
             <h1 className="text-2xl sm:text-4xl font-semibold tracking-tight text-white leading-tight">
               Choose your Haven
             </h1>

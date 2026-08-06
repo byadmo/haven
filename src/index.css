@@ -42,6 +42,13 @@
     --sidebar-accent-foreground: 240 5.9% 10%;
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Brand-accent channels. Default = emerald (Education sub-app + shared
+       surfaces). The Finance subtree (.finance-accent) re-maps these to indigo. */
+    --e-200: 167 243 208;
+    --e-300: 110 231 183;
+    --e-400: 52 211 153;
+    --e-500: 16 185 129;
+    --e-600: 5 150 105;
   }
 
   .dark {
@@ -77,13 +84,22 @@
     --sidebar-accent-foreground: 240 4.8% 95.9%;
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 217.2 91.2% 59.8%;
-  }
-}
+    }
 
+    /* Finance sub-app accent remap: emerald -> indigo. Applies only within the
+     FinanceLayout wrapper, so Education pages (no .finance-accent ancestor)
+     keep true emerald. Only CSS variables change — no utility classes touched. */
+    .finance-accent {
+    --e-200: 199 210 254;
+    --e-300: 165 180 252;
+    --e-400: 129 140 248;
+    --e-500: 99 102 241;
+    --e-600: 79 70 229;
+    }
+    }
 
-
-@layer base {
-  * {
+    @layer base {
+    * {
     @apply border-border outline-ring/50;
   }
 

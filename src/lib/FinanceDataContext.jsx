@@ -120,5 +120,8 @@ function FinanceLayoutInner({ children }) {
       </div>
     );
   }
-  return children ?? <Outlet />;
+  // Wrap finance pages in .finance-accent so the brand-accent palette
+  // resolves to indigo (see index.css). Education pages are not wrapped and
+  // keep the default emerald.
+  return <div className="finance-accent">{children ?? <Outlet />}</div>;
 }

@@ -59,8 +59,21 @@ module.exports = {
   				'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
   				border: 'hsl(var(--sidebar-border))',
   				ring: 'hsl(var(--sidebar-ring))'
+  			},
+  			// Brand-accent palette, scoped per sub-app. `:root` resolves the vars to
+  			// emerald (Education + shared surfaces); the `.finance-accent` subtree
+  			// re-maps them to indigo (Finance). Every emerald-* utility reads these
+  			// channel vars, so opacity / hover / gradient variants recolor
+  			// automatically per sub-app without editing each file.
+  			emerald: {
+  				DEFAULT: 'rgb(var(--e-500) / <alpha-value>)',
+  				200: 'rgb(var(--e-200) / <alpha-value>)',
+  				300: 'rgb(var(--e-300) / <alpha-value>)',
+  				400: 'rgb(var(--e-400) / <alpha-value>)',
+  				500: 'rgb(var(--e-500) / <alpha-value>)',
+  				600: 'rgb(var(--e-600) / <alpha-value>)'
   			}
-  		},
+  			},
   		fontFamily: {
   			heading: ['var(--font-heading)'],
   			body: ['var(--font-body)'],

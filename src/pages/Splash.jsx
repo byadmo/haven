@@ -102,11 +102,11 @@ export default function Splash() {
   const shellStyle = { height: "100dvh", paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" };
 
   return (
-    <div className={`fixed inset-0 overflow-hidden bg-black transition-opacity duration-300 ${leaving ? "opacity-0" : "opacity-100"}`} style={{ background: "radial-gradient(120% 120% at 50% 0%, #052e25 0%, #000 55%)" }}>
+    <div className={`fixed inset-0 overflow-hidden bg-black transition-opacity duration-300 ${leaving ? "opacity-0" : "opacity-100"}`}       style={{ background: "radial-gradient(120% 120% at 50% 0%, #0c0c0e 0%, #000 55%)" }}>
       {/* drifting ambient blobs */}
-      <div className="pointer-events-none absolute -top-24 -left-16 h-72 w-72 rounded-full" style={{ background: "radial-gradient(circle, rgba(16,185,129,0.18), transparent 70%)", animation: "splash-float 9s ease-in-out infinite" }} />
-      <div className="pointer-events-none absolute top-1/2 -right-20 h-80 w-80 rounded-full" style={{ background: "radial-gradient(circle, rgba(13,148,136,0.16), transparent 70%)", animation: "splash-float 12s ease-in-out infinite", animationDelay: "1.5s" }} />
-      <div className="pointer-events-none absolute -bottom-24 left-1/4 h-72 w-72 rounded-full" style={{ background: "radial-gradient(circle, rgba(45,212,191,0.12), transparent 70%)", animation: "splash-float 11s ease-in-out infinite", animationDelay: "0.8s" }} />
+      <div className="pointer-events-none absolute -top-24 -left-16 h-72 w-72 rounded-full" style={{ background: "radial-gradient(circle, rgba(255,255,255,0.07), transparent 70%)", animation: "splash-float 9s ease-in-out infinite" }} />
+      <div className="pointer-events-none absolute top-1/2 -right-20 h-80 w-80 rounded-full" style={{ background: "radial-gradient(circle, rgba(255,255,255,0.05), transparent 70%)", animation: "splash-float 12s ease-in-out infinite", animationDelay: "1.5s" }} />
+      <div className="pointer-events-none absolute -bottom-24 left-1/4 h-72 w-72 rounded-full" style={{ background: "radial-gradient(circle, rgba(255,255,255,0.04), transparent 70%)", animation: "splash-float 11s ease-in-out infinite", animationDelay: "0.8s" }} />
 
       <div className="relative z-10 mx-auto flex w-full max-w-[480px] flex-col items-center justify-center px-6 text-center" style={shellStyle}>
         {view === "authcheck" && <Spinner label="Starting Haven…" />}
@@ -140,14 +140,14 @@ export default function Splash() {
                 <div className="h-px flex-1 bg-white/10" />
               </div>
               <button onClick={() => { setError(""); setView("signup"); }}
-                className="w-full rounded-xl px-4 py-3.5 text-sm font-semibold text-emerald-300 border border-emerald-400/30 hover:bg-emerald-500/10 transition-colors"
+                className="w-full rounded-xl px-4 py-3.5 text-sm font-semibold text-white border border-white/20 hover:bg-white/5 transition-colors"
                 style={{ minHeight: 48 }}>
                 Sign up with email
               </button>
               <p className="text-center text-xs text-white/60 pt-1">
                 Already have an account?{" "}
                 <button onClick={() => { setError(""); setView("signin"); }}
-                  className="text-emerald-300 font-semibold hover:text-emerald-200 transition-colors">
+                  className="text-white font-semibold hover:text-white/80 transition-colors">
                   Sign in
                 </button>
               </p>
@@ -199,7 +199,7 @@ export default function Splash() {
                   placeholder="••••••"
                   value={form.code}
                   onChange={(e) => set("code", e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  className="w-full rounded-lg border border-white/10 bg-black px-3.5 py-3.5 text-center text-lg tracking-[0.5em] text-white outline-none focus:border-emerald-400/60"
+                  className="w-full rounded-lg border border-white/10 bg-black px-3.5 py-3.5 text-center text-lg tracking-[0.5em] text-white outline-none focus:border-white/40"
                   style={{ fontSize: 16, minHeight: 48 }}
                 />
                 <SubmitButton label="Verify & Continue" disabled={form.code.length < 6} />
@@ -216,9 +216,9 @@ export default function Splash() {
 function Logo({ small }) {
   return (
     <div className="flex flex-col items-center">
-      <div className="flex items-center justify-center rounded-2xl border border-emerald-400/30 bg-emerald-500/10"
+      <div className="flex items-center justify-center rounded-2xl border border-white/15 bg-white/5"
         style={{ height: small ? 44 : 60, width: small ? 44 : 60 }}>
-        <ShieldCheck className="text-emerald-400" style={{ height: small ? 22 : 30, width: small ? 22 : 30 }} />
+        <ShieldCheck className="text-white/80" style={{ height: small ? 22 : 30, width: small ? 22 : 30 }} />
       </div>
       <span className="mt-3 font-semibold tracking-tight text-white" style={{ fontSize: small ? 22 : 30 }}>Haven</span>
     </div>
@@ -228,7 +228,7 @@ function Logo({ small }) {
 function Spinner({ label }) {
   return (
     <div className="flex flex-col items-center gap-3">
-      <div className="h-7 w-7 rounded-full border-2 border-white/15 border-t-emerald-400 animate-spin" />
+      <div className="h-7 w-7 rounded-full border-2 border-white/15 border-t-white animate-spin" />
       <p className="text-xs text-white/50 font-mono">{label}</p>
     </div>
   );
@@ -257,7 +257,7 @@ function Field({ icon: Icon, type = "text", placeholder, value, onChange, autoFo
         value={value}
         onChange={(e) => onChange(e.target.value)}
         autoFocus={autoFocus}
-        className="w-full rounded-lg border border-white/10 bg-black px-3.5 py-3.5 pl-10 text-sm text-white outline-none focus:border-emerald-400/60"
+        className="w-full rounded-lg border border-white/10 bg-black px-3.5 py-3.5 pl-10 text-sm text-white outline-none focus:border-white/40"
         style={{ fontSize: 16, minHeight: 48 }}
       />
     </div>
@@ -270,7 +270,7 @@ function SubmitButton({ label, disabled }) {
       type="submit"
       disabled={disabled}
       className="w-full rounded-xl px-4 py-3.5 text-sm font-semibold text-white disabled:opacity-50"
-      style={{ background: "linear-gradient(180deg,#10b981,#0d9488)", minHeight: 48 }}
+      style={{ background: "linear-gradient(180deg,#2a2a2e,#161618)", minHeight: 48 }}
     >
       {label}
     </button>

@@ -301,7 +301,7 @@ export default function UpcomingRecurring({ transactions, accounts = [], onChang
       {oneTime.length > 0 && (
         <div className="mt-4 pt-3 border-t border-white/10">
           <div className="flex items-center gap-2 mb-2">
-            <CalendarClock className="h-3.5 w-3.5 text-sky-300" />
+            <CalendarClock className="h-3.5 w-3.5 text-emerald-300" />
             <h3 className="text-xs font-semibold uppercase tracking-wider text-white/50">Upcoming One-Time Payments</h3>
           </div>
           <div className="space-y-1">
