@@ -23,6 +23,7 @@ export default function DeliverableFormModal({ open, onOpenChange, course }) {
 
   async function save() {
     if (!form.title.trim()) { toast({ title: "Title required", variant: "destructive" }); return; }
+    if (!form.due_date) { toast({ title: "Due date required", description: "Pick a due date so it shows on your Dashboard & Grades.", variant: "destructive" }); return; }
     setSaving(true);
     try {
       const isExam = ["exam", "midterm", "final"].includes(form.type);

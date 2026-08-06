@@ -207,9 +207,9 @@ Return JSON: { "sections": [ { "title": string, "icon": one of graduation|clock|
   }
 
   return (
-    <div className="rounded-lg border border-white/10 bg-black flex flex-col lg:sticky lg:top-20 max-h-[70vh] lg:max-h-none lg:h-[calc(100vh-7.5rem)]">
+    <div className="rounded-lg border border-white/10 bg-black flex flex-col lg:sticky lg:top-20 max-h-[58vh] lg:max-h-[460px]">
       {/* Header */}
-      <div className="flex items-center gap-2 px-3 py-2.5 border-b border-white/10 shrink-0">
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-white/10 shrink-0">
         <Sparkles className="h-4 w-4 text-emerald-300 shrink-0" />
         <p className="text-sm font-semibold text-zinc-50 flex-1">EduSync AI</p>
         <button onClick={clearChat} disabled={!messages.length} className="text-white/40 hover:text-rose-300 disabled:opacity-30 p-1" title="Clear chat"><Trash2 className="h-3.5 w-3.5" /></button>
@@ -217,7 +217,7 @@ Return JSON: { "sections": [ { "title": string, "icon": one of graduation|clock|
       </div>
 
       {/* Messages */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 py-3 space-y-2.5 min-h-[140px]">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 py-2.5 space-y-2 min-h-[120px]">
         {messages.length === 0 && (
           <div className="text-center py-4">
             <Sparkles className="h-7 w-7 text-emerald-300/40 mx-auto mb-1.5" />
@@ -233,7 +233,7 @@ Return JSON: { "sections": [ { "title": string, "icon": one of graduation|clock|
       </div>
 
       {/* Input */}
-      <form onSubmit={(e) => { e.preventDefault(); send(input); }} className="px-3 py-2.5 border-t border-white/10 flex items-center gap-2 shrink-0">
+      <form onSubmit={(e) => { e.preventDefault(); send(input); }} className="px-3 py-2 border-t border-white/10 flex items-center gap-2 shrink-0">
         <Input
           value={input}
           onChange={(e) => setInput(e.target.value)}
@@ -247,7 +247,7 @@ Return JSON: { "sections": [ { "title": string, "icon": one of graduation|clock|
       </form>
 
       {/* Suggestions — always visible */}
-      <div className="px-3 pb-3 pt-1.5 border-t border-white/10 flex flex-wrap gap-1.5">
+      <div className="px-3 pb-2.5 pt-1.5 border-t border-white/10 flex flex-wrap gap-1.5 shrink-0">
         {suggestions.map((q) => (
           <button key={q} onClick={() => send(q)} className="text-[10.5px] px-2 py-1 rounded-full border border-white/10 bg-white/[0.03] hover:bg-emerald-500/10 hover:border-emerald-400/30 text-white/70 transition-colors text-left">
             {q}
