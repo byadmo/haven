@@ -9,6 +9,8 @@ import {
   Sparkles,
   Wallet,
   Gauge,
+  Activity,
+  Briefcase,
   Settings as SettingsIcon,
 } from "lucide-react";
 import {
@@ -25,6 +27,8 @@ const primary = [
 
 const secondary = [
   { to: "/insights", label: "Insights", icon: PieChart },
+  { to: "/cashflow", label: "Cash Flow", icon: Activity },
+  { to: "/portfolio", label: "Portfolio", icon: Briefcase },
   { to: "/forecast", label: "Forecast", icon: LineChart },
   { to: "/credit-utilization", label: "Credit Util.", icon: Gauge },
   { to: "/assistant", label: "Ask Wei", icon: Sparkles },

@@ -13,6 +13,8 @@ import Insights from '@/pages/Insights';
 import Settings from '@/pages/Settings';
 import Forecast from '@/pages/Forecast';
 import Budgeting from '@/pages/Budgeting';
+import CashFlow from '@/pages/CashFlow';
+import Portfolio from '@/pages/Portfolio';
 import Assistant from '@/pages/Assistant';
 import Accounts from '@/pages/Accounts';
 import Setup from '@/pages/Setup';
@@ -64,6 +66,8 @@ const AuthenticatedApp = () => {
             <Route path="/settings" element={<Settings />} />
             <Route path="/forecast" element={<Forecast />} />
             <Route path="/budgeting" element={<Budgeting />} />
+            <Route path="/cashflow" element={<CashFlow />} />
+            <Route path="/portfolio" element={<Portfolio />} />
             <Route path="/assistant" element={<Assistant />} />
             <Route path="/accounts" element={<Accounts />} />
             <Route path="/credit-utilization" element={<CreditUtilization />} />
