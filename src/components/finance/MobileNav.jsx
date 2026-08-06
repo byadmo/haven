@@ -1,66 +1,44 @@
 import React, { useLayoutEffect, useRef, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import {
-  Home,
-  Target,
-  PiggyBank,
-  Ellipsis,
-  ArrowLeftRight,
-  Wallet,
-  CreditCard,
-  Settings as SettingsIcon,
-  LineChart,
-  PieChart,
-  Sparkles,
-  Gauge,
-  Activity,
-  Briefcase,
-  ShieldCheck,
-} from "lucide-react";
+import { Ellipsis } from "lucide-react";
 import {
   Drawer,
   DrawerContent,
   DrawerHeader,
   DrawerTitle,
 } from "@/components/ui/drawer";
+import { useFinanceData } from "@/lib/FinanceDataContext";
+import { resolveNav, FINANCE_PAGES, FINANCE_DEFAULT_NAV, FINANCE_LOCKED } from "@/lib/navConfig";
 
-const primary = [
-  { to: "/overview", label: "Overview", icon: Home, end: true },
-  { to: "/goals", label: "Goals", icon: Target },
-  { to: "/accounts", label: "Accounts", icon: Wallet },
-  { to: "/transactions", label: "Transactions", icon: ArrowLeftRight },
-];
+// Floating pill bottom nav (mobile only) for Haven Finance. Reads the same
+// customized config as the top bar: up to MAX_ICONS primary pages render as
+// icons; everything else (primary overflow + available pages) lives behind the
+// More button. The active-indicator pill slides between slots.
 
-const secondary = [
-  { to: "/debts", label: "Debts", icon: CreditCard },
-  { to: "/budgeting", label: "Budgets", icon: PiggyBank },
-  { to: "/settings", label: "Settings", icon: SettingsIcon },
-  { to: "/insights", label: "Insights", icon: PieChart },
-  { to: "/cashflow", label: "Cash Flow", icon: Activity },
-  { to: "/portfolio", label: "Portfolio", icon: Briefcase },
-  { to: "/forecast", label: "Forecast", icon: LineChart },
-  { to: "/credit-utilization", label: "Credit Util.", icon: Gauge },
-  { to: "/assistant", label: "Ask Wei", icon: Sparkles },
-  { to: "/", label: "Haven Hub", icon: ShieldCheck },
-];
+const MAX_ICONS = 4;
 
 const isItemActive = (to, end, pathname) =>
   end ? pathname === to : pathname === to || pathname.startsWith(to + "/");
 
 export default function MobileNav() {
+  const { navItems } = useFinanceData();
   const [moreOpen, setMoreOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const containerRef = useRef(null);
   const itemRefs = useRef([]);
 
-  const moreActive = secondary.some((s) => location.pathname === s.to);
-  const primaryActiveIdx = primary.findIndex((p) =>
-    isItemActive(p.to, p.end, location.pathname)
-  );
-  // Index into the 6-slot row (5 primary + More). -1 means none active.
+  const { primary, more } = resolveNav(navItems, FINANCE_PAGES, FINANCE_DEFAULT_NAV, FINANCE_LOCKED);
+  const icons = primary.slice(0, MAX_ICONS);
+  // Everything reachable from the More drawer: primary pages pushed off the
+  // pill + available pages (pages not in the user's config at all).
+  const drawerItems = [...primary.slice(MAX_ICONS), ...more];
+
+  const moreActive = drawerItems.some((s) => isItemActive(s.to, s.end, location.pathname));
+  const primaryActiveIdx = icons.findIndex((p) => isItemActive(p.to, p.end, location.pathname));
+  // Index into the slot row (icons + More). -1 means none active.
   const activeIndex =
-    primaryActiveIdx >= 0 ? primaryActiveIdx : moreActive ? primary.length : -1;
+    primaryActiveIdx >= 0 ? primaryActiveIdx : moreActive ? icons.length : -1;
 
   const [pill, setPill] = useState({ x: 0, w: 0, visible: false });
 
@@ -80,13 +58,12 @@ export default function MobileNav() {
     });
   };
 
-  // Measure on the next animation frame so the browser has painted the
-  // indicator at its OLD position first — this guarantees the CSS transform
-  // transition fires (the pill slides) instead of snapping to the new spot.
+  // Measure on the next animation frame so the browser paints the indicator
+  // at its OLD position first — guarantees the CSS transform transition fires
+  // (the pill slides) instead of snapping to the new spot.
   useLayoutEffect(() => {
     const raf = requestAnimationFrame(measure);
     return () => cancelAnimationFrame(raf);
-     
   }, [activeIndex]);
 
   // Re-measure (debounced) on resize/orientation change so the pill stays aligned.
@@ -107,7 +84,6 @@ export default function MobileNav() {
       window.removeEventListener("resize", handler);
       window.removeEventListener("orientationchange", handler);
     };
-     
   }, [activeIndex]);
 
   const iconClass = (isActive) =>
@@ -151,7 +127,7 @@ export default function MobileNav() {
             />
           )}
 
-          {primary.map(({ to, label, icon: Icon, end }, i) => (
+          {icons.map(({ to, label, icon: Icon, end }, i) => (
             <NavLink
               key={to}
               to={to}
@@ -167,20 +143,19 @@ export default function MobileNav() {
             </NavLink>
           ))}
 
-          {/* More button → secondary pages */}
-          <button
-            type="button"
-            onClick={() => setMoreOpen(true)}
-            aria-label="More"
-            ref={(el) => (itemRefs.current[primary.length] = el)}
-            className="relative grid place-items-center rounded-full"
-            style={{ height: 48, width: 48 }}
-          >
-            <Ellipsis
-              className={iconClass(moreActive)}
-              strokeWidth={1.75}
-            />
-          </button>
+          {/* More button → everything not shown as a primary icon */}
+          {drawerItems.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setMoreOpen(true)}
+              aria-label="More"
+              ref={(el) => (itemRefs.current[icons.length] = el)}
+              className="relative grid place-items-center rounded-full"
+              style={{ height: 48, width: 48 }}
+            >
+              <Ellipsis className={iconClass(moreActive)} strokeWidth={1.75} />
+            </button>
+          )}
         </div>
       </nav>
 
@@ -188,11 +163,11 @@ export default function MobileNav() {
         <DrawerContent className="bg-zinc-950 border-white/10 text-zinc-100">
           <DrawerHeader className="text-left">
             <DrawerTitle className="flex items-center gap-2 text-sm font-mono tracking-tight text-zinc-100">
-              <Wallet className="h-4 w-4 text-emerald-400" /> More
+              <Ellipsis className="h-4 w-4 text-emerald-400" /> More
             </DrawerTitle>
           </DrawerHeader>
           <div className="grid grid-cols-2 gap-2 px-4 pb-6 pt-1" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 20px)" }}>
-            {secondary.map(({ to, label, icon: Icon }) => {
+            {drawerItems.map(({ to, label, icon: Icon }) => {
               const isActive = location.pathname === to;
               return (
                 <button

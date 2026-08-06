@@ -42,6 +42,13 @@
     "onboarding_completed": {
       "type": "boolean",
       "default": false
+    },
+    "nav_items": {
+      "type": "array",
+      "description": "Customized navigation bar order \u2014 array of Finance page identifiers. Pages not in this array go under the 'More' dropdown.",
+      "items": {
+        "type": "string"
+      }
     }
   },
   "required": [

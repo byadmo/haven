@@ -1,6 +1,8 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Settings as SettingsIcon, CalendarCheck, CheckCircle2, Link2, ShieldCheck, RefreshCw, Loader2, GraduationCap, BadgeCheck } from "lucide-react";
+import { Settings as SettingsIcon, CalendarCheck, CheckCircle2, Link2, ShieldCheck, RefreshCw, Loader2, GraduationCap, BadgeCheck, Pencil } from "lucide-react";
+import CustomizeNavModal from "@/components/nav/CustomizeNavModal";
+import { EDU_PAGES, EDU_DEFAULT_NAV, EDU_LOCKED } from "@/lib/navConfig";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,7 +21,8 @@ import EduDangerZone from "@/components/edu/EduDangerZone";
 import { isProfileComplete } from "@/lib/eduProfile";
 
 export default function EduSettings() {
-  const { settings, updateSettings, activeSemester, refresh } = useEduSyncData();
+  const { settings, updateSettings, activeSemester, refresh, navItems, saveNavItems } = useEduSyncData();
+  const [navOpen, setNavOpen] = React.useState(false);
   const { toast } = useToast();
   const [connected, setConnected] = React.useState(null); // null=loading, true/false
   const [email, setEmail] = React.useState("");
@@ -144,6 +147,22 @@ export default function EduSettings() {
           </div>
         </Reveal>
 
+        {/* Navigation */}
+        <Reveal>
+          <div className="rounded-lg border border-white/10 bg-black p-5">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="min-w-0">
+                <p className="text-[10px] uppercase tracking-widest text-white/50">Navigation</p>
+                <p className="text-base font-semibold font-mono tracking-tight text-zinc-100 mt-1">Customize Nav Bar</p>
+                <p className="text-[11px] text-white/40 mt-1">Add, remove, and reorder the pages in your top and bottom navigation. Removed pages move into the More menu.</p>
+              </div>
+              <Button onClick={() => setNavOpen(true)} variant="outline" className="border-emerald-400/30 text-emerald-300 hover:bg-emerald-500/10 shrink-0">
+                <Pencil className="h-4 w-4 mr-1.5" /> Customize Nav
+              </Button>
+            </div>
+          </div>
+        </Reveal>
+
         {/* Google Calendar */}
         <Reveal>
           <div className="rounded-lg border border-white/10 bg-black p-5">
@@ -245,6 +264,17 @@ export default function EduSettings() {
           <EduDangerZone />
         </div>
       </main>
+      <CustomizeNavModal
+        open={navOpen}
+        onOpenChange={setNavOpen}
+        pages={EDU_PAGES}
+        defaultNav={EDU_DEFAULT_NAV}
+        locked={EDU_LOCKED}
+        navItems={navItems}
+        onSave={saveNavItems}
+        accent="emerald"
+        title="Customize Education Navigation"
+      />
       <EduBottomNav />
 
       <ProfileWizard open={wizardOpen} onOpenChange={setWizardOpen} onCompleted={() => setProfileComplete(true)} />

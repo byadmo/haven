@@ -119,6 +119,31 @@ export function FinanceDataProvider({ children }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, refreshKey]);
 
+  // Customizable nav bar — stored on the user's financial profile. Exposed so
+  // the nav bars and the Settings "Customize Nav" panel can read/save it. Save
+  // persists optimistically (local state updates first → nav re-renders
+  // immediately, no page reload).
+  const navItems = data.profile?.nav_items ?? null;
+
+  async function saveNavItems(nav_items) {
+    setData((prev) => ({
+      ...prev,
+      profile: prev.profile ? { ...prev.profile, nav_items } : { income_type: "fixed", nav_items },
+    }));
+    try {
+      if (data.profile?.id) {
+        await base44.entities.UserFinancialProfile.update(data.profile.id, { nav_items });
+      } else {
+        const created = await base44.entities.UserFinancialProfile.create({ income_type: "fixed", nav_items });
+        setData((prev) => ({ ...prev, profile: created }));
+      }
+      toast({ title: "Navigation updated" });
+    } catch (e) {
+      refresh();
+      toast({ title: "Could not save navigation", variant: "destructive" });
+    }
+  }
+
   const value = {
     ...data,
     // Aliases the rest of the app expects
@@ -128,6 +153,8 @@ export function FinanceDataProvider({ children }) {
     error: null,
     refresh,
     refreshKey,
+    navItems,
+    saveNavItems,
     ...analytics,
   };
 

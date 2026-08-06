@@ -5,7 +5,9 @@ import Reveal from "@/components/finance/Reveal";
 import { useCategories } from "@/lib/categories";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Trash2, RotateCcw, ChevronLeft, ShieldCheck, ArrowRight } from "lucide-react";
+import { Plus, Trash2, RotateCcw, ChevronLeft, ShieldCheck, ArrowRight, Pencil } from "lucide-react";
+import CustomizeNavModal from "@/components/nav/CustomizeNavModal";
+import { FINANCE_PAGES, FINANCE_DEFAULT_NAV, FINANCE_LOCKED } from "@/lib/navConfig";
 import { motion, AnimatePresence } from "framer-motion";
 import MonthlyReport from "@/components/finance/MonthlyReport";
 import UiSizeSetting from "@/components/finance/UiSizeSetting";
@@ -32,7 +34,8 @@ export default function Settings() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
-  const { refresh: refreshData } = useFinanceData();
+  const { refresh: refreshData, navItems, saveNavItems } = useFinanceData();
+  const [navOpen, setNavOpen] = React.useState(false);
 
   async function handleDeleteAccount() {
     setDeleting(true);
@@ -119,6 +122,21 @@ export default function Settings() {
         </Reveal>
 
         <Reveal><UiSizeSetting /></Reveal>
+
+        <Reveal>
+          <div className="rounded-lg border border-white/10 bg-black p-5">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="min-w-0">
+                <p className="text-[10px] uppercase tracking-widest text-white/50">Navigation</p>
+                <p className="text-lg font-semibold font-mono tracking-tight text-zinc-100 mt-1">Customize Nav Bar</p>
+                <p className="text-xs text-white/40 mt-1">Add, remove, and reorder the pages in your top and bottom navigation. Removed pages move into the More menu.</p>
+              </div>
+              <Button onClick={() => setNavOpen(true)} variant="outline" className="border-white/10 text-zinc-200 hover:bg-white/5 shrink-0">
+                <Pencil className="h-4 w-4 mr-1.5" /> Customize Nav
+              </Button>
+            </div>
+          </div>
+        </Reveal>
 
         <div>
           <h2 className="text-xs uppercase tracking-widest text-white/50">Categories</h2>
@@ -293,6 +311,18 @@ export default function Settings() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <CustomizeNavModal
+        open={navOpen}
+        onOpenChange={setNavOpen}
+        pages={FINANCE_PAGES}
+        defaultNav={FINANCE_DEFAULT_NAV}
+        locked={FINANCE_LOCKED}
+        navItems={navItems}
+        onSave={saveNavItems}
+        accent="indigo"
+        title="Customize Finance Navigation"
+      />
     </div>
   );
 }

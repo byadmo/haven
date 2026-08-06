@@ -1,41 +1,22 @@
-import React from "react";
+import React, { useState } from "react";
 import { Link, NavLink } from "react-router-dom";
 import {
   ShieldCheck,
   Settings as SettingsIcon,
-  LayoutDashboard,
-  PiggyBank,
   ArrowLeft,
-  CreditCard,
-  PieChart,
-  TrendingUp,
-  Gauge,
-  Sparkles,
-  Activity,
-  Briefcase,
+  Pencil,
 } from "lucide-react";
 import CommandPalette from "@/components/finance/CommandPalette";
 import BackupModal from "@/components/finance/BackupModal";
 import MobileNav from "@/components/finance/MobileNav";
 import NavDropdown from "@/components/finance/NavDropdown";
+import CustomizeNavModal from "@/components/nav/CustomizeNavModal";
+import { useFinanceData } from "@/lib/FinanceDataContext";
+import { resolveNav, FINANCE_PAGES, FINANCE_DEFAULT_NAV, FINANCE_LOCKED } from "@/lib/navConfig";
 
-// PRIMARY — always-visible top-nav buttons (horizontal scroll on narrow widths).
-const primary = [
-  { to: "/overview", label: "Overview", icon: LayoutDashboard, end: true },
-  { to: "/debts", label: "Debts", icon: CreditCard },
-  { to: "/budgeting", label: "Budgets", icon: PiggyBank },
-  { to: "/insights", label: "Insights", icon: PieChart },
-  { to: "/cashflow", label: "Cash Flow", icon: Activity },
-  { to: "/portfolio", label: "Portfolio", icon: Briefcase },
-  { to: "/forecast", label: "Forecast", icon: TrendingUp },
-  { to: "/credit-utilization", label: "Credit Utilization", icon: Gauge },
-];
-
-// SECONDARY — tucked under the small "More" dropdown.
-const moreItems = [
-  { to: "/assistant", label: "Ask Wei", icon: Sparkles },
-  { to: "/", label: "Haven Hub", icon: ShieldCheck, end: true },
-];
+// Top nav reads the user's customized nav config from FinanceDataContext and
+// renders the primary links (horizontal scroll) + a "More" dropdown for every
+// page not in the primary set. The pencil opens the customization modal.
 
 function TopNavLink({ to, label, icon: Icon, end }) {
   return (
@@ -57,6 +38,10 @@ function TopNavLink({ to, label, icon: Icon, end }) {
 }
 
 export default function DashboardHeader({ actions }) {
+  const { navItems, saveNavItems } = useFinanceData();
+  const [navOpen, setNavOpen] = useState(false);
+  const { primary, more } = resolveNav(navItems, FINANCE_PAGES, FINANCE_DEFAULT_NAV, FINANCE_LOCKED);
+
   return (
     <>
       <header
@@ -77,19 +62,29 @@ export default function DashboardHeader({ actions }) {
             </span>
           </Link>
 
-          {/* Desktop top nav: primary pages + "More" dropdown for secondary */}
+          {/* Desktop top nav: customized primary pages + "More" dropdown for the rest */}
           <nav className="hidden sm:flex items-center gap-2 sm:mr-auto min-w-0">
             <div className="flex items-center gap-1 overflow-x-auto no-scrollbar min-w-0">
               {primary.map((p) => (
-                <TopNavLink key={p.to} {...p} />
+                <TopNavLink key={p.id} to={p.to} label={p.label} icon={p.icon} end={p.end} />
               ))}
             </div>
-            <div className="shrink-0">
-              <NavDropdown label="More" items={moreItems} />
-            </div>
+            {more.length > 0 && (
+              <div className="shrink-0">
+                <NavDropdown label="More" items={more} />
+              </div>
+            )}
           </nav>
 
           <div className="flex items-center gap-2.5 ml-auto shrink-0">
+            <button
+              onClick={() => setNavOpen(true)}
+              aria-label="Customize navigation"
+              title="Customize navigation"
+              className="grid place-items-center h-9 w-9 rounded-md border border-transparent text-white/55 hover:text-white hover:bg-white/5 transition-colors"
+            >
+              <Pencil className="h-4 w-4" strokeWidth={1.75} />
+            </button>
             <NavLink
               to="/settings"
               aria-label="Settings"
@@ -113,6 +108,17 @@ export default function DashboardHeader({ actions }) {
         </div>
       </header>
       <MobileNav />
+      <CustomizeNavModal
+        open={navOpen}
+        onOpenChange={setNavOpen}
+        pages={FINANCE_PAGES}
+        defaultNav={FINANCE_DEFAULT_NAV}
+        locked={FINANCE_LOCKED}
+        navItems={navItems}
+        onSave={saveNavItems}
+        accent="indigo"
+        title="Customize Finance Navigation"
+      />
     </>
   );
 }

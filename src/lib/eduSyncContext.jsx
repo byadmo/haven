@@ -4,6 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { LayoutDashboard, BookOpen, Timer, GraduationCap, BarChart3, ShieldCheck, CalendarDays, ArrowLeft } from "lucide-react";
 import { percentToGpa } from "@/lib/eduGrading";
 import EduSplash from "@/components/edu/EduSplash";
+import { useToast } from "@/components/ui/use-toast";
 import ProfileWizard from "@/components/edu/ProfileWizard";
 import { isProfileAddressed, markProfileSkipped } from "@/lib/eduProfile";
 
@@ -70,6 +71,7 @@ export function EduSyncProvider({ children }) {
   const [refreshKey, setRefreshKey] = React.useState(0);
 
   const refresh = React.useCallback(() => setRefreshKey((k) => k + 1), []);
+  const { toast } = useToast();
 
   React.useEffect(() => {
     let cancelled = false;
@@ -222,6 +224,19 @@ export function EduSyncProvider({ children }) {
     refresh();
   }
 
+  // Customizable nav bar — stored on EduSettings.nav_items. saveNavItems
+  // persists via updateSettings (which refreshes context) so the edu nav bars
+  // re-render immediately.
+  const navItems = data.settings?.nav_items ?? null;
+  async function saveNavItems(nav_items) {
+    try {
+      await updateSettings({ nav_items });
+      toast({ title: "Navigation updated" });
+    } catch {
+      toast({ title: "Could not save navigation", variant: "destructive" });
+    }
+  }
+
   const value = {
     ...data,
     loading,
@@ -261,6 +276,8 @@ export function EduSyncProvider({ children }) {
     updateFocus,
     deleteFocus,
     updateSettings,
+    navItems,
+    saveNavItems,
   };
 
   return <EduSyncContext.Provider value={value}>{children}</EduSyncContext.Provider>;
