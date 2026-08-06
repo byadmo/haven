@@ -2,6 +2,7 @@ import React from "react";
 import { Outlet } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { CurrencyProvider } from "@/lib/currency-context";
+import { computeAnalytics } from "@/lib/financeAnalytics";
 
 const FinanceDataContext = React.createContext(null);
 
@@ -42,8 +43,34 @@ export function FinanceDataProvider({ children }) {
     return () => { cancelled = true; };
   }, [refreshKey]);
 
+  // Single source of truth — every derived metric is computed here and
+  // consumed across the app via useFinanceData(). No page should recompute
+  // net worth, debt totals, or any metric independently.
+  const analytics = React.useMemo(
+    () =>
+      computeAnalytics({
+        accounts: data.accounts,
+        transactions: data.transactions,
+        debts: data.debts,
+        stocks: data.stocks,
+      }),
+    [data.accounts, data.transactions, data.debts, data.stocks]
+  );
+
+  const value = {
+    ...data,
+    // Aliases the rest of the app expects
+    investments: data.stocks, // the entity is Stock; exposed as `investments`
+    refreshData: refresh, // canonical refresh fn (also available as `refresh`)
+    loading,
+    error: null,
+    refresh,
+    refreshKey,
+    ...analytics,
+  };
+
   return (
-    <FinanceDataContext.Provider value={{ ...data, loading, refresh, refreshKey }}>
+    <FinanceDataContext.Provider value={value}>
       {children}
     </FinanceDataContext.Provider>
   );

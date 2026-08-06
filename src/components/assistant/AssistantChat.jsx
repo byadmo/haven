@@ -7,6 +7,7 @@ import { computeTrajectory, solveExtraForTarget } from "@/lib/trajectory";
 import ApprovalModal from "@/components/assistant/ApprovalModal";
 import { adjustLinkedBalance, txEffect, balanceApplies } from "@/lib/accounts";
 import { AGENTS, AGENT_LIST } from "@/lib/agentPrompts";
+import { useFinanceData } from "@/lib/FinanceDataContext";
 
 const uid = () => Math.random().toString(36).slice(2);
 
@@ -123,7 +124,7 @@ function cleanData(data) {
   return out;
 }
 
-function buildContext({ accounts, debts, transactions, debtPayments, stocks, categories, activeAgent }) {
+function buildContext({ accounts, debts, transactions, debtPayments, stocks, categories, activeAgent, metrics }) {
   const money = (v) =>
     (v || 0).toLocaleString(undefined, {
       style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 0,
@@ -144,25 +145,30 @@ function buildContext({ accounts, debts, transactions, debtPayments, stocks, cat
   const stks = stocks || [];
   const cats = categories || [];
 
-  const totalCash = accs.reduce((s, a) => s + (a.balance || 0), 0);
-  const totalDebt = dbs.reduce((s, d) => s + (d.current_balance || 0), 0);
-  const portfolioCost = stks.reduce((s, x) => s + (x.shares || 0) * (x.avg_buy_price || 0), 0);
-  const netWorth = totalCash + portfolioCost - totalDebt;
-  const totalMinPayments = dbs.reduce((s, d) => s + (d.minimum_payment || 0), 0);
-  const aprSum = dbs.reduce((s, d) => s + (d.current_balance || 0) * (d.interest_rate || 0), 0);
-  const weightedApr = totalDebt > 0 ? aprSum / totalDebt : 0;
-  const paidDebt = dbs.filter((d) => d.status === "paid_off").length;
+  // Single source of truth — every headline number comes from the
+  // centralized FinanceDataContext analytics, so Wei/Clu/Sno/Jue/Opi/Elowen
+  // read the exact same figures the UI renders.
+  const m = metrics || {};
+  const totalCash = m.totalCash ?? accs.reduce((s, a) => s + (a.balance || 0), 0);
+  const totalDebt = m.totalDebt ?? dbs.reduce((s, d) => s + (d.current_balance || 0), 0);
+  const portfolioCost = m.portfolioCostBasis ?? stks.reduce((s, x) => s + (x.shares || 0) * (x.avg_buy_price || 0), 0);
+  const netWorth = m.netWorth ?? totalCash + portfolioCost - totalDebt;
+  const totalMinPayments = m.totalMonthlyMinDebtPayments ?? dbs.reduce((s, d) => s + (d.minimum_payment || 0), 0);
+  const weightedApr = m.weightedAverageApr ?? 0;
+  const activeDebtCount = m.activeDebtCount ?? dbs.length;
+  const paidDebt = m.paidOffDebtCount ?? dbs.filter((d) => d.status === "paid_off").length;
+  const mIncome = m.currentMonthIncome ?? 0;
+  const mExpense = m.currentMonthExpenses ?? 0;
+  const savingsRate = m.savingsRate != null ? m.savingsRate / 100 : null;
+  const debtToIncome = m.debtToIncomeRatio != null ? m.debtToIncomeRatio / 100 : null;
+  const minIncomeBaseline = m.trailing3MonthMinIncome ?? 0;
 
+  // 3-month cash-flow series (a time series, not a single metric — kept local).
   const monthIncome = (ref) => txns.filter((t) => t.type === "income" && inMonth(t.date, ref)).reduce((s, t) => s + (t.amount || 0), 0);
   const monthExpense = (ref) => txns.filter((t) => t.type === "expense" && inMonth(t.date, ref)).reduce((s, t) => s + (t.amount || 0), 0);
-  const mIncome = monthIncome(now);
-  const mExpense = monthExpense(now);
   const prev = subMonths(now, 1);
   const pIncome = monthIncome(prev);
   const pExpense = monthExpense(prev);
-  const savingsRate = mIncome > 0 ? (mIncome - mExpense) / mIncome : null;
-  const debtToIncome = mIncome > 0 ? totalMinPayments / mIncome : null;
-
   const series = [];
   for (let i = 2; i >= 0; i--) {
     const r = subMonths(now, i);
@@ -170,15 +176,11 @@ function buildContext({ accounts, debts, transactions, debtPayments, stocks, cat
     const exp = monthExpense(r);
     series.push(`- ${format(r, "MMM")} · in ${money(inc)} / out ${money(exp)} / net ${money(inc - exp)}`);
   }
-  // Clu's dynamic-budget baseline: the min monthly income over the trailing 3 months.
-  const minIncomeBaseline = Math.min(...[0, 1, 2].map((i) => monthIncome(subMonths(now, i))));
 
-  const catMap = {};
-  txns.filter((t) => t.type === "expense" && inMonth(t.date, now)).forEach((t) => {
-    const c = t.category || "uncategorized";
-    catMap[c] = (catMap[c] || 0) + (t.amount || 0);
-  });
-  const topCats = Object.entries(catMap).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([c, v]) => `- ${c}: ${money(v)}`).join("\n");
+  const topCats = (m.topSpendingCategories || [])
+    .slice(0, 6)
+    .map((c) => `- ${c.category}: ${money(c.amount)}`)
+    .join("\n");
 
   const topExp = txns
     .filter((t) => t.type === "expense" && inMonth(t.date, now))
@@ -212,7 +214,7 @@ function buildContext({ accounts, debts, transactions, debtPayments, stocks, cat
     `- Total cash: ${money(totalCash)}`,
     `- Total debt / liabilities: ${money(totalDebt)}`,
     `- Portfolio cost basis: ${money(portfolioCost)}`,
-    `- Active debts: ${dbs.length - paidDebt} · paid off: ${paidDebt}`,
+    `- Active debts: ${activeDebtCount} · paid off: ${paidDebt}`,
     `- This month: income ${money(mIncome)} · expense ${money(mExpense)} · net ${money(mIncome - mExpense)}`,
     `- Last month: income ${money(pIncome)} · expense ${money(pExpense)}`,
     savingsRate !== null ? `- Savings rate (this month): ${(savingsRate * 100).toFixed(0)}%` : "- Savings rate: n/a",
@@ -259,6 +261,43 @@ function buildContext({ accounts, debts, transactions, debtPayments, stocks, cat
 }
 
 export default function AssistantChat({ accounts, debts, transactions, debtPayments, stocks, categories, summary }) {
+  // Canonical metrics — the same numbers the rest of the UI renders.
+  const {
+    netWorth: ctxNetWorth,
+    totalCash: ctxTotalCash,
+    totalDebt: ctxTotalDebt,
+    currentMonthIncome: ctxMonthIncome,
+    currentMonthExpenses: ctxMonthExpenses,
+    savingsRate: ctxSavingsRate,
+    weightedAverageApr: ctxWeightedApr,
+    activeDebtCount: ctxActiveDebtCount,
+    paidOffDebtCount: ctxPaidOff,
+    totalMonthlyMinDebtPayments: ctxMinPayments,
+    debtToIncomeRatio: ctxDebtToIncome,
+    trailing3MonthMinIncome: ctxTrailingMin,
+    topSpendingCategories: ctxTopCats,
+    portfolioCostBasis: ctxPortfolioCost,
+    waterfallAllocations: ctxWaterfall,
+  } = useFinanceData();
+
+  const metrics = {
+    netWorth: ctxNetWorth,
+    totalCash: ctxTotalCash,
+    totalDebt: ctxTotalDebt,
+    portfolioCostBasis: ctxPortfolioCost,
+    currentMonthIncome: ctxMonthIncome,
+    currentMonthExpenses: ctxMonthExpenses,
+    savingsRate: ctxSavingsRate,
+    weightedAverageApr: ctxWeightedApr,
+    activeDebtCount: ctxActiveDebtCount,
+    paidOffDebtCount: ctxPaidOff,
+    totalMonthlyMinDebtPayments: ctxMinPayments,
+    debtToIncomeRatio: ctxDebtToIncome,
+    trailing3MonthMinIncome: ctxTrailingMin,
+    topSpendingCategories: ctxTopCats,
+    waterfallAllocations: ctxWaterfall,
+  };
+
   const [messages, setMessages] = React.useState(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -305,7 +344,7 @@ export default function AssistantChat({ accounts, debts, transactions, debtPayme
     };
   }, []);
 
-  const ctxData = { accounts, debts, transactions, debtPayments, stocks, categories, summary };
+  const ctxData = { accounts, debts, transactions, debtPayments, stocks, categories, summary, metrics };
 
   function addMsg(m) { setMessages((s) => [...s, { id: uid(), ...m }]); }
   function opsFromResponse(obj) {

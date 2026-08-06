@@ -32,7 +32,7 @@ export default function Settings() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
-  const { refresh } = useFinanceData();
+  const { refresh: refreshData } = useFinanceData();
 
   async function handleDeleteAccount() {
     setDeleting(true);
@@ -66,9 +66,8 @@ export default function Settings() {
       toast({ title: "Data reset", description: "All transactions deleted and account/debt balances set to $0." });
       setShowReset(false);
       setResetText("");
-      // Force a full app reload so every cached list (including debt payments
-      // surfaced in Recent Transactions) clears — not just the in-memory state.
-      window.location.reload();
+      // Re-sync the single source of truth so every page reflects the reset.
+      await refreshData();
     } catch {
       toast({ title: "Reset failed", description: "Something went wrong — please try again." });
     } finally {

@@ -26,7 +26,7 @@ import PageTitle from "@/components/finance/PageTitle";
 import { useFinanceData } from "@/lib/FinanceDataContext";
 
 export default function Dashboard() {
-  const { transactions: txns, debts, accounts, stocks, refresh, refreshKey } = useFinanceData();
+  const { transactions: txns, debts, accounts, stocks, refresh, refreshKey, netWorth: ctxNetWorth, currentMonthIncome: mIncome, currentMonthExpenses: mExpense, savingsRate } = useFinanceData();
   const [quickAdd, setQuickAdd] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -60,20 +60,19 @@ export default function Dashboard() {
     return () => window.removeEventListener("dd:quickadd", open);
   }, []);
 
-  // Monthly income/expense rollups for the top overview section
+  // Current-month income/expense + net worth come from the centralized
+  // FinanceDataContext (single source of truth). Previous-month figures are
+  // computed here only for the month-over-month change chips.
   const now = new Date();
-  const mStart = startOfMonth(now);
-  const mEnd = endOfMonth(now);
   const pStart = startOfMonth(subMonths(now, 1));
   const pEnd = endOfMonth(subMonths(now, 1));
   const inRange = (date, s, e) => isWithinInterval(parseISO(date), { start: s, end: e });
-  let mIncome = 0, mExpense = 0, pIncome = 0, pExpense = 0;
+  let pIncome = 0, pExpense = 0;
   txns.forEach((t) => {
-    if (inRange(t.date, mStart, mEnd)) { t.type === "income" ? (mIncome += t.amount) : (mExpense += t.amount); }
-    else if (inRange(t.date, pStart, pEnd)) { t.type === "income" ? (pIncome += t.amount) : (pExpense += t.amount); }
+    if (inRange(t.date, pStart, pEnd)) { t.type === "income" ? (pIncome += t.amount) : (pExpense += t.amount); }
   });
   const pct = (cur, prev) => (prev > 0 ? ((cur - prev) / prev) * 100 : null);
-  const netWorth = net ? net.total : 0;
+  const netWorth = ctxNetWorth;
   const spendRatio = mIncome > 0 ? mExpense / mIncome : (mExpense > 0 ? 1 : 0);
   const forecastData = useMemo(
     () => computeTrajectory({ debts: activeLiabilities(debts), accounts, transactions: txns }).series,
