@@ -74,9 +74,13 @@ export default function AccountsSummary() {
 
   // BUG 1/2/3 — net-worth liability total: ALL active debts, deduped by name,
   // regardless of show_in_accounts. show_in_accounts only filters the preview list.
+  // Only liabilities flagged "show in accounts" are reflected in the Accounts
+  // box amount. A debt with that toggle OFF is excluded entirely — so the box
+  // then shows only the balances of accounts whose own "show in summary" is on.
   const allActiveDebts = activeLiabilities(debts);
-  const debtsTotal = allActiveDebts.reduce((s, d) => s + (d.current_balance || 0), 0);
-  const previewDebts = allActiveDebts.filter((d) => d.show_in_accounts === true);
+  const shownDebts = allActiveDebts.filter((d) => d.show_in_accounts === true);
+  const debtsTotal = shownDebts.reduce((s, d) => s + (d.current_balance || 0), 0);
+  const previewDebts = shownDebts;
 
   const total = bankTotal + (showInvestments ? investTotal : 0) - debtsTotal;
   const itemCount = visibleAccounts.length + investmentGroups.length + previewDebts.length;

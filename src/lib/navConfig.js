@@ -30,7 +30,7 @@ export const FINANCE_PAGES = [
 ];
 
 export const FINANCE_DEFAULT_NAV = [
-  "overview", "debts", "budgets", "insights", "cashflow", "portfolio", "forecast", "credit-utilization",
+  "overview", "budgets", "cashflow", "forecast", "credit-utilization", "insights",
 ];
 export const FINANCE_LOCKED = ["overview"];
 
