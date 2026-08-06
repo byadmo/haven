@@ -14,7 +14,7 @@ import { Link } from "react-router-dom";
 import { ArrowLeft, Activity } from "lucide-react";
 
 export default function CashFlow() {
-  const { transactions: txns, accounts, refresh, refreshKey } = useFinanceData();
+  const { transactions: txns, accounts, refresh } = useFinanceData();
   const [anchor, setAnchor] = useState(new Date());
 
   return (
@@ -46,7 +46,7 @@ export default function CashFlow() {
         </Reveal>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Reveal><CashFlowChart refreshKey={refreshKey} /></Reveal>
+          <Reveal><CashFlowChart transactions={txns} /></Reveal>
           <Reveal delay={0.04}><FundFlows transactions={txns} accounts={accounts} onChanged={refresh} limit={5} enableViewAll /></Reveal>
         </div>
       </main>

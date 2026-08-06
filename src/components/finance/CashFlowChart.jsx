@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import {
   ResponsiveContainer,
   BarChart,
@@ -9,40 +9,33 @@ import {
   Tooltip,
   Legend,
 } from "recharts";
-import { base44 } from "@/api/base44Client";
 import { format, subMonths, startOfMonth, endOfMonth, isWithinInterval, parseISO } from "date-fns";
 
-export default function CashFlowChart({ refreshKey }) {
-  const [data, setData] = React.useState([]);
-
-  React.useEffect(() => {
-    async function load() {
-      const txns = await base44.entities.Transaction.list("-date", 500);
-      const now = new Date();
-      const months = [];
-      for (let i = 3; i >= 0; i--) {
-        const monthStart = startOfMonth(subMonths(now, i));
-        const monthEnd = endOfMonth(subMonths(now, i));
-        let inflow = 0;
-        let outflow = 0;
-        txns.forEach((t) => {
-          const d = parseISO(t.date);
-          if (isWithinInterval(d, { start: monthStart, end: monthEnd })) {
-            if (t.type === "income") inflow += t.amount;
-            else outflow += t.amount;
-          }
-        });
-        months.push({
-          label: format(monthStart, "MMM"),
-          inflow: Math.round(inflow),
-          outflow: Math.round(outflow),
-          net: Math.round(inflow - outflow),
-        });
-      }
-      setData(months);
+export default function CashFlowChart({ transactions = [] }) {
+  const data = useMemo(() => {
+    const now = new Date();
+    const months = [];
+    for (let i = 3; i >= 0; i--) {
+      const monthStart = startOfMonth(subMonths(now, i));
+      const monthEnd = endOfMonth(subMonths(now, i));
+      let inflow = 0;
+      let outflow = 0;
+      transactions.forEach((t) => {
+        const d = parseISO(t.date);
+        if (isWithinInterval(d, { start: monthStart, end: monthEnd })) {
+          if (t.type === "income") inflow += t.amount;
+          else outflow += t.amount;
+        }
+      });
+      months.push({
+        label: format(monthStart, "MMM"),
+        inflow: Math.round(inflow),
+        outflow: Math.round(outflow),
+        net: Math.round(inflow - outflow),
+      });
     }
-    load();
-  }, [refreshKey]);
+    return months;
+  }, [transactions]);
 
   return (
     <div className="w-full h-[280px]">
