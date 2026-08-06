@@ -55,7 +55,8 @@ export default function Dashboard() {
       setQuickAdd(true);
       params.delete("add");
       const qs = params.toString();
-      window.history.replaceState({}, "", qs ? `/?${qs}` : "/");
+      const path = window.location.pathname;
+      window.history.replaceState({}, "", qs ? `${path}?${qs}` : path);
     }
     return () => window.removeEventListener("dd:quickadd", open);
   }, []);

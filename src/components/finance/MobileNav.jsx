@@ -12,6 +12,7 @@ import {
   Activity,
   Briefcase,
   Settings as SettingsIcon,
+  ShieldCheck,
 } from "lucide-react";
 import {
   Drawer,
@@ -21,11 +22,12 @@ import {
 } from "@/components/ui/drawer";
 
 const primary = [
-  { to: "/", label: "Overview", icon: Home, end: true },
+  { to: "/overview", label: "Overview", icon: Home, end: true },
   { to: "/budgeting", label: "Goals", icon: PiggyBank },
 ];
 
 const secondary = [
+  { to: "/", label: "Haven Hub", icon: ShieldCheck },
   { to: "/insights", label: "Insights", icon: PieChart },
   { to: "/cashflow", label: "Cash Flow", icon: Activity },
   { to: "/portfolio", label: "Portfolio", icon: Briefcase },

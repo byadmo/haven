@@ -1,10 +1,11 @@
 import React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Search, Home, PlusCircle, CornerDownLeft, Activity, Briefcase } from "lucide-react";
+import { Search, Home, PlusCircle, CornerDownLeft, Activity, Briefcase, ShieldCheck } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const ACTIONS = [
-  { id: "overview", label: "Go to Overview", hint: "Dashboard", icon: Home, to: "/" },
+  { id: "hub", label: "Go to Haven Hub", hint: "Choose workspace", icon: ShieldCheck, to: "/" },
+  { id: "overview", label: "Go to Overview", hint: "Dashboard", icon: Home, to: "/overview" },
   { id: "cashflow", label: "Go to Cash Flow", hint: "Income & expenses", icon: Activity, to: "/cashflow" },
   { id: "portfolio", label: "Go to Portfolio", hint: "Holdings & P&L", icon: Briefcase, to: "/portfolio" },
   { id: "add-txn", label: "Add Transaction", hint: "Quick add", icon: PlusCircle, action: "add-txn" },
@@ -47,10 +48,10 @@ export default function CommandPalette() {
       return;
     }
     if (action.action === "add-txn") {
-      if (location.pathname === "/") {
+      if (location.pathname === "/overview") {
         window.dispatchEvent(new CustomEvent("dd:quickadd"));
       } else {
-        navigate("/?add=1");
+        navigate("/overview?add=1");
       }
     }
   }

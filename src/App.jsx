@@ -9,6 +9,8 @@ import ScrollToTop from './components/ScrollToTop';
 // Add page imports here
 import Dashboard from '@/pages/Dashboard';
 import Splash from '@/pages/Splash';
+import Hub from '@/pages/Hub';
+import Education from '@/pages/Education';
 import Insights from '@/pages/Insights';
 import Settings from '@/pages/Settings';
 import Forecast from '@/pages/Forecast';
@@ -59,9 +61,11 @@ const AuthenticatedApp = () => {
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route element={<ProtectedRoute unauthenticatedElement={<Splash />} />}>
+        <Route path="/" element={<Hub />} />
+        <Route path="/education" element={<Education />} />
         <Route element={<FinanceLayout />}>
           <Route element={<OnboardingGate><KeepAliveOutlet /></OnboardingGate>}>
-            <Route path="/" element={<Dashboard />} />
+            <Route path="/overview" element={<Dashboard />} />
             <Route path="/insights" element={<Insights />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/forecast" element={<Forecast />} />
