@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from "react";
 import { invokeFunc, money, pct } from "@/lib/dashboard";
 import { Loader, Card3, Bar } from "@/components/dashboard/ui";
 import { TrendingUp, TrendingDown, Wallet, AlertTriangle } from "lucide-react";
+import { fetchLivePrices, computeNetWorth } from "@/lib/netWorth";
 
 // Reads accounts/debts/stocks from the shared FinanceDataContext instead of
 // re-listing them (the old version fired 3 redundant concurrent calls here,
@@ -9,26 +10,33 @@ import { TrendingUp, TrendingDown, Wallet, AlertTriangle } from "lucide-react";
 export function useOverviewData(refreshKey, { accounts = [], debts = [], stocks = [] } = {}) {
   const [saving, setSaving] = useState(null);
   const [alerts, setAlerts] = useState(null);
+  const [prices, setPrices] = useState({});
 
   useEffect(() => {
     invokeFunc("calculateSavingsRate", {}).then(setSaving).catch(() => {});
     invokeFunc("checkAccountAlerts", {}).then(setAlerts).catch(() => {});
   }, [refreshKey]);
 
-  const cash = accounts.reduce((s, a) => s + (a.balance || 0), 0);
-  const debt = debts.filter((d) => d.status !== "paid_off").reduce((s, d) => s + (d.current_balance || 0), 0);
-  const inv = stocks.reduce((s, x) => s + (x.shares || 0) * (x.avg_buy_price || 0), 0);
-  const net = { cash, debt, inv, total: cash + inv - debt };
+  // BUG 4/5 — pull live stock prices so net worth uses market value, not cost basis.
+  useEffect(() => {
+    let cancelled = false;
+    fetchLivePrices(stocks).then((p) => { if (!cancelled) setPrices(p); });
+    return () => { cancelled = true; };
+  }, [stocks, refreshKey]);
+
+  // BUG 1/2/3/4 — deduped active debts, all accounts, live investment value.
+  const net = computeNetWorth({ accounts, debts, stocks, prices });
 
   return { net, saving, alerts };
 }
 
-export function Stat({ label, value, accent }) {
+export function Stat({ label, value, accent, sub }) {
   const color = accent === "emerald" ? "text-emerald-400" : accent === "rose" ? "text-rose-400" : "text-white";
   return (
     <div className="rounded-xl border border-white/10 bg-black p-3">
       <p className="text-[10px] uppercase tracking-widest text-white/40">{label}</p>
       <p className={`text-lg font-bold font-mono tabular-nums ${color}`}>{value}</p>
+      {sub ? <p className="text-[9px] uppercase tracking-widest text-white/30 mt-0.5">{sub}</p> : null}
     </div>
   );
 }
@@ -222,7 +230,7 @@ export default function OverviewTab({ refreshKey }) {
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
         <Stat label="Net Worth" value={net ? money(net.total) : "—"} accent="emerald" />
         <Stat label="Cash" value={net ? money(net.cash) : "—"} />
-        <Stat label="Investments" value={net ? money(net.inv) : "—"} />
+        <Stat label="Investments" value={net ? money(net.investments) : "—"} sub={net && !net.investmentsIsLive && net.investments ? "cost basis" : null} />
         <Stat label="Debt" value={net ? money(net.debt) : "—"} accent="rose" />
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

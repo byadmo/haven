@@ -14,6 +14,7 @@ import AccountsSummary from "@/components/finance/AccountsSummary";
 import Reveal from "@/components/finance/Reveal";
 import { ForecastProvider } from "@/lib/forecast-context";
 import { computeTrajectory } from "@/lib/trajectory";
+import { activeLiabilities } from "@/lib/netWorth";
 import {
   useOverviewData,
   OverviewSavings,
@@ -72,10 +73,10 @@ export default function Dashboard() {
     else if (inRange(t.date, pStart, pEnd)) { t.type === "income" ? (pIncome += t.amount) : (pExpense += t.amount); }
   });
   const pct = (cur, prev) => (prev > 0 ? ((cur - prev) / prev) * 100 : null);
-  const netWorth = (net ? net.total : null) ?? (accounts.reduce((s, a) => s + (a.balance || 0), 0) - debts.reduce((s, d) => s + (d.current_balance || 0), 0));
+  const netWorth = net ? net.total : 0;
   const spendRatio = mIncome > 0 ? mExpense / mIncome : (mExpense > 0 ? 1 : 0);
   const forecastData = useMemo(
-    () => computeTrajectory({ debts, accounts, transactions: txns }).series,
+    () => computeTrajectory({ debts: activeLiabilities(debts), accounts, transactions: txns }).series,
     [debts, accounts, txns]
   );
 

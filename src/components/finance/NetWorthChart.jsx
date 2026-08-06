@@ -18,6 +18,8 @@ import {
 } from "date-fns";
 import { TrendingUp, TrendingDown } from "lucide-react";
 import { useCurrency } from "@/lib/currency-context";
+import { useFinanceData } from "@/lib/FinanceDataContext";
+import { sumDebts, sumAccounts, fetchLivePrices, investmentValue } from "@/lib/netWorth";
 
 const RANGES = [
   { id: "7d",  label: "Last 7 days",   unit: "days",   count: 7,  bucket: "day" },
@@ -53,6 +55,17 @@ export default function NetWorthChart({ transactions, accounts, debts }) {
   const [rangeId, setRangeId] = React.useState("3m");
   const range = RANGES.find((r) => r.id === rangeId) || RANGES[2];
 
+  // BUG 4/5 — include live investment market value in today's net worth, and
+  // use deduped active debts (BUG 1/2) instead of raw current_balance sums.
+  const { stocks } = useFinanceData();
+  const [prices, setPrices] = React.useState({});
+  React.useEffect(() => {
+    let cancelled = false;
+    fetchLivePrices(stocks).then((p) => { if (!cancelled) setPrices(p); });
+    return () => { cancelled = true; };
+  }, [stocks]);
+  const invVal = React.useMemo(() => investmentValue(stocks, prices), [stocks, prices]);
+
   const { data, net } = React.useMemo(() => {
     const now = new Date();
     let start;
@@ -81,9 +94,9 @@ export default function NetWorthChart({ transactions, accounts, debts }) {
         buckets.push({ e: endOfMonth(d), label: format(d, "MMM yy") });
     }
 
-    const todayCash = accounts.reduce((s, a) => s + (a.balance || 0), 0);
-    const todayDebt = debts.reduce((s, d) => s + (d.current_balance || 0), 0);
-    const todayNetWorth = todayCash - todayDebt;
+    const todayCash = sumAccounts(accounts);
+    const todayDebt = sumDebts(debts);
+    const todayNetWorth = todayCash + (invVal.total || 0) - todayDebt;
 
     const points = buckets.map((b) => {
       let futureNet = 0;
@@ -98,7 +111,7 @@ export default function NetWorthChart({ transactions, accounts, debts }) {
     });
 
     return { data: points, net: todayNetWorth };
-  }, [transactions, accounts, debts, range]);
+  }, [transactions, accounts, debts, range, invVal]);
 
   const isLoss = net < 0;
   const latest = data[data.length - 1]?.raw ?? net;
@@ -174,7 +187,10 @@ export default function NetWorthChart({ transactions, accounts, debts }) {
             {isLoss ? <TrendingDown className="h-5 w-5 text-rose-400" /> : <TrendingUp className="h-5 w-5 text-emerald-400" />}
           </div>
           <div>
-            <p className="text-[11px] uppercase tracking-wider text-zinc-400">Current Net Worth</p>
+            <p className="text-[11px] uppercase tracking-wider text-zinc-400">
+              Current Net Worth
+              {stocks.length > 0 && !invVal.isLive && <span className="ml-2 text-[9px] text-white/30">incl. cost basis</span>}
+            </p>
             <p className={`text-xl font-bold tabular-nums ${isLoss ? "text-rose-400" : "text-emerald-300"}`}>
               {fmt(net)}
             </p>

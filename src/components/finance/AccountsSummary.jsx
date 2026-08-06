@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { Landmark, ArrowRight, Briefcase } from "lucide-react";
 import { useCurrency } from "@/lib/currency-context";
+import { activeLiabilities, fetchLivePrices, investmentValue } from "@/lib/netWorth";
 
 const SHOW_INVEST_KEY = "dd.accounts.showInvestments";
 
@@ -22,6 +23,7 @@ export default function AccountsSummary() {
   const [accounts, setAccounts] = React.useState([]);
   const [stocks, setStocks] = React.useState([]);
   const [debts, setDebts] = React.useState([]);
+  const [prices, setPrices] = React.useState({});
   const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
@@ -46,6 +48,13 @@ export default function AccountsSummary() {
     return () => { unsubAcct(); unsubDebt(); };
   }, []);
 
+  // BUG 5 — live stock prices for market-value investment totals.
+  React.useEffect(() => {
+    let cancelled = false;
+    fetchLivePrices(stocks).then((p) => { if (!cancelled) setPrices(p); });
+    return () => { cancelled = true; };
+  }, [stocks]);
+
   const visibleAccounts = accounts.filter((a) => a.show_in_summary !== false);
   const bankTotal = visibleAccounts.reduce((s, a) => s + (a.balance || 0), 0);
 
@@ -54,19 +63,23 @@ export default function AccountsSummary() {
     stocks.forEach((st) => {
       const k = st.account || "Non-Registered";
       (map[k] = map[k] || { account: k, value: 0 });
-      map[k].value += (st.shares || 0) * (st.avg_buy_price || 0);
+      const px = prices[st.symbol];
+      const val = (typeof px === "number" ? px : (st.avg_buy_price || 0)) * (st.shares || 0);
+      map[k].value += val;
     });
     return Object.values(map).sort((a, b) => b.value - a.value);
-  }, [stocks]);
+  }, [stocks, prices]);
   const investTotal = investmentGroups.reduce((s, g) => s + g.value, 0);
+  const investIsLive = React.useMemo(() => investmentValue(stocks, prices).isLive, [stocks, prices]);
 
-  const activeDebts = debts.filter(
-    (d) => (d.status || "active") !== "paid_off" && d.show_in_accounts === true
-  );
-  const debtsTotal = activeDebts.reduce((s, d) => s + (d.current_balance || 0), 0);
+  // BUG 1/2/3 — net-worth liability total: ALL active debts, deduped by name,
+  // regardless of show_in_accounts. show_in_accounts only filters the preview list.
+  const allActiveDebts = activeLiabilities(debts);
+  const debtsTotal = allActiveDebts.reduce((s, d) => s + (d.current_balance || 0), 0);
+  const previewDebts = allActiveDebts.filter((d) => d.show_in_accounts === true);
 
   const total = bankTotal + (showInvestments ? investTotal : 0) - debtsTotal;
-  const itemCount = visibleAccounts.length + investmentGroups.length + activeDebts.length;
+  const itemCount = visibleAccounts.length + investmentGroups.length + previewDebts.length;
 
   const previewCards = [
     ...visibleAccounts.map((a) => ({
@@ -85,7 +98,7 @@ export default function AccountsSummary() {
           valueClass: "text-indigo-300",
         }))
       : []),
-    ...activeDebts.map((d) => ({
+    ...previewDebts.map((d) => ({
       key: `debt-${d.id}`,
       label: "Liability",
       name: d.name,
@@ -112,8 +125,13 @@ export default function AccountsSummary() {
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <span className={`text-sm font-bold font-mono tabular-nums tracking-tight ${total < 0 ? "text-rose-400" : "text-emerald-400"}`}>
-            {fmt(total)}
+          <span className="flex flex-col items-end leading-none">
+            <span className={`text-sm font-bold font-mono tabular-nums tracking-tight ${total < 0 ? "text-rose-400" : "text-emerald-400"}`}>
+              {fmt(total)}
+            </span>
+            {showInvestments && !investIsLive && stocks.length > 0 && (
+              <span className="text-[8px] uppercase tracking-widest text-white/30 mt-0.5">incl. cost basis</span>
+            )}
           </span>
           <button
             type="button"
