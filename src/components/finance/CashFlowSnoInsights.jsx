@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import ReactMarkdown from "react-markdown";
 import { base44 } from "@/api/base44Client";
 import { Sparkles, Loader2, Stethoscope } from "lucide-react";
 import { startOfMonth, endOfMonth, isWithinInterval, parseISO, subMonths, format } from "date-fns";
@@ -12,6 +13,31 @@ const fmt = (v) =>
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   });
+
+// Styled markdown renderer for Sno's diagnostic output.
+const SNO_COMPONENTS = {
+  h1: ({ node, ...p }) => <h3 className="text-xs font-semibold text-white tracking-tight mb-2 first:mt-0" {...p} />,
+  h2: ({ node, ...p }) => <h3 className="text-xs font-semibold text-white tracking-tight mt-3 mb-2 first:mt-0" {...p} />,
+  h3: ({ node, ...p }) => <h4 className="text-[11px] font-semibold uppercase tracking-wider text-white/60 mt-3 mb-1.5 first:mt-0" {...p} />,
+  h4: ({ node, ...p }) => <h4 className="text-[11px] font-semibold uppercase tracking-wider text-white/60 mt-2.5 mb-1.5 first:mt-0" {...p} />,
+  p: ({ node, ...p }) => <p className="text-xs text-zinc-200 leading-relaxed my-1.5 first:my-0" {...p} />,
+  ul: ({ node, ...p }) => <ul className="list-disc pl-4 space-y-1 my-2 first:my-0 marker:text-sky-500/60" {...p} />,
+  ol: ({ node, ...p }) => <ol className="list-decimal pl-4 space-y-1 my-2 first:my-0 marker:text-sky-500/60" {...p} />,
+  li: ({ node, ...p }) => <li className="text-xs text-zinc-200 leading-relaxed" {...p} />,
+  strong: ({ node, ...p }) => <strong className="font-semibold text-white" {...p} />,
+  em: ({ node, ...p }) => <em className="text-white/80" {...p} />,
+  hr: ({ node, ...p }) => <hr className="border-white/10 my-3" {...p} />,
+  code: ({ node, ...p }) => <code className="tnum text-emerald-300 bg-white/5 px-1 py-0.5 rounded text-[10px]" {...p} />,
+  blockquote: ({ node, ...p }) => <blockquote className="border-l-2 border-sky-500/40 pl-3 text-white/60 italic my-2" {...p} />,
+};
+
+function SnoMarkdown({ children }) {
+  return (
+    <div className="sno-md first:mt-0">
+      <ReactMarkdown components={SNO_COMPONENTS}>{String(children)}</ReactMarkdown>
+    </div>
+  );
+}
 
 // Build a tight, month-scoped data block for Sno to diagnose.
 function buildMonthContext(anchor, transactions, accounts) {
@@ -151,7 +177,7 @@ export default function CashFlowSnoInsights({ anchor }) {
       ) : err ? (
         <p className="text-xs text-rose-400 py-3">Couldn't generate insights — try again.</p>
       ) : out ? (
-        <div className="text-xs text-zinc-200 whitespace-pre-wrap leading-relaxed">{out}</div>
+        <SnoMarkdown>{out}</SnoMarkdown>
       ) : (
         <p className="text-xs text-white/40 py-3">Click "Analyze month" for Sno's diagnostic on {monthLabel}.</p>
       )}
