@@ -62,6 +62,10 @@
     "graded": {
       "type": "boolean",
       "default": false
+    },
+    "google_event_id": {
+      "type": "string",
+      "description": "Google Calendar event id once this deliverable has been synced. Used to update (not duplicate) the event on re-sync."
     }
   },
   "required": [

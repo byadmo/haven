@@ -63,15 +63,15 @@ export default function EduDangerZone() {
     <>
       {/* Reset Education Data */}
       <Reveal>
-        <div className="rounded-lg border border-rose-500/40 bg-rose-500/5 p-5">
+        <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-5">
           <div className="flex items-center gap-2 mb-2">
-            <RefreshCw className="h-4 w-4 text-rose-300" />
-            <p className="text-[10px] uppercase tracking-widest text-rose-300">Reset Education Data</p>
+            <RefreshCw className="h-4 w-4 text-amber-300" />
+            <p className="text-[10px] uppercase tracking-widest text-amber-300">Reset Education Data</p>
           </div>
           <p className="text-xs text-white/55 mb-4 leading-relaxed">
             This will permanently delete all courses, deliverables, study sessions, course materials, study streaks, and semester data. This action cannot be undone.
           </p>
-          <Button onClick={() => setModal("reset")} variant="outline" className="border-rose-500/50 text-rose-300 hover:bg-rose-500/10">
+          <Button onClick={() => setModal("reset")} variant="outline" className="border-amber-500/50 text-amber-300 hover:bg-amber-500/10">
             <RefreshCw className="h-4 w-4 mr-1.5" /> Reset All Education Data
           </Button>
         </div>

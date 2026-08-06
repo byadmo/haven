@@ -9,10 +9,21 @@ export function getProfile() {
   try { return JSON.parse(localStorage.getItem(PROFILE_KEY)) || null; } catch { return null; }
 }
 
+// Has the user addressed setup at all (completed OR skipped)? Drives the
+// auto-trigger gate on Education entry.
+export function isProfileAddressed() {
+  try { return localStorage.getItem(COMPLETED_KEY) === "true"; } catch { return false; }
+}
+
+// Did they actually fill in the profile? Drives the "Profile Complete" badge.
 export function isProfileComplete() {
   try {
-    return localStorage.getItem(COMPLETED_KEY) === "true" && !!getProfile()?.completed;
+    return isProfileAddressed() && !!getProfile()?.completed;
   } catch { return false; }
+}
+
+export function markProfileSkipped() {
+  try { localStorage.setItem(COMPLETED_KEY, "true"); } catch {}
 }
 
 export function saveProfile(data) {

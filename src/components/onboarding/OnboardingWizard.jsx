@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ShieldCheck, ArrowLeft, ArrowRight, Loader2, X, CheckCircle2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useFinanceData } from "@/lib/FinanceDataContext";
-import { loadDraft, saveDraft, clearDraft } from "./onboardingStorage";
+import { loadDraft, saveDraft, clearDraft, markFinanceProfileSkipped } from "./onboardingStorage";
 import WizardStepper from "./WizardStepper";
 import Step1Profile from "./steps/Step1Profile";
 import Step2Accounts from "./steps/Step2Accounts";
@@ -85,6 +85,10 @@ export default function OnboardingWizard({ existingProfile, force = false, onCom
   function skip() {
     setError(null);
     if (step < TOTAL) set({ step: step + 1 });
+  }
+  function skipAll() {
+    markFinanceProfileSkipped();
+    if (onComplete) onComplete();
   }
 
   async function finish() {
@@ -185,6 +189,14 @@ export default function OnboardingWizard({ existingProfile, force = false, onCom
               className="text-white/40 hover:text-white text-xs font-mono flex items-center gap-1 transition-colors"
             >
               <X className="h-3.5 w-3.5" /> Exit setup
+            </button>
+          )}
+          {!force && (
+            <button
+              onClick={skipAll}
+              className="text-white/40 hover:text-white text-xs font-mono transition-colors"
+            >
+              Skip for now — complete later in Settings
             </button>
           )}
         </div>

@@ -17,6 +17,7 @@ import EduTimer from '@/pages/edu/EduTimer';
 import EduGrades from '@/pages/edu/EduGrades';
 import EduAnalytics from '@/pages/edu/EduAnalytics';
 import EduSettings from '@/pages/edu/EduSettings';
+import EduSchedule from '@/pages/edu/EduSchedule';
 import Insights from '@/pages/Insights';
 import Settings from '@/pages/Settings';
 import Forecast from '@/pages/Forecast';
@@ -71,6 +72,7 @@ const AuthenticatedApp = () => {
         <Route element={<EduLayout />}>
           <Route path="/education" element={<EduDashboard />} />
           <Route path="/education/courses" element={<EduCourses />} />
+          <Route path="/education/schedule" element={<EduSchedule />} />
           <Route path="/education/timer" element={<EduTimer />} />
           <Route path="/education/grades" element={<EduGrades />} />
           <Route path="/education/analytics" element={<EduAnalytics />} />

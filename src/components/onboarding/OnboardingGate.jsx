@@ -1,6 +1,7 @@
 import React from "react";
 import { base44 } from "@/api/base44Client";
 import OnboardingWizard from "./OnboardingWizard";
+import { isFinanceProfileAddressed } from "./onboardingStorage";
 
 // Decides whether to show the onboarding wizard or the app behind it.
 // `force` re-runs the wizard even if already completed (used by the /setup route).
@@ -32,7 +33,7 @@ export default function OnboardingGate({ children, force = false, onComplete }) 
     );
   }
 
-  const needsWizard = force || !profile || !profile.onboarding_completed;
+  const needsWizard = force || (!isFinanceProfileAddressed() && (!profile || !profile.onboarding_completed));
   if (needsWizard) {
     return <OnboardingWizard existingProfile={profile} force={force} onComplete={handleComplete} />;
   }

@@ -8,7 +8,7 @@ import { ShieldCheck } from "lucide-react";
  * Uses the original teal/emerald Haven logo treatment with a radial gradient
  * backdrop and drifting ambient blobs.
  */
-export default function LaunchIntro({ hold = 1500, fade = 480, onDone }) {
+export default function LaunchIntro({ hold = 1200, fade = 300, onDone }) {
   const [leaving, setLeaving] = useState(false);
 
   useEffect(() => {
@@ -37,10 +37,10 @@ export default function LaunchIntro({ hold = 1500, fade = 480, onDone }) {
         </div>
         <p className="splash-fade-up mt-6 text-lg font-medium text-white/90" style={{ animationDelay: "0.5s" }}>Your money. Under control.</p>
 
-        <div className="mt-8 splash-fade-in" style={{ animationDelay: "0.7s" }}>
-          <div className="flex flex-col items-center gap-3">
-            <div className="h-7 w-7 rounded-full border-2 border-white/15 border-t-emerald-400 animate-spin" />
-          </div>
+        <div className="mt-8 splash-fade-in flex items-center gap-1.5" style={{ animationDelay: "0.7s" }}>
+          {[0, 1, 2].map((i) => (
+            <span key={i} className="h-2 w-2 rounded-full bg-emerald-400" style={{ animation: "dd-dot 1s ease-in-out infinite", animationDelay: `${i * 0.18}s` }} />
+          ))}
         </div>
       </div>
     </div>

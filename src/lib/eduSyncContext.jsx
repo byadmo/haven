@@ -1,11 +1,11 @@
 import React from "react";
 import { Outlet, Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { LayoutDashboard, BookOpen, Timer, GraduationCap, BarChart3, ShieldCheck } from "lucide-react";
+import { LayoutDashboard, BookOpen, Timer, GraduationCap, BarChart3, ShieldCheck, CalendarDays } from "lucide-react";
 import { percentToGpa } from "@/lib/eduGrading";
 import EduSplash from "@/components/edu/EduSplash";
 import ProfileWizard from "@/components/edu/ProfileWizard";
-import { isProfileComplete } from "@/lib/eduProfile";
+import { isProfileAddressed, markProfileSkipped } from "@/lib/eduProfile";
 
 // Workspace-registered per-user Google Calendar connector (app-user mode).
 export const GCALENDAR_CONNECTOR_ID = "6a70ef7e9f47c094588c220b";
@@ -13,6 +13,7 @@ export const GCALENDAR_CONNECTOR_ID = "6a70ef7e9f47c094588c220b";
 export const EDU_NAV = [
   { to: "/education", label: "Dashboard", icon: LayoutDashboard, end: true },
   { to: "/education/courses", label: "Courses", icon: BookOpen },
+  { to: "/education/schedule", label: "Schedule", icon: CalendarDays },
   { to: "/education/timer", label: "Timer", icon: Timer },
   { to: "/education/grades", label: "Grades", icon: GraduationCap },
   { to: "/education/analytics", label: "Analytics", icon: BarChart3 },
@@ -266,12 +267,18 @@ export const useEduSyncData = useEduSync;
 
 export function EduLayout() {
   const [showSplash, setShowSplash] = React.useState(true);
-  const [showWizard, setShowWizard] = React.useState(() => isProfileComplete() ? false : true);
+  const [showWizard, setShowWizard] = React.useState(() => isProfileAddressed() ? false : true);
   return (
     <EduSyncProvider>
       <EduShell>
         {showSplash && <EduSplash onDone={() => setShowSplash(false)} />}
-        {!showSplash && <ProfileWizard open={showWizard} onOpenChange={setShowWizard} onCompleted={() => setShowWizard(false)} />}
+        {!showSplash && (
+          <ProfileWizard
+            open={showWizard}
+            onOpenChange={(o) => { setShowWizard(o); if (!o) markProfileSkipped(); }}
+            onCompleted={() => setShowWizard(false)}
+          />
+        )}
         <Outlet />
       </EduShell>
     </EduSyncProvider>

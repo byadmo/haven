@@ -5,8 +5,8 @@ export default function EduSplash({ onDone }) {
   const [leaving, setLeaving] = useState(false);
 
   useEffect(() => {
-    const t1 = setTimeout(() => setLeaving(true), 1500);
-    const t2 = setTimeout(() => onDone(), 1820);
+    const t1 = setTimeout(() => setLeaving(true), 1200);
+    const t2 = setTimeout(() => onDone(), 1500);
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [onDone]);
 

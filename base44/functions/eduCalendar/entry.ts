@@ -166,6 +166,63 @@ export default async function(req) {
       return Response.json({ connected: true, email, calendar_id, created, skipped });
     }
 
+    // ── FETCH_EVENTS: list events in a range for the Schedule view ──
+    if (action === 'fetch_events') {
+      const calendar_id = body.calendar_id || (await ensureCalendar(token)).id;
+      const timeMin = body.range_start ? new Date(body.range_start + 'T00:00:00').toISOString() : new Date().toISOString();
+      const timeMax = body.range_end ? new Date(body.range_end + 'T23:59:59').toISOString() : new Date(Date.now() + 30 * 86400000).toISOString();
+      const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendar_id)}/events?maxResults=250&singleEvents=true&orderBy=startTime&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}`;
+      const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } }).catch(() => null);
+      const items = [];
+      if (r && r.ok) {
+        const j = await r.json();
+        (j.items || []).forEach((e) => {
+          items.push({
+            id: e.id,
+            summary: e.summary || '(Untitled)',
+            start: e.start?.dateTime || e.start?.date,
+            end: e.end?.dateTime || e.end?.date,
+            allDay: !e.start?.dateTime,
+            location: e.location || '',
+            is_edusync: !!(e.description || '').includes(SYNC_TAG),
+          });
+        });
+      }
+      return Response.json({ connected: true, email, calendar_id, items });
+    }
+
+    // ── SYNC_TASKS: push deliverables as all-day events, create-or-update by google_event_id ──
+    if (action === 'sync_tasks') {
+      const calendar_id = body.calendar_id || (await ensureCalendar(token)).id;
+      const tasks = Array.isArray(body.tasks) ? body.tasks : [];
+      const evUrl = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendar_id)}/events`;
+      const baseHeaders = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
+      let created = 0, updated = 0, failed = 0;
+      const mappings = [];
+      for (const t of tasks) {
+        if (!t.due_date) continue;
+        const isExam = ['exam', 'midterm', 'final'].includes(t.type);
+        const summary = `${isExam ? '📝' : '📘'} ${t.course_code || ''} — ${t.title}`.trim().replace(/\s+/g, ' ');
+        const description = `${SYNC_TAG}\n${isExam ? 'Exam' : 'Task'} · ${t.course_code || ''}${t.weight ? '\nWeight: ' + t.weight + '%' : ''}`.trim();
+        const evBody = {
+          summary,
+          description,
+          start: { date: t.due_date },
+          end: { date: addDay(t.due_date) },
+          reminders: { useDefault: true },
+        };
+        if (t.google_event_id) {
+          const r = await fetch(`${evUrl}/${encodeURIComponent(t.google_event_id)}`, { method: 'PUT', headers: baseHeaders, body: JSON.stringify(evBody) }).catch(() => null);
+          if (r && r.ok) updated++; else { failed++; mappings.push({ deliverable_id: t.id, failed: true }); }
+        } else {
+          const r = await fetch(evUrl, { method: 'POST', headers: baseHeaders, body: JSON.stringify(evBody) }).catch(() => null);
+          if (r && r.ok) { const j = await r.json(); created++; mappings.push({ deliverable_id: t.id, google_event_id: j.id }); }
+          else failed++;
+        }
+      }
+      return Response.json({ connected: true, email, calendar_id, created, updated, failed, mappings });
+    }
+
     return Response.json({ error: 'Unknown action' }, { status: 400 });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
