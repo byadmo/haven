@@ -48,6 +48,10 @@
       "type": "boolean",
       "default": true,
       "description": "Auto-detect calendar conflicts when scheduling study sessions"
+    },
+    "transcript": {
+      "type": "object",
+      "description": "Parsed academic transcript snapshot: courses, cumulative GPA, credits, quality points, per-term and major breakdown"
     }
   },
   "required": [],

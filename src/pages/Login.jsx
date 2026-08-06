@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,22 @@ export default function Login() {
   // with returnTo so the grant flow can resume). Same-origin paths only.
   const returnTo = safeReturnTo();
 
+  // Detect a failed Google OAuth redirect (e.g. .edu accounts blocked by a
+  // university Google Workspace admin policy). Google bounces back with an
+  // error param on the query string.
+  const [oauthError, setOauthError] = useState(null);
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    const blob = `${p.get("error") || ""} ${p.get("error_description") || ""} ${p.get("message") || ""}`;
+    if (/admin_policy_enforced/i.test(blob)) setOauthError("admin");
+    else if (p.get("error") || p.get("error_description")) setOauthError("generic");
+    const rt = p.get("returnTo");
+    if (window.location.search) {
+      const next = window.location.pathname + (rt ? `?returnTo=${encodeURIComponent(rt)}` : "");
+      window.history.replaceState({}, "", next);
+    }
+  }, []);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
@@ -33,7 +49,14 @@ export default function Login() {
   };
 
   const handleGoogle = () => {
-    base44.auth.loginWithProvider("google", returnTo);
+    try {
+      base44.auth.loginWithProvider("google", returnTo);
+    } catch (e) {
+      const msg = (e?.message || "") + "";
+      if (/admin_policy_enforced/i.test(msg)) setOauthError("admin");
+      else setOauthError("generic");
+      setError(e?.message || "Google sign-in failed");
+    }
   };
 
   return (
@@ -53,6 +76,26 @@ export default function Login() {
         </>
       }
     >
+      {oauthError === "admin" && (
+        <div className="mb-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-200 text-sm">
+          <p className="font-medium mb-1">University Google account blocked</p>
+          <p className="text-xs text-amber-200/80 leading-snug">
+            Your university's Google Workspace policy blocks third-party app sign-in. Please try signing in with a personal Gmail account, or use email/password sign-up instead.
+          </p>
+          <Link
+            to={"/register" + (returnTo !== "/" ? "?returnTo=" + encodeURIComponent(returnTo) : "")}
+            className="inline-block mt-2 text-xs font-medium text-amber-100 underline underline-offset-2"
+          >
+            Sign up with your school email →
+          </Link>
+        </div>
+      )}
+      {oauthError === "generic" && (
+        <div className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
+          Google sign-in failed. Try again, or use email/password below.
+        </div>
+      )}
+
       <Button
         variant="outline"
         className="w-full h-12 text-sm font-medium mb-6"

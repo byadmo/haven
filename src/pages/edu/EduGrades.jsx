@@ -1,5 +1,5 @@
 import React from "react";
-import { GraduationCap, AlertTriangle, Target, Plus, Check } from "lucide-react";
+import { GraduationCap, FileText, AlertTriangle, Target, Plus, Check } from "lucide-react";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -12,6 +12,7 @@ import EduBottomNav from "@/components/edu/EduBottomNav";
 import PageTitle from "@/components/finance/PageTitle";
 import Reveal from "@/components/finance/Reveal";
 import { useEduSync } from "@/lib/eduSyncContext";
+import TranscriptGpa from "@/components/edu/TranscriptGpa";
 import { currentGrade, projectedGrade, percentToLetter, percentToGpa, neededForTarget } from "@/lib/eduGrading";
 
 const LETTERS = ["A+", "A", "A-", "B+", "B", "B-", "C+", "C", "C-", "D"];
@@ -29,6 +30,20 @@ export default function EduGrades() {
       <EduTopBar />
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6 space-y-6">
         <PageTitle title="Grade Simulator" subtitle="What-if grades, GPA & exam prep" icon={GraduationCap} />
+
+        {/* Transcript GPA */}
+        <Reveal>
+          <div className="rounded-lg border border-white/10 bg-black p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <FileText className="h-4 w-4 text-emerald-300 shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-zinc-50">Transcript GPA</p>
+                <p className="text-[11px] text-white/50">Upload a transcript to calculate cumulative &amp; major GPA</p>
+              </div>
+            </div>
+            <TranscriptGpa />
+          </div>
+        </Reveal>
 
         {/* GPA tracker */}
         <Reveal>

@@ -7,6 +7,7 @@ import SemesterDetectModal from "@/components/edu/SemesterDetectModal";
 import PageTitle from "@/components/finance/PageTitle";
 import Reveal from "@/components/finance/Reveal";
 import { useEduSync, detectTerm } from "@/lib/eduSyncContext";
+import EduAssistant from "@/components/edu/EduAssistant";
 import { Button } from "@/components/ui/button";
 import { daysFromNow, badgeColor } from "@/components/edu/CourseCard";
 
@@ -38,6 +39,10 @@ export default function EduDashboard() {
       <EduTopBar />
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-6">
         <PageTitle title="Dashboard" subtitle={activeSemester ? `${activeSemester.term_label} · ${courses.length} courses` : "Set up your semester to begin"} icon={GraduationCap} />
+
+        <Reveal>
+          <EduAssistant />
+        </Reveal>
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
           {/* LEFT */}
