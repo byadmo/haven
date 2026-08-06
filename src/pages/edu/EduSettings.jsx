@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Settings as SettingsIcon, CalendarCheck, CheckCircle2, Link2, ShieldCheck, RefreshCw, Loader2 } from "lucide-react";
+import { Settings as SettingsIcon, CalendarCheck, CheckCircle2, Link2, ShieldCheck, RefreshCw, Loader2, GraduationCap, BadgeCheck } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,10 @@ import PageTitle from "@/components/finance/PageTitle";
 import Reveal from "@/components/finance/Reveal";
 import { useEduSyncData, GCALENDAR_CONNECTOR_ID } from "@/lib/eduSyncContext";
 import TaskTypesSettings from "@/components/edu/TaskTypesSettings";
+import UiSizeSetting from "@/components/finance/UiSizeSetting";
+import ProfileWizard from "@/components/edu/ProfileWizard";
+import EduDangerZone from "@/components/edu/EduDangerZone";
+import { isProfileComplete } from "@/lib/eduProfile";
 
 export default function EduSettings() {
   const { settings, updateSettings, activeSemester, refresh } = useEduSyncData();
@@ -21,6 +25,8 @@ export default function EduSettings() {
   const [email, setEmail] = React.useState("");
   const [connecting, setConnecting] = React.useState(false);
   const [syncing, setSyncing] = React.useState(false);
+  const [profileComplete, setProfileComplete] = React.useState(isProfileComplete());
+  const [wizardOpen, setWizardOpen] = React.useState(false);
 
   const fetchStatus = React.useCallback(async () => {
     try {
@@ -117,6 +123,27 @@ export default function EduSettings() {
       <main className="max-w-3xl mx-auto px-4 sm:px-6 py-6 space-y-6">
         <PageTitle title="Settings" subtitle="Google Calendar & study preferences" icon={SettingsIcon} />
 
+        {/* Profile */}
+        <Reveal>
+          <div className="rounded-lg border border-white/10 bg-black p-5 flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 grid place-items-center rounded-lg border border-emerald-400/30 bg-emerald-500/10">
+                <GraduationCap className="h-4 w-4 text-emerald-300" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm text-zinc-100">{profileComplete ? "Profile Complete" : "Complete Your Profile"}</p>
+                  {profileComplete && <BadgeCheck className="h-3.5 w-3.5 text-emerald-400" />}
+                </div>
+                <p className="text-[11px] text-white/40">{profileComplete ? "Your academic profile is set up." : "Finish setup to personalize Haven Education."}</p>
+              </div>
+            </div>
+            <Button onClick={() => setWizardOpen(true)} variant="outline" className="border-emerald-400/30 text-emerald-300 hover:bg-emerald-500/10">
+              {profileComplete ? "Edit Profile" : "Complete Profile"}
+            </Button>
+          </div>
+        </Reveal>
+
         {/* Google Calendar */}
         <Reveal>
           <div className="rounded-lg border border-white/10 bg-black p-5">
@@ -188,6 +215,11 @@ export default function EduSettings() {
           <TaskTypesSettings />
         </Reveal>
 
+        {/* Display Size — shared with Haven Finance */}
+        <Reveal delay={0.06}>
+          <UiSizeSetting />
+        </Reveal>
+
         {/* Finance app link */}
         <Reveal delay={0.06}>
           <div className="rounded-lg border border-white/10 bg-black p-5">
@@ -207,8 +239,15 @@ export default function EduSettings() {
             </div>
           </div>
         </Reveal>
+
+        {/* Danger zone */}
+        <div className="space-y-4 pt-2">
+          <EduDangerZone />
+        </div>
       </main>
       <EduBottomNav />
+
+      <ProfileWizard open={wizardOpen} onOpenChange={setWizardOpen} onCompleted={() => setProfileComplete(true)} />
     </>
   );
 }

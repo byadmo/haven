@@ -4,6 +4,8 @@ import { base44 } from "@/api/base44Client";
 import { LayoutDashboard, BookOpen, Timer, GraduationCap, BarChart3, ShieldCheck } from "lucide-react";
 import { percentToGpa } from "@/lib/eduGrading";
 import EduSplash from "@/components/edu/EduSplash";
+import ProfileWizard from "@/components/edu/ProfileWizard";
+import { isProfileComplete } from "@/lib/eduProfile";
 
 // Workspace-registered per-user Google Calendar connector (app-user mode).
 export const GCALENDAR_CONNECTOR_ID = "6a70ef7e9f47c094588c220b";
@@ -263,15 +265,13 @@ export function useEduSync() {
 export const useEduSyncData = useEduSync;
 
 export function EduLayout() {
-  const [showSplash, setShowSplash] = React.useState(() => {
-    try { return !sessionStorage.getItem("eduSplashShown"); } catch { return false; }
-  });
+  const [showSplash, setShowSplash] = React.useState(true);
+  const [showWizard, setShowWizard] = React.useState(() => isProfileComplete() ? false : true);
   return (
     <EduSyncProvider>
       <EduShell>
-        {showSplash && (
-          <EduSplash onDone={() => { try { sessionStorage.setItem("eduSplashShown", "1"); } catch {} setShowSplash(false); }} />
-        )}
+        {showSplash && <EduSplash onDone={() => setShowSplash(false)} />}
+        {!showSplash && <ProfileWizard open={showWizard} onOpenChange={setShowWizard} onCompleted={() => setShowWizard(false)} />}
         <Outlet />
       </EduShell>
     </EduSyncProvider>
