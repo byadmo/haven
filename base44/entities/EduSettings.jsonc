@@ -52,6 +52,21 @@
     "transcript": {
       "type": "object",
       "description": "Parsed academic transcript snapshot: courses, cumulative GPA, credits, quality points, per-term and major breakdown"
+    },
+    "task_types": {
+      "type": "array",
+      "description": "Custom task type definitions used when adding focus tasks. Each item: { name: string, color: string }",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      }
     }
   },
   "required": [],

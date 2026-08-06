@@ -6,6 +6,7 @@ import EduBottomNav from "@/components/edu/EduBottomNav";
 import PageTitle from "@/components/finance/PageTitle";
 import Reveal from "@/components/finance/Reveal";
 import CircularRing from "@/components/edu/CircularRing";
+import StudyHeatmap from "@/components/edu/StudyHeatmap";
 import StreakBadges from "@/components/edu/StreakBadges";
 import { useEduSync } from "@/lib/eduSyncContext";
 
@@ -100,31 +101,10 @@ export default function EduAnalytics() {
           </div>
         </Reveal>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Weekly heatmap */}
+        <div className="space-y-6">
+          {/* Study heatmap */}
           <Reveal>
-            <div className="rounded-lg border border-white/10 bg-black p-5">
-              <p className="text-[10px] uppercase tracking-widest text-white/50 mb-3">Weekly Heatmap · last 12 weeks</p>
-              <div className="flex gap-1">
-                <div className="flex flex-col gap-1 mr-1 pt-4">
-                  {DAY_LABELS.map((d, i) => <span key={i} className="text-[9px] text-white/30 h-4 leading-4">{i % 2 ? d : ""}</span>)}
-                </div>
-                <div className="flex-1 space-y-1">
-                  {grid.map((row, wi) => (
-                    <div key={wi} className="grid grid-cols-7 gap-1">
-                      {row.map((cell, di) => (
-                        <div key={di} title={cell ? `${cell.date}: ${cell.minutes}m` : ""} className="h-4 rounded-sm" style={{ background: !cell ? "transparent" : cell.minutes > 0 ? `rgba(52,211,153,${Math.min(1, 0.18 + cell.minutes / 120)})` : "rgba(255,255,255,0.05)" }} />
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="flex items-center justify-end gap-1 mt-2 text-[9px] text-white/30">
-                Less
-                {[0.05, 0.3, 0.5, 0.75, 1].map((o) => <span key={o} className="h-3 w-3 rounded-sm" style={{ background: `rgba(52,211,153,${o})` }} />)}
-                More
-              </div>
-            </div>
+            <StudyHeatmap />
           </Reveal>
 
           {/* Peak energy */}

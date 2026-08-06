@@ -45,6 +45,15 @@
     "completed_at": {
       "type": "string",
       "format": "date-time"
+    },
+    "task_type": {
+      "type": "string",
+      "default": "Studying",
+      "description": "Task type label (Reading, Studying, Homework, Assignment, Lab, Review, Exam Prep, Project, or a custom type)"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Optional notes for this focus task"
     }
   },
   "required": [

@@ -12,6 +12,7 @@ import EduBottomNav from "@/components/edu/EduBottomNav";
 import PageTitle from "@/components/finance/PageTitle";
 import Reveal from "@/components/finance/Reveal";
 import { useEduSyncData, GCALENDAR_CONNECTOR_ID } from "@/lib/eduSyncContext";
+import TaskTypesSettings from "@/components/edu/TaskTypesSettings";
 
 export default function EduSettings() {
   const { settings, updateSettings, activeSemester, refresh } = useEduSyncData();
@@ -180,6 +181,11 @@ export default function EduSettings() {
               <Label className="text-[11px] text-white/40">minutes per day</Label>
             </div>
           </div>
+        </Reveal>
+
+        {/* Task Types */}
+        <Reveal delay={0.05}>
+          <TaskTypesSettings />
         </Reveal>
 
         {/* Finance app link */}

@@ -1,6 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { Flame, Clock, BookOpen, GraduationCap, CalendarDays, Play, WifiOff, Target } from "lucide-react";
+import { Flame, Clock, BookOpen, GraduationCap, CalendarDays, Plus, WifiOff } from "lucide-react";
 import EduTopBar from "@/components/edu/EduTopBar";
 import EduBottomNav from "@/components/edu/EduBottomNav";
 import SemesterDetectModal from "@/components/edu/SemesterDetectModal";
@@ -10,6 +10,8 @@ import EduAssistant from "@/components/edu/EduAssistant";
 import { Button } from "@/components/ui/button";
 import { useEduSync, detectTerm } from "@/lib/eduSyncContext";
 import { daysFromNow, badgeColor } from "@/components/edu/CourseCard";
+import FocusRow from "@/components/edu/FocusRow";
+import TaskFormModal from "@/components/edu/TaskFormModal";
 
 const PRIORITY_BADGE = {
   high: "bg-rose-500/15 text-rose-300 border-rose-400/30",
@@ -29,6 +31,7 @@ export default function EduDashboard() {
   const navigate = useNavigate();
   const { activeSemester, courses, deliverables, focuses, streak, weeklyMinutes, settings, createSemester } = useEduSync();
   const [detectOpen, setDetectOpen] = React.useState(false);
+  const [taskOpen, setTaskOpen] = React.useState(false);
   const detected = React.useMemo(() => detectTerm(), []);
 
   React.useEffect(() => {
@@ -68,30 +71,20 @@ export default function EduDashboard() {
             {/* Today's Focus */}
             <Reveal>
               <div className="rounded-lg border border-white/10 bg-black p-5">
-                <p className="text-[10px] uppercase tracking-widest text-white/50 mb-3">Today's Focus</p>
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-[10px] uppercase tracking-widest text-white/50">Today's Focus</p>
+                  <Button size="sm" onClick={() => setTaskOpen(true)} className="bg-emerald-500 text-black hover:bg-emerald-400 h-7">
+                    <Plus className="h-3.5 w-3.5 mr-1" /> Add Task
+                  </Button>
+                </div>
                 {todaysFocuses.length ? (
                   <div className="space-y-2">
-                    {todaysFocuses.map((f) => {
-                      const c = f.course_id ? courseById[f.course_id] : null;
-                      return (
-                        <div key={f.id} className="flex items-center justify-between gap-3 rounded-md border border-white/10 p-3">
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2 mb-0.5">
-                              <p className="text-[10px] uppercase tracking-widest text-emerald-400/70 font-mono">{c?.code || "Free"}</p>
-                              <span className={`text-[9px] px-1.5 py-0.5 border rounded font-mono uppercase ${priorityBadge(f.priority)}`}>{f.priority}</span>
-                            </div>
-                            <p className="text-sm text-zinc-100 truncate">{f.title}</p>
-                            <p className="text-[11px] text-white/40 font-mono">{f.suggested_duration || 25} min</p>
-                          </div>
-                          <Button size="sm" onClick={() => navigate(startUrl(f))} className="bg-emerald-500 text-black hover:bg-emerald-400 shrink-0">
-                            <Play className="h-3.5 w-3.5 mr-1" /> Start
-                          </Button>
-                        </div>
-                      );
-                    })}
+                    {todaysFocuses.map((f) => (
+                      <FocusRow key={f.id} focus={f} course={f.course_id ? courseById[f.course_id] : null} settings={settings} onStart={() => navigate(startUrl(f))} />
+                    ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-white/30 text-center py-6">No focuses scheduled for today — you're all caught up!</p>
+                  <p className="text-sm text-white/30 text-center py-6">No tasks for today — add one to get started!</p>
                 )}
               </div>
             </Reveal>
@@ -127,29 +120,13 @@ export default function EduDashboard() {
               <div className="rounded-lg border border-white/10 bg-black p-5">
                 <p className="text-[10px] uppercase tracking-widest text-white/50 mb-3">Upcoming Focuses (next 7 days)</p>
                 {upcomingFocuses.length ? (
-                  <div className="space-y-1.5">
-                    {upcomingFocuses.map((f) => {
-                      const c = f.course_id ? courseById[f.course_id] : null;
-                      const days = daysFromNow(f.target_date);
-                      return (
-                        <div key={f.id} className="flex items-center justify-between gap-3 py-2 border-b border-white/5 last:border-0">
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2">
-                              <Target className="h-3 w-3 text-emerald-300/70 shrink-0" />
-                              <p className="text-sm text-zinc-100 truncate">{f.title}</p>
-                            </div>
-                            <p className="text-[10px] uppercase tracking-widest text-white/40 font-mono">{c?.code || "Free"} · {f.target_date} · {f.suggested_duration || 25}m</p>
-                          </div>
-                          <div className="flex items-center gap-2 shrink-0">
-                            <span className={`text-[9px] px-1.5 py-0.5 border rounded font-mono uppercase ${priorityBadge(f.priority)}`}>{f.priority}</span>
-                            <span className={`text-[10px] px-1.5 py-0.5 border font-mono tabular-nums ${badgeColor(days)}`}>{days}d</span>
-                          </div>
-                        </div>
-                      );
-                    })}
+                  <div>
+                    {upcomingFocuses.map((f) => (
+                      <FocusRow key={f.id} focus={f} course={f.course_id ? courseById[f.course_id] : null} settings={settings} compact />
+                    ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-white/30 text-center py-6">No focuses planned for the next 7 days.</p>
+                  <p className="text-sm text-white/30 text-center py-6">No tasks planned for the next 7 days.</p>
                 )}
               </div>
             </Reveal>
@@ -220,6 +197,7 @@ export default function EduDashboard() {
         onConfirm={(payload) => { createSemester(payload); setDetectOpen(false); }}
         onClose={() => setDetectOpen(false)}
       />
+      <TaskFormModal open={taskOpen} onOpenChange={setTaskOpen} defaultDate={today} />
     </>
   );
 }

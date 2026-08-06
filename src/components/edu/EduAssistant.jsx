@@ -49,9 +49,14 @@ function buildContext(ctx) {
     const c = courses.find((x) => x.id === f.course_id);
     return { title: f.title, course: c ? c.code : "Free", target: f.target_date, duration: f.suggested_duration, priority: f.priority };
   });
+  const materialsByCourse = ctx.materialsByCourse || {};
+  const coursesWithMaterials = courseSummary.map((c) => ({
+    ...c,
+    materials: (materialsByCourse[c.id] || []).map((m) => ({ title: m.title, required: m.required, cost: m.estimated_cost })),
+  }));
   return {
     semester: activeSemester ? { label: activeSemester.term_label, start: activeSemester.start_date, end: activeSemester.end_date } : null,
-    courses: courseSummary,
+    courses: coursesWithMaterials,
     upcoming_deliverables: upcoming,
     planned_focuses: plannedFocuses,
     study_this_week_minutes: weeklyMinutes,
@@ -61,10 +66,18 @@ function buildContext(ctx) {
   };
 }
 
-function suggestFor(messages, ctx) {
+function suggestFor(messages, ctx, scope) {
   const last = [...messages].reverse().find((m) => m.role === "user");
   const picker = (ctx.courses || [])[0];
   if (!last) {
+    if (scope === "courses") {
+      return [
+        picker ? `What materials do I need for ${picker.code}?` : "What materials do I need?",
+        "Which course has the most assignments?",
+        picker ? `Show my grading breakdown for ${picker.code}` : "Show my grading breakdown",
+        "What's my heaviest course this week?",
+      ];
+    }
     return [
       "What should I focus on today?",
       "Show my upcoming deadlines",
@@ -144,7 +157,7 @@ function AssistantCard({ msg }) {
   );
 }
 
-export default function EduAssistant() {
+export default function EduAssistant({ scope }) {
   const ctx = useEduSync();
   const [collapsed, setCollapsed] = useState(false);
   const [messages, setMessages] = useState([]);
@@ -152,7 +165,7 @@ export default function EduAssistant() {
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef(null);
 
-  const suggestions = React.useMemo(() => suggestFor(messages, ctx), [messages, ctx.courses, ctx.focuses, ctx.deliverables, ctx.weeklyMinutes, ctx.streak, ctx.cumulativeGpa]);
+  const suggestions = React.useMemo(() => suggestFor(messages, ctx, scope), [messages, ctx.courses, ctx.focuses, ctx.deliverables, ctx.weeklyMinutes, ctx.streak, ctx.cumulativeGpa, scope]);
 
   React.useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;

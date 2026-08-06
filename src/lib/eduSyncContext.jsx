@@ -3,6 +3,7 @@ import { Outlet, Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { LayoutDashboard, BookOpen, Timer, GraduationCap, BarChart3, ShieldCheck } from "lucide-react";
 import { percentToGpa } from "@/lib/eduGrading";
+import EduSplash from "@/components/edu/EduSplash";
 
 // Workspace-registered per-user Google Calendar connector (app-user mode).
 export const GCALENDAR_CONNECTOR_ID = "6a70ef7e9f47c094588c220b";
@@ -262,9 +263,17 @@ export function useEduSync() {
 export const useEduSyncData = useEduSync;
 
 export function EduLayout() {
+  const [showSplash, setShowSplash] = React.useState(() => {
+    try { return !sessionStorage.getItem("eduSplashShown"); } catch { return false; }
+  });
   return (
     <EduSyncProvider>
-      <EduShell><Outlet /></EduShell>
+      <EduShell>
+        {showSplash && (
+          <EduSplash onDone={() => { try { sessionStorage.setItem("eduSplashShown", "1"); } catch {} setShowSplash(false); }} />
+        )}
+        <Outlet />
+      </EduShell>
     </EduSyncProvider>
   );
 }
@@ -286,11 +295,11 @@ function EduShell({ children }) {
   );
 }
 
-export function HavenEduLogo({ to = "/education" }) {
+export function HavenEduLogo({ to = "/" }) {
   return (
-    <Link to={to} className="flex items-center gap-2.5 shrink-0">
-      <div className="flex items-center justify-center rounded-xl border border-emerald-400/30 bg-emerald-500/10" style={{ height: 30, width: 30 }}>
-        <ShieldCheck className="text-emerald-400" style={{ height: 16, width: 16 }} />
+    <Link to={to} className="flex items-center gap-2.5 shrink-0 group">
+      <div className="flex items-center justify-center rounded-xl border border-emerald-400/30 bg-emerald-500/10 transition-colors group-hover:border-emerald-400/50" style={{ height: 30, width: 30 }}>
+        <GraduationCap className="text-emerald-400" style={{ height: 16, width: 16 }} />
       </div>
       <span className="text-sm font-semibold tracking-tight text-white">Haven <span className="text-emerald-400">Education</span></span>
     </Link>
