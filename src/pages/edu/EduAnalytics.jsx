@@ -12,6 +12,7 @@ import { useEduSync } from "@/lib/eduSyncContext";
 import GpaProjection from "@/components/edu/GpaProjection";
 import CourseLoadAdvisor from "@/components/edu/CourseLoadAdvisor";
 import SessionNotesList from "@/components/edu/SessionNotesList";
+import TranscriptTrend from "@/components/edu/TranscriptTrend";
 
 const WEEKS = 12;
 const DAY_LABELS = ["S", "M", "T", "W", "Th", "F", "S"];
@@ -167,6 +168,11 @@ export default function EduAnalytics() {
               <Sum icon={wow != null && wow >= 0 ? TrendingUp : TrendingDown} label="vs last week" value={wow != null ? `${wow >= 0 ? "+" : ""}${wow.toFixed(0)}%` : "—"} highlight={wow != null && wow >= 0} />
             </div>
           </div>
+        </Reveal>
+
+        {/* Transcript GPA trend (historical, from saved transcript) */}
+        <Reveal>
+          <TranscriptTrend />
         </Reveal>
 
         {/* GPA projection */}

@@ -148,8 +148,8 @@ export function EduSyncProvider({ children }) {
     return buckets;
   }, [data.studySessions]);
 
-  // Cumulative GPA across courses with at least one graded deliverable
-  const cumulativeGpa = React.useMemo(() => {
+  // GPA for the current semester only (derived from graded deliverables).
+  const semesterGpa = React.useMemo(() => {
     const gpas = [];
     courses.forEach((c) => {
       const dlvs = deliverablesByCourse[c.id] || [];
@@ -163,6 +163,14 @@ export function EduSyncProvider({ children }) {
     });
     return gpas.length ? +(gpas.reduce((a, b) => a + b, 0) / gpas.length).toFixed(2) : null;
   }, [courses, deliverablesByCourse]);
+
+  // Authoritative cumulative GPA comes from the saved transcript (all past
+  // terms); falls back to the current-semester GPA when no transcript exists.
+  // This is the SINGLE value surfaced app-wide (Dashboard, Analytics, Grades,
+  // GPA Projection, Course Load Advisor, Settings) so transcript data
+  // propagates everywhere instead of being trapped on the Grades page.
+  const transcript = data.settings?.transcript || null;
+  const cumulativeGpa = transcript?.cumulativeGpa != null ? transcript.cumulativeGpa : semesterGpa;
 
   // ---- Mutations (all refresh after) ----
   async function setActiveSemester(id) {
@@ -230,6 +238,8 @@ export function EduSyncProvider({ children }) {
     weeklyMinutes,
     hourlyBuckets,
     cumulativeGpa,
+    semesterGpa,
+    transcript,
     setActiveSemester,
     createSemester,
     createCourse,

@@ -1,5 +1,5 @@
 import React from "react";
-import { Upload, FileText, Loader2, Plus, Trash2, Save, BarChart3, Award } from "lucide-react";
+import { Upload, FileText, Loader2, Plus, Trash2, Save, BarChart3, Award, ChevronRight, ChevronDown } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,6 +50,7 @@ export default function TranscriptGpa() {
   const [parsing, setParsing] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [dragOver, setDragOver] = React.useState(false);
+  const [collapsed, setCollapsed] = React.useState(true);
   const inputRef = React.useRef(null);
   const inputRef2 = React.useRef(null);
 
@@ -185,7 +186,10 @@ export default function TranscriptGpa() {
 
           <div className="rounded-lg border border-white/10 bg-black overflow-hidden">
             <div className="flex items-center justify-between px-3 py-2 border-b border-white/10">
-              <p className="text-[10px] uppercase tracking-widest text-white/50 flex items-center gap-1.5"><FileText className="h-3 w-3" /> Parsed Courses ({courses.length})</p>
+              <button onClick={() => setCollapsed((c) => !c)} className="flex items-center gap-1 text-[10px] uppercase tracking-widest text-white/50 hover:text-white/80 transition-colors">
+                {collapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                <FileText className="h-3 w-3" /> Parsed Courses ({courses.length})
+              </button>
               <div className="flex items-center gap-1.5">
                 <Button size="sm" variant="ghost" onClick={addRow} className="h-7 text-xs text-white/70 hover:text-emerald-300"><Plus className="h-3 w-3 mr-1" /> Row</Button>
                 <Button size="sm" onClick={saveToProfile} disabled={saving || courses.length === 0} className="h-7 bg-emerald-500 text-black hover:bg-emerald-400">
@@ -193,6 +197,7 @@ export default function TranscriptGpa() {
                 </Button>
               </div>
             </div>
+            {!collapsed && (
             <div className="overflow-x-auto max-h-[280px] overflow-y-auto">
               <table className="w-full text-xs">
                 <thead className="sticky top-0 bg-black">
@@ -227,10 +232,11 @@ export default function TranscriptGpa() {
                   {courses.length === 0 ? (
                     <tr><td colSpan={8} className="text-center text-white/30 py-6 text-xs">No courses yet — add rows or upload a transcript.</td></tr>
                   ) : null}
-                </tbody>
-              </table>
-            </div>
-          </div>
+                  </tbody>
+                  </table>
+                  </div>
+                  )}
+                  </div>
 
           {transcript.terms.length > 0 ? (
             <div className="rounded-lg border border-white/10 bg-black p-4">

@@ -21,8 +21,17 @@ function Field({ label, value, onChange }) {
 }
 
 export default function CourseLoadAdvisor() {
-  const { courses, cumulativeGpa } = useEduSync();
+  const { courses, cumulativeGpa, transcript } = useEduSync();
   const credits = courses.reduce((s, c) => s + (c.credits || 0), 0);
+
+  // Summarize past transcript performance so the advisor factors in real
+  // past grades, not just the current semester.
+  const pastGrades = useMemo(() => {
+    if (!transcript || !transcript.courses?.length) return null;
+    const terms = (transcript.terms || []).map((t) => `${t.term}: ${t.gpa.toFixed(2)}`).join("; ");
+    const majors = (transcript.majors || []).slice(0, 3).map((m) => `${m.prefix} ${m.gpa.toFixed(2)} (${m.count} crs)`).join("; ");
+    return { count: transcript.courses.length, credits: transcript.totalCredits, terms, majors };
+  }, [transcript]);
 
   const [workHours, setWorkHours] = useState(20);
   const [workDays, setWorkDays] = useState(2);
@@ -38,11 +47,12 @@ export default function CourseLoadAdvisor() {
     try {
       const prompt = `You are a helpful academic advisor suggesting next-semester course load.
 Student context:
-- Current GPA: ${cumulativeGpa != null ? cumulativeGpa.toFixed(2) : "unknown"}
+- Current cumulative GPA: ${cumulativeGpa != null ? cumulativeGpa.toFixed(2) : "unknown"}
 - Credits in progress this semester: ${credits}
 - Current courses: ${coursePerf.join(", ") || "none"}
 - Work schedule: ${workDays} days/week, ${workHours} total work hours/week
 - Target study hours/week: ${studyHrTarget}
+- Past transcript: ${pastGrades ? `${pastGrades.count} prior courses, ${pastGrades.credits} credits earned. Term GPAs: ${pastGrades.terms}. Strongest depts: ${pastGrades.majors}` : "none"}
 
 Balance work commitments with study feasibility. Recommend exactly ONE load label.
 Respond ONLY as JSON with keys label (exactly "Light" | "Moderate" | "Heavy"), credits (a short range string like "9-12"), and reasoning (1-2 sentences referencing performance and work schedule).`;
