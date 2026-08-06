@@ -25,6 +25,10 @@
     "completed_at": {
       "type": "string",
       "format": "date-time"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Optional free-form notes captured after a Flowmodoro study session"
     }
   },
   "required": [

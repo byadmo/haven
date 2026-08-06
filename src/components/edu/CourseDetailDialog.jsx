@@ -10,6 +10,7 @@ import { useEduSync } from "@/lib/eduSyncContext";
 import { currentGrade, percentToLetter } from "@/lib/eduGrading";
 import ProfessorContact from "@/components/edu/ProfessorContact";
 import GradeCalculator from "@/components/edu/GradeCalculator";
+import SessionNotesList from "@/components/edu/SessionNotesList";
 
 const TYPES = ["assignment", "exam", "quiz", "project", "midterm", "final", "lab", "other"];
 
@@ -131,6 +132,8 @@ export default function CourseDetailDialog({ course, open, onOpenChange }) {
               <Button type="submit" size="sm" className="col-span-2 bg-emerald-500 text-black hover:bg-emerald-400 h-8"><Plus className="h-3.5 w-3.5" /></Button>
             </form>
           </div>
+
+          <SessionNotesList courseId={course.id} />
 
           <Button onClick={removeCourse} variant="outline" className="w-full border-rose-400/30 text-rose-300 hover:bg-rose-500/10">Delete Course</Button>
         </div>

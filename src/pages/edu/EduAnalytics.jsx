@@ -9,6 +9,9 @@ import CircularRing from "@/components/edu/CircularRing";
 import StudyHeatmap from "@/components/edu/StudyHeatmap";
 import StreakBadges from "@/components/edu/StreakBadges";
 import { useEduSync } from "@/lib/eduSyncContext";
+import GpaProjection from "@/components/edu/GpaProjection";
+import CourseLoadAdvisor from "@/components/edu/CourseLoadAdvisor";
+import SessionNotesList from "@/components/edu/SessionNotesList";
 
 const WEEKS = 12;
 const DAY_LABELS = ["S", "M", "T", "W", "Th", "F", "S"];
@@ -163,6 +166,23 @@ export default function EduAnalytics() {
               <Sum icon={Calendar} label="Top day" value={DAY_LABELS[topDayIdx]} />
               <Sum icon={wow != null && wow >= 0 ? TrendingUp : TrendingDown} label="vs last week" value={wow != null ? `${wow >= 0 ? "+" : ""}${wow.toFixed(0)}%` : "—"} highlight={wow != null && wow >= 0} />
             </div>
+          </div>
+        </Reveal>
+
+        {/* GPA projection */}
+        <Reveal>
+          <GpaProjection />
+        </Reveal>
+
+        {/* Course load advisor */}
+        <Reveal delay={0.03}>
+          <CourseLoadAdvisor />
+        </Reveal>
+
+        {/* Session notes */}
+        <Reveal delay={0.04}>
+          <div className="rounded-lg border border-white/10 bg-black p-5">
+            <SessionNotesList />
           </div>
         </Reveal>
       </main>

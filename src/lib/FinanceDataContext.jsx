@@ -70,6 +70,26 @@ export function FinanceDataProvider({ children }) {
     [data.accounts, data.transactions, data.debts, data.stocks, stockPrices]
   );
 
+  // F4 — capture a daily net-worth snapshot (only the first app open each day).
+  React.useEffect(() => {
+    if (loading) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const today = new Date().toISOString().slice(0, 10);
+        const latest = await base44.entities.NetWorthSnapshot.list("-date", 1).catch(() => []);
+        if (latest[0] && latest[0].date === today) return;
+        const totalCash = (data.accounts || []).reduce((s, a) => s + (a.balance || 0), 0);
+        const totalDebt = (data.debts || []).reduce((s, d) => (d.status !== "paid_off" ? s + (d.current_balance || 0) : s), 0);
+        const totalInv = (data.stocks || []).reduce((s, st) => s + (st.shares || 0) * (st.avg_buy_price || 0), 0);
+        const nw = analytics.netWorth != null ? analytics.netWorth : totalCash + totalInv - totalDebt;
+        await base44.entities.NetWorthSnapshot.create({ date: today, net_worth: nw, total_cash: totalCash, total_debt: totalDebt, total_investments: totalInv });
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, refreshKey]);
+
   const value = {
     ...data,
     // Aliases the rest of the app expects

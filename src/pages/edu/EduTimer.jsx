@@ -19,7 +19,7 @@ const MODES = [
 ];
 
 export default function EduTimer() {
-  const { courses, deliverablesByCourse, logStudySession, updateFocus } = useEduSync();
+  const { courses, deliverablesByCourse, logStudySession, updateStudySession, updateFocus } = useEduSync();
   const [params] = useSearchParams();
   const [modeId, setModeId] = React.useState("flowmodoro");
   const [customMin, setCustomMin] = React.useState(60);
@@ -31,6 +31,9 @@ export default function EduTimer() {
   const [running, setRunning] = React.useState(false);
   const [blockLogged, setBlockLogged] = React.useState(false);
   const [cycle, setCycle] = React.useState(0);
+  const [lastSession, setLastSession] = React.useState(null);
+  const [notesOpen, setNotesOpen] = React.useState(false);
+  const [notesDraft, setNotesDraft] = React.useState("");
 
   const [courseId, setCourseId] = React.useState(params.get("course") || "__free__");
   const [deliverableId, setDeliverableId] = React.useState(params.get("deliverable") || "__free__");
@@ -84,16 +87,21 @@ export default function EduTimer() {
     return () => { document.title = "Haven Education"; };
   }, [running, studySeconds, breakSecondsLeft, phase]);
 
-  function endStudy() {
+  async function endStudy() {
     if (blockLogged || studySeconds < 10) return;
     const minutes = Math.max(1, Math.round(studySeconds / 60));
-    logStudySession({
-      course_id: courseId === "__free__" ? null : courseId,
-      deliverable_id: deliverableId === "__free__" ? null : deliverableId,
-      duration_minutes: minutes,
-      mode: modeId,
-      completed_at: new Date().toISOString(),
-    });
+    try {
+      const s = await logStudySession({
+        course_id: courseId === "__free__" ? null : courseId,
+        deliverable_id: deliverableId === "__free__" ? null : deliverableId,
+        duration_minutes: minutes,
+        mode: modeId,
+        completed_at: new Date().toISOString(),
+      });
+      setLastSession(s);
+      setNotesOpen(true);
+      setNotesDraft("");
+    } catch {}
     if (focusId) { try { updateFocus(focusId, { status: "completed", completed_at: new Date().toISOString() }); } catch {} setFocusId(""); }
     setBlockLogged(true);
   }
@@ -245,6 +253,23 @@ export default function EduTimer() {
 
         {/* Today's sessions */}
         <TodaySessions />
+
+        {notesOpen && lastSession && (
+          <div className="rounded-lg border border-emerald-400/30 bg-emerald-500/5 p-5">
+            <p className="text-sm text-zinc-100 mb-2">Quick notes from this session?</p>
+            <textarea
+              value={notesDraft}
+              onChange={(e) => setNotesDraft(e.target.value)}
+              rows={3}
+              placeholder="What did you cover? Any blockers?"
+              className="w-full rounded-md bg-black border border-white/10 p-2 text-sm text-white resize-none focus:border-emerald-400/40 outline-none"
+            />
+            <div className="flex gap-2 mt-2 justify-end">
+              <Button variant="ghost" size="sm" className="text-white/50" onClick={() => { setNotesOpen(false); setLastSession(null); }}>Skip</Button>
+              <Button size="sm" className="bg-emerald-500 text-black hover:bg-emerald-400" onClick={async () => { try { await updateStudySession(lastSession.id, { notes: notesDraft.trim() }); } catch {} setNotesOpen(false); setLastSession(null); }}>Save</Button>
+            </div>
+          </div>
+        )}
 
         {/* Ambient audio */}
         <div className="rounded-lg border border-white/10 bg-black p-5">

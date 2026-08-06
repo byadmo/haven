@@ -69,6 +69,11 @@
     "dup_keep_hash": {
       "type": "string",
       "description": "Unique id assigned to every transaction in a duplicate group the user chose to keep as legitimate; matching groups are suppressed from future duplicate detection"
+    },
+    "is_tax_deductible": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether this transaction is tax-deductible (tracked for the annual tax summary)"
     }
   },
   "required": [

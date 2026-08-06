@@ -166,6 +166,12 @@ export function TransactionRow({ t, accountsMap, onChanged, categories, bulkMode
       <span className={`text-sm font-semibold tabular-nums ${isIncome ? "text-emerald-400" : "text-rose-400"}`}>
         {isIncome ? "+" : "-"}{fmt(t.amount)}
       </span>
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); base44.entities.Transaction.update(t.id, { is_tax_deductible: !t.is_tax_deductible }).then(() => onChanged?.()).catch(() => {}); }}
+        title="Toggle tax-deductible"
+        className={`h-6 w-6 rounded-md flex items-center justify-center border text-[10px] font-bold shrink-0 ${t.is_tax_deductible ? "border-emerald-400/50 bg-emerald-500/15 text-emerald-300" : "border-zinc-700 text-zinc-500 hover:text-zinc-200"}`}
+      >T</button>
       {!bulkMode && (
       <>
       <Dialog>

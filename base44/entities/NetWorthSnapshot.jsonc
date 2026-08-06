@@ -1,0 +1,42 @@
+{
+  "name": "NetWorthSnapshot",
+  "type": "object",
+  "properties": {
+    "date": {
+      "type": "string",
+      "format": "date",
+      "description": "Calendar day this net-worth snapshot was captured"
+    },
+    "net_worth": {
+      "type": "number",
+      "description": "Total cash + investments market value - total debt at snapshot time"
+    },
+    "total_cash": {
+      "type": "number"
+    },
+    "total_debt": {
+      "type": "number"
+    },
+    "total_investments": {
+      "type": "number"
+    }
+  },
+  "required": [
+    "date",
+    "net_worth"
+  ],
+  "rls": {
+    "read": {
+      "created_by_id": "{{user.id}}"
+    },
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}

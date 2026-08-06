@@ -4,6 +4,7 @@ import PageTitle from "@/components/finance/PageTitle";
 import BudgetChart from "@/components/finance/BudgetChart";
 import BudgetAdvisor from "@/components/finance/BudgetAdvisor";
 import GoalsTab from "@/components/dashboard/GoalsTab";
+import BudgetVsActual from "@/components/finance/BudgetVsActual";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -279,6 +280,8 @@ export default function Budgeting() {
           leftover={leftoverTF}
           fmt={fmt}
         />
+
+        <BudgetVsActual />
 
         <GoalsTab refreshKey={refreshKey} />
       </main>
