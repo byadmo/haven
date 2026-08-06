@@ -26,6 +26,9 @@ import CashFlow from '@/pages/CashFlow';
 import Portfolio from '@/pages/Portfolio';
 import Assistant from '@/pages/Assistant';
 import Accounts from '@/pages/Accounts';
+import Goals from '@/pages/Goals';
+import Debts from '@/pages/Debts';
+import Transactions from '@/pages/Transactions';
 import Setup from '@/pages/Setup';
 import CreditUtilization from '@/pages/CreditUtilization';
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -81,6 +84,9 @@ const AuthenticatedApp = () => {
         <Route element={<FinanceLayout />}>
           <Route element={<OnboardingGate><KeepAliveOutlet /></OnboardingGate>}>
             <Route path="/overview" element={<Dashboard />} />
+            <Route path="/goals" element={<Goals />} />
+            <Route path="/debts" element={<Debts />} />
+            <Route path="/transactions" element={<Transactions />} />
             <Route path="/insights" element={<Insights />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/forecast" element={<Forecast />} />

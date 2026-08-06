@@ -1,7 +1,7 @@
 import React from "react";
 import { Outlet, Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { LayoutDashboard, BookOpen, Timer, GraduationCap, BarChart3, ShieldCheck, CalendarDays } from "lucide-react";
+import { LayoutDashboard, BookOpen, Timer, GraduationCap, BarChart3, ShieldCheck, CalendarDays, ArrowLeft } from "lucide-react";
 import { percentToGpa } from "@/lib/eduGrading";
 import EduSplash from "@/components/edu/EduSplash";
 import ProfileWizard from "@/components/edu/ProfileWizard";
@@ -309,7 +309,8 @@ function EduShell({ children }) {
 
 export function HavenEduLogo({ to = "/" }) {
   return (
-    <Link to={to} className="flex items-center gap-2.5 shrink-0 group">
+    <Link to={to} title="Back to Haven Hub" className="flex items-center gap-2 shrink-0 group rounded-md px-1.5 -mx-1.5 py-1 hover:bg-white/5 transition-colors">
+      <ArrowLeft className="h-3.5 w-3.5 text-white/40 group-hover:text-emerald-300 transition-colors" strokeWidth={2} />
       <div className="flex items-center justify-center rounded-xl border border-emerald-400/30 bg-emerald-500/10 transition-colors group-hover:border-emerald-400/50" style={{ height: 30, width: 30 }}>
         <GraduationCap className="text-emerald-400" style={{ height: 16, width: 16 }} />
       </div>

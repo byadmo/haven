@@ -2,16 +2,19 @@ import React, { useLayoutEffect, useRef, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   Home,
+  Target,
   PiggyBank,
   Ellipsis,
+  ArrowLeftRight,
+  Wallet,
+  CreditCard,
+  Settings as SettingsIcon,
   LineChart,
   PieChart,
   Sparkles,
-  Wallet,
   Gauge,
   Activity,
   Briefcase,
-  Settings as SettingsIcon,
   ShieldCheck,
 } from "lucide-react";
 import {
@@ -23,18 +26,22 @@ import {
 
 const primary = [
   { to: "/overview", label: "Overview", icon: Home, end: true },
-  { to: "/budgeting", label: "Goals", icon: PiggyBank },
+  { to: "/goals", label: "Goals", icon: Target },
+  { to: "/accounts", label: "Accounts", icon: Wallet },
+  { to: "/transactions", label: "Transactions", icon: ArrowLeftRight },
 ];
 
 const secondary = [
-  { to: "/", label: "Haven Hub", icon: ShieldCheck },
+  { to: "/debts", label: "Debts", icon: CreditCard },
+  { to: "/budgeting", label: "Budgets", icon: PiggyBank },
+  { to: "/settings", label: "Settings", icon: SettingsIcon },
   { to: "/insights", label: "Insights", icon: PieChart },
   { to: "/cashflow", label: "Cash Flow", icon: Activity },
   { to: "/portfolio", label: "Portfolio", icon: Briefcase },
   { to: "/forecast", label: "Forecast", icon: LineChart },
   { to: "/credit-utilization", label: "Credit Util.", icon: Gauge },
   { to: "/assistant", label: "Ask Wei", icon: Sparkles },
-  { to: "/settings", label: "Settings", icon: SettingsIcon },
+  { to: "/", label: "Haven Hub", icon: ShieldCheck },
 ];
 
 const isItemActive = (to, end, pathname) =>

@@ -4,36 +4,43 @@ import {
   ShieldCheck,
   Settings as SettingsIcon,
   LayoutDashboard,
+  Target,
+  PiggyBank,
+  Wallet,
+  ArrowLeft,
+  ArrowLeftRight,
+  CreditCard,
   PieChart,
   TrendingUp,
   Gauge,
   Sparkles,
-  PiggyBank,
   Activity,
   Briefcase,
-  Wallet,
 } from "lucide-react";
 import CommandPalette from "@/components/finance/CommandPalette";
 import BackupModal from "@/components/finance/BackupModal";
 import MobileNav from "@/components/finance/MobileNav";
 import NavDropdown from "@/components/finance/NavDropdown";
 
-// PRIMARY — shown directly in the top nav.
+// PRIMARY — shown directly in the top nav and bottom pill.
 const primary = [
   { to: "/overview", label: "Overview", icon: LayoutDashboard, end: true },
-  { to: "/budgeting", label: "Goals", icon: PiggyBank },
+  { to: "/goals", label: "Goals", icon: Target },
+  { to: "/accounts", label: "Accounts", icon: Wallet },
+  { to: "/transactions", label: "Transactions", icon: ArrowLeftRight },
 ];
 
 // SECONDARY — grouped under the "More" dropdown.
 const moreItems = [
-  { to: "/accounts", label: "Accounts", icon: Wallet },
+  { to: "/debts", label: "Debts", icon: CreditCard },
+  { to: "/budgeting", label: "Budgets", icon: PiggyBank },
+  { to: "/settings", label: "Settings", icon: SettingsIcon },
   { to: "/insights", label: "Insights", icon: PieChart },
   { to: "/cashflow", label: "Cash Flow", icon: Activity },
   { to: "/portfolio", label: "Portfolio", icon: Briefcase },
   { to: "/forecast", label: "Forecast", icon: TrendingUp },
   { to: "/credit-utilization", label: "Credit Utilization", icon: Gauge },
   { to: "/assistant", label: "Ask Wei", icon: Sparkles },
-  { to: "/settings", label: "Settings", icon: SettingsIcon },
   { to: "/", label: "Haven Hub", icon: ShieldCheck, end: true },
 ];
 
@@ -64,9 +71,10 @@ export default function DashboardHeader({ actions }) {
         style={{ paddingTop: "env(safe-area-inset-top)" }}
       >
         <div className="max-w-6xl mx-auto px-6 sm:px-8 h-16 flex items-center gap-3">
-          <Link to="/overview" className="flex items-center gap-2.5 shrink-0">
+          <Link to="/" title="Back to Haven Hub" className="flex items-center gap-2 shrink-0 group rounded-md px-1.5 -mx-1.5 py-1 hover:bg-white/5 transition-colors">
+            <ArrowLeft className="h-3.5 w-3.5 text-white/40 group-hover:text-emerald-300 transition-colors" strokeWidth={2} />
             <div
-              className="flex items-center justify-center rounded-xl border border-emerald-400/30 bg-emerald-500/10"
+              className="flex items-center justify-center rounded-xl border border-emerald-400/30 bg-emerald-500/10 group-hover:border-emerald-400/50 transition-colors"
               style={{ height: 30, width: 30 }}
             >
               <ShieldCheck className="text-emerald-400" style={{ height: 16, width: 16 }} />
