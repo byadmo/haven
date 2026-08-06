@@ -7,6 +7,26 @@ import {
 } from "@/lib/netWorth";
 
 /**
+ * Live investment market value: uses a live price when available, else falls
+ * back to avg_buy_price (cost basis). Returns { total, isLive }.
+ */
+function investmentMarketValue(stocks = [], prices = {}) {
+  let total = 0;
+  let liveUsed = 0;
+  for (const s of stocks || []) {
+    const px = prices[s.symbol];
+    const sh = s.shares || 0;
+    if (typeof px === "number") {
+      total += px * sh;
+      liveUsed += 1;
+    } else {
+      total += (s.avg_buy_price || 0) * sh;
+    }
+  }
+  return { total, isLive: (stocks || []).length > 0 && liveUsed > 0 };
+}
+
+/**
  * Pure, synchronous analytics engine — the SINGLE SOURCE OF TRUTH for every
  * derived financial metric in Haven. Given the raw entity arrays, it returns
  * all computed metrics. No fetching, no async; callers memoize over entity
@@ -21,13 +41,18 @@ export function computeAnalytics({
   transactions = [],
   debts = [],
   stocks = [],
+  stockPrices = {},
 } = {}) {
   // ── Balance & Net Worth ───────────────────────────────────────────────
   const totalCash = sumAccounts(accounts);
   const activeDebts = activeLiabilities(debts); // deduped + active only
   const totalDebt = activeDebts.reduce((s, d) => s + (d.current_balance || 0), 0);
   const portfolioCostBasis = stockCostBasis(stocks);
-  const netWorth = totalCash + portfolioCostBasis - totalDebt;
+  // Net worth uses LIVE investment market value when prices are available,
+  // so every net-worth display in the app agrees on one number.
+  const { total: investmentsMarketValue, isLive: investmentsIsLive } =
+    investmentMarketValue(stocks, stockPrices);
+  const netWorth = totalCash + investmentsMarketValue - totalDebt;
 
   // ── Income & Expense (current calendar month) ───────────────────────
   const now = new Date();
@@ -148,6 +173,8 @@ export function computeAnalytics({
     totalCash,
     totalDebt,
     portfolioCostBasis,
+    investmentsMarketValue,
+    investmentsIsLive,
     netWorth,
     currentMonthIncome,
     currentMonthExpenses,

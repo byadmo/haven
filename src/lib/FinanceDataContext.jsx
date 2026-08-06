@@ -3,6 +3,7 @@ import { Outlet } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { CurrencyProvider } from "@/lib/currency-context";
 import { computeAnalytics } from "@/lib/financeAnalytics";
+import { fetchLivePrices } from "@/lib/netWorth";
 
 const FinanceDataContext = React.createContext(null);
 
@@ -19,6 +20,7 @@ export function FinanceDataProvider({ children }) {
   });
   const [loading, setLoading] = React.useState(true);
   const [refreshKey, setRefreshKey] = React.useState(0);
+  const [stockPrices, setStockPrices] = React.useState({});
 
   const refresh = React.useCallback(() => {
     setRefreshKey((k) => k + 1);
@@ -43,6 +45,16 @@ export function FinanceDataProvider({ children }) {
     return () => { cancelled = true; };
   }, [refreshKey]);
 
+  // Live stock prices — fetched once per refresh and threaded into the
+  // analytics engine so net worth uses market value (not just cost basis).
+  React.useEffect(() => {
+    let cancelled = false;
+    fetchLivePrices(data.stocks).then((p) => {
+      if (!cancelled) setStockPrices(p);
+    });
+    return () => { cancelled = true; };
+  }, [data.stocks, refreshKey]);
+
   // Single source of truth — every derived metric is computed here and
   // consumed across the app via useFinanceData(). No page should recompute
   // net worth, debt totals, or any metric independently.
@@ -53,8 +65,9 @@ export function FinanceDataProvider({ children }) {
         transactions: data.transactions,
         debts: data.debts,
         stocks: data.stocks,
+        stockPrices,
       }),
-    [data.accounts, data.transactions, data.debts, data.stocks]
+    [data.accounts, data.transactions, data.debts, data.stocks, stockPrices]
   );
 
   const value = {
