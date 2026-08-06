@@ -192,13 +192,26 @@ function FlowRow({ t, onChanged, accountsMap }) {
   );
 }
 
-export default function FundFlows({ transactions, onChanged, accounts = [] }) {
+export default function FundFlows({ transactions, onChanged, accounts = [], limit = 12, enableViewAll = false }) {
+  const [showAllIn, setShowAllIn] = React.useState(false);
+  const [showAllOut, setShowAllOut] = React.useState(false);
   const accountsMap = React.useMemo(
     () => Object.fromEntries(accounts.map((a) => [a.id, a])),
     [accounts]
   );
   const inflows = transactions.filter((t) => t.type === "income");
   const outflows = transactions.filter((t) => t.type === "expense").sort((a, b) => (a.is_scheduled === b.is_scheduled ? 0 : a.is_scheduled ? -1 : 1));
+  const shownIn = showAllIn ? inflows : inflows.slice(0, limit);
+  const shownOut = showAllOut ? outflows : outflows.slice(0, limit);
+  const viewAllBtn = (open, setOpen, count) =>
+    enableViewAll && count > limit ? (
+      <button
+        onClick={() => setOpen(!open)}
+        className="mt-2 text-[11px] uppercase tracking-wider text-white/40 hover:text-white transition-colors"
+      >
+        {open ? "Show less" : `View all (${count})`}
+      </button>
+    ) : null;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
@@ -210,7 +223,10 @@ export default function FundFlows({ transactions, onChanged, accounts = [] }) {
         {inflows.length === 0 ? (
           <p className="text-sm text-zinc-500 text-center py-8">No inflows logged.</p>
         ) : (
-          <div>{inflows.slice(0, 12).map((t) => <FlowRow key={t.id} t={t} onChanged={onChanged} accountsMap={accountsMap} />)}</div>
+          <>
+            <div>{shownIn.map((t) => <FlowRow key={t.id} t={t} onChanged={onChanged} accountsMap={accountsMap} />)}</div>
+            {viewAllBtn(showAllIn, setShowAllIn, inflows.length)}
+          </>
         )}
       </div>
 
@@ -222,7 +238,10 @@ export default function FundFlows({ transactions, onChanged, accounts = [] }) {
         {outflows.length === 0 ? (
           <p className="text-sm text-zinc-500 text-center py-8">No outflows logged.</p>
         ) : (
-          <div>{outflows.slice(0, 12).map((t) => <FlowRow key={t.id} t={t} onChanged={onChanged} accountsMap={accountsMap} />)}</div>
+          <>
+            <div>{shownOut.map((t) => <FlowRow key={t.id} t={t} onChanged={onChanged} accountsMap={accountsMap} />)}</div>
+            {viewAllBtn(showAllOut, setShowAllOut, outflows.length)}
+          </>
         )}
       </div>
     </div>
