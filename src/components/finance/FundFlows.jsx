@@ -193,25 +193,46 @@ function FlowRow({ t, onChanged, accountsMap }) {
 }
 
 export default function FundFlows({ transactions, onChanged, accounts = [], limit = 12, enableViewAll = false }) {
-  const [showAllIn, setShowAllIn] = React.useState(false);
-  const [showAllOut, setShowAllOut] = React.useState(false);
+  const [openIn, setOpenIn] = React.useState(false);
+  const [openOut, setOpenOut] = React.useState(false);
   const accountsMap = React.useMemo(
     () => Object.fromEntries(accounts.map((a) => [a.id, a])),
     [accounts]
   );
   const inflows = transactions.filter((t) => t.type === "income");
   const outflows = transactions.filter((t) => t.type === "expense").sort((a, b) => (a.is_scheduled === b.is_scheduled ? 0 : a.is_scheduled ? -1 : 1));
-  const shownIn = showAllIn ? inflows : inflows.slice(0, limit);
-  const shownOut = showAllOut ? outflows : outflows.slice(0, limit);
-  const viewAllBtn = (open, setOpen, count) =>
+  const shownIn = inflows.slice(0, limit);
+  const shownOut = outflows.slice(0, limit);
+
+  const viewAllBtn = (setOpen, count) =>
     enableViewAll && count > limit ? (
       <button
-        onClick={() => setOpen(!open)}
+        onClick={() => setOpen(true)}
         className="mt-2 text-[11px] uppercase tracking-wider text-white/40 hover:text-white transition-colors"
       >
-        {open ? "Show less" : `View all (${count})`}
+        View all ({count})
       </button>
     ) : null;
+
+  const renderAllDialog = (open, setOpen, title, badgeClass, rows) => (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent className="bg-zinc-900 border-zinc-800 text-zinc-100 max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-zinc-100">
+            {title}
+            <span className={`text-[10px] px-2 py-0.5 rounded-md font-medium uppercase tracking-wider ${badgeClass}`}>
+              {rows.length} entries
+            </span>
+          </DialogTitle>
+        </DialogHeader>
+        <div className="max-h-[60vh] overflow-y-auto -mx-1 px-1">
+          {rows.map((t) => (
+            <FlowRow key={t.id} t={t} onChanged={onChanged} accountsMap={accountsMap} />
+          ))}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
@@ -225,7 +246,7 @@ export default function FundFlows({ transactions, onChanged, accounts = [], limi
         ) : (
           <>
             <div>{shownIn.map((t) => <FlowRow key={t.id} t={t} onChanged={onChanged} accountsMap={accountsMap} />)}</div>
-            {viewAllBtn(showAllIn, setShowAllIn, inflows.length)}
+            {viewAllBtn(setOpenIn, inflows.length)}
           </>
         )}
       </div>
@@ -240,10 +261,13 @@ export default function FundFlows({ transactions, onChanged, accounts = [], limi
         ) : (
           <>
             <div>{shownOut.map((t) => <FlowRow key={t.id} t={t} onChanged={onChanged} accountsMap={accountsMap} />)}</div>
-            {viewAllBtn(showAllOut, setShowAllOut, outflows.length)}
+            {viewAllBtn(setOpenOut, outflows.length)}
           </>
         )}
       </div>
+
+      {renderAllDialog(openIn, setOpenIn, "Inflows", "bg-emerald-500/15 text-emerald-300", inflows)}
+      {renderAllDialog(openOut, setOpenOut, "Outflows", "bg-rose-500/15 text-rose-300", outflows)}
     </div>
   );
 }

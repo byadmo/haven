@@ -1,5 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { base44 } from "@/api/base44Client";
+import React, { useMemo, useState } from "react";
 import {
   startOfWeek,
   endOfWeek,
@@ -9,46 +8,107 @@ import {
   isSameMonth,
   isToday,
   format,
+  parseISO,
+  addDays,
+  addMonths,
+  addYears,
 } from "date-fns";
-import { Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useFinanceData } from "@/lib/FinanceDataContext";
+import { getRecurring, normalizeDesc } from "@/lib/recurring";
 import { useCurrency } from "@/lib/currency-context";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const cfmt = (v) => "$" + Math.round(v || 0).toLocaleString();
 
-// Monthly calendar of projected income/expense per day, with a running
-// balance label. Data comes from the `getCashFlowCalendar` backend function
-// (starting balance + per-day totals + crunch-day flag).
+// Roll a date forward/backward by one recurrence interval.
+function stepBy(date, frequency, n) {
+  if (frequency === "weekly") return addDays(date, 7 * n);
+  if (frequency === "biweekly") return addDays(date, 14 * n);
+  if (frequency === "monthly") return addMonths(date, n);
+  if (frequency === "yearly") return addYears(date, n);
+  return addDays(date, 30 * n);
+}
+
+// Enumerate a recurring pattern's occurrences that fall in [start, end],
+// by walking the regular cadence both directions from the last known date.
+function occurrencesInWindow(pattern, start, end) {
+  const base = parseISO(pattern.last_date);
+  const out = [];
+  let cur = base;
+  let guard = 0;
+  while (cur <= end && guard < 5000) {
+    if (cur >= start) out.push(format(cur, "yyyy-MM-dd"));
+    cur = stepBy(cur, pattern.frequency, 1);
+    guard++;
+  }
+  cur = stepBy(base, pattern.frequency, -1);
+  guard = 0;
+  while (cur >= start && guard < 5000) {
+    if (cur <= end) out.push(format(cur, "yyyy-MM-dd"));
+    cur = stepBy(cur, pattern.frequency, -1);
+    guard++;
+  }
+  return out;
+}
+
+// Monthly calendar of projected income/expense per day. Fully client-side so
+// the month is freely navigable and recurring income (payroll, etc.) is
+// projected onto the days it actually lands — not just literal tx dates.
 export default function CashFlowCalendar() {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { transactions, debts, accounts } = useFinanceData();
   const { fmtMoney } = useCurrency();
-  const anchor = new Date();
+  const [anchor, setAnchor] = useState(new Date());
 
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    base44.functions
-      .invoke("getCashFlowCalendar", {})
-      .then((res) => {
-        if (!cancelled) setData(res?.data ?? res);
-      })
-      .catch(() => {})
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
+  const starting = useMemo(
+    () => accounts.reduce((s, a) => s + (a.balance || 0), 0),
+    [accounts]
+  );
+
+  const recurring = useMemo(() => getRecurring(transactions), [transactions]);
+  const recurringKeys = useMemo(() => new Set(recurring.map((r) => r.normalized)), [recurring]);
+
+  const monthMap = useMemo(() => {
+    const start = startOfMonth(anchor);
+    const end = endOfMonth(anchor);
+    const startKey = format(start, "yyyy-MM-dd");
+    const endKey = format(end, "yyyy-MM-dd");
+    const map = {};
+    const add = (key, type, amt) => {
+      if (!key) return;
+      if (!map[key]) map[key] = { income: 0, expense: 0 };
+      const bucket = type === "income" ? "income" : "expense";
+      map[key][bucket] += Math.abs(amt || 0);
     };
-  }, []);
 
-  const byDate = useMemo(() => {
-    const m = {};
-    (data?.days || []).forEach((d) => {
-      m[d.date] = d;
-    });
-    return m;
-  }, [data]);
+    // 1) Projected recurring occurrences (income + expenses) onto their days.
+    for (const p of recurring) {
+      for (const key of occurrencesInWindow(p, start, end)) {
+        add(key, p.type, p.average_amount);
+      }
+    }
+
+    // 2) One-time (non-recurring) transactions whose date lands in this month.
+    for (const t of transactions) {
+      if (!t.date || t.date < startKey || t.date > endKey) continue;
+      const key = `${t.type || "expense"}::${normalizeDesc(t.description)}`;
+      if (recurringKeys.has(key)) continue; // already counted via projection
+      add(t.date, t.type, t.amount);
+    }
+
+    // 3) Upcoming minimum debt payments due this month.
+    for (const d of debts || []) {
+      if (d.status === "paid_off" || !d.due_date || !d.minimum_payment) continue;
+      if (d.due_date < startKey || d.due_date > endKey) continue;
+      add(d.due_date, "expense", d.minimum_payment);
+    }
+
+    for (const k in map) {
+      map[k].income = Math.round(map[k].income * 100) / 100;
+      map[k].expense = Math.round(map[k].expense * 100) / 100;
+    }
+    return map;
+  }, [transactions, recurring, recurringKeys, debts, anchor]);
 
   const grid = useMemo(
     () =>
@@ -56,12 +116,10 @@ export default function CashFlowCalendar() {
         start: startOfWeek(startOfMonth(anchor), { weekStartsOn: 0 }),
         end: endOfWeek(endOfMonth(anchor), { weekStartsOn: 0 }),
       }),
-    // anchor is "now" — recompute only on mount.
-     
-    []
+    [anchor]
   );
 
-  const starting = data?.starting_balance ?? 0;
+  const isCurrentMonth = isSameMonth(anchor, new Date());
 
   return (
     <div className="rounded-2xl border border-white/10 bg-black p-5">
@@ -70,54 +128,83 @@ export default function CashFlowCalendar() {
           <h2 className="text-[11px] uppercase tracking-widest text-white/50">Cash Flow Calendar</h2>
           <p className="text-xs text-white/40 mt-1 tabular-nums">Starting balance {fmtMoney(starting)}</p>
         </div>
-        <div className="flex items-center gap-3 text-[10px] text-white/40">
-          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-500" />Income</span>
-          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-rose-500" />Expense</span>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 text-[10px] text-white/40 mr-1">
+            <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-500" />Income</span>
+            <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-rose-500" />Expense</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setAnchor((d) => addMonths(d, -1))}
+              className="h-7 w-7 grid place-items-center rounded-md border border-white/10 bg-white/[0.03] text-white/60 hover:text-white hover:border-white/25 transition-colors"
+              aria-label="Previous month"
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+            </button>
+            <span className="text-xs text-white/70 tabular-nums min-w-[7rem] text-center">
+              {format(anchor, "MMMM yyyy")}
+            </span>
+            <button
+              onClick={() => setAnchor((d) => addMonths(d, 1))}
+              className="h-7 w-7 grid place-items-center rounded-md border border-white/10 bg-white/[0.03] text-white/60 hover:text-white hover:border-white/25 transition-colors"
+              aria-label="Next month"
+            >
+              <ChevronRight className="h-3.5 w-3.5" />
+            </button>
+            {!isCurrentMonth && (
+              <button
+                onClick={() => setAnchor(new Date())}
+                className="ml-1 text-[10px] uppercase tracking-wider text-white/40 hover:text-white px-2 py-1 rounded-md border border-white/10 transition-colors"
+              >
+                Today
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
-      {loading ? (
-        <div className="flex items-center justify-center py-10">
-          <Loader2 className="h-4 w-4 animate-spin text-white/30" />
+      <div className="border-l border-t border-white/10 rounded-lg overflow-hidden">
+        <div className="grid grid-cols-7">
+          {WEEKDAYS.map((d) => (
+            <div
+              key={d}
+              className="border-r border-b border-white/10 px-2 py-1.5 text-[10px] uppercase tracking-wider text-white/40"
+            >
+              {d}
+            </div>
+          ))}
         </div>
-      ) : (
-        <div className="border-l border-t border-white/10 rounded-lg overflow-hidden">
-          <div className="grid grid-cols-7">
-            {WEEKDAYS.map((d) => (
-              <div key={d} className="border-r border-b border-white/10 px-2 py-1.5 text-[10px] uppercase tracking-wider text-white/40">
-                {d}
-              </div>
-            ))}
-          </div>
-          <div className="grid grid-cols-7">
-            {grid.map((day) => {
-              const key = format(day, "yyyy-MM-dd");
-              const row = byDate[key];
-              const inMonth = isSameMonth(day, anchor);
-              const today = isToday(day);
-              const crunch = row?.is_crunch_day;
-              return (
-                <div
-                  key={key}
-                  className={`relative border-r border-b border-white/10 min-h-[68px] p-1.5 flex flex-col gap-0.5 ${
-                    inMonth ? "" : "opacity-25"
-                  } ${today ? "bg-white/[0.04]" : ""} ${crunch ? "ring-1 ring-inset ring-rose-500/40" : ""}`}
-                >
-                  <span className={`text-[10px] tabular-nums ${today ? "text-emerald-300 font-semibold" : "text-white/40"}`}>
-                    {format(day, "d")}
+        <div className="grid grid-cols-7">
+          {grid.map((day) => {
+            const key = format(day, "yyyy-MM-dd");
+            const row = monthMap[key];
+            const inMonth = isSameMonth(day, anchor);
+            const today = isToday(day);
+            return (
+              <div
+                key={key}
+                className={`relative border-r border-b border-white/10 min-h-[68px] p-1.5 flex flex-col gap-0.5 ${
+                  inMonth ? "" : "opacity-25"
+                } ${today ? "bg-white/[0.04]" : ""}`}
+              >
+                <span className={`text-[10px] tabular-nums ${today ? "text-emerald-300 font-semibold" : "text-white/40"}`}>
+                  {format(day, "d")}
+                </span>
+                {row?.income > 0 && (
+                  <span className="text-[10px] text-emerald-400 tabular-nums leading-tight">
+                    +{cfmt(row.income)}
                   </span>
-                  {row?.income > 0 && (
-                    <span className="text-[10px] text-emerald-400 tabular-nums leading-tight">+{cfmt(row.income)}</span>
-                  )}
-                  {row?.expenses > 0 && (
-                    <span className="text-[10px] text-rose-400 tabular-nums leading-tight">-{cfmt(row.expenses)}</span>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+                )}
+                {row?.expense > 0 && (
+                  <span className="text-[10px] text-rose-400 tabular-nums leading-tight">
+                    -{cfmt(row.expense)}
+                  </span>
+                )}
+              </div>
+            );
+          })}
         </div>
-      )}
+      </div>
     </div>
   );
 }
