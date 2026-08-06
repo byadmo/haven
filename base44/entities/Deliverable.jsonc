@@ -4,7 +4,7 @@
   "properties": {
     "course_id": {
       "type": "string",
-      "description": "The Course this deliverable belongs to"
+      "description": "The Course this deliverable belongs to (null for a free/no-course task)"
     },
     "title": {
       "type": "string"
@@ -13,6 +13,10 @@
       "type": "string",
       "format": "date"
     },
+    "due_time": {
+      "type": "string",
+      "description": "Optional time portion for a scheduled task (HH:MM 24h). Stored separately from due_date so the date picker stays a pure date."
+    },
     "weight": {
       "type": "number",
       "default": 0,
@@ -20,17 +24,8 @@
     },
     "type": {
       "type": "string",
-      "enum": [
-        "assignment",
-        "exam",
-        "quiz",
-        "project",
-        "midterm",
-        "final",
-        "lab",
-        "other"
-      ],
-      "default": "assignment"
+      "default": "other",
+      "description": "Task type label \u2014 free-form string so it accepts the same task types used in Settings (Reading, Studying, Homework, Project, Exam Prep, ...). Legacy values (assignment, quiz, midterm, exam, project, lab, other) still valid."
     },
     "status": {
       "type": "string",

@@ -140,21 +140,25 @@ export default function ProfileWizard({ open, onOpenChange, onCompleted }) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg bg-black border-white/10 max-h-[90vh] overflow-y-auto">
-        <DialogTitle className="text-base font-semibold text-zinc-50 flex items-center gap-2">
-          <GraduationCap className="h-4 w-4 text-emerald-400" /> Complete Your Profile
-        </DialogTitle>
-
-        <div className="flex items-center gap-1.5 mb-3 mt-2">
-          {Array.from({ length: 6 }, (_, i) => i + 1).map((n) => (
-            <div key={n} className={`h-1.5 flex-1 rounded-full transition-colors ${n <= step ? "bg-emerald-500" : "bg-white/10"}`} />
-          ))}
+      <DialogContent className="max-w-lg bg-black border-white/10 p-0 overflow-hidden flex flex-col h-[85vh] max-h-[660px]">
+        {/* Fixed header — same height on every step */}
+        <div className="p-5 sm:p-6 pb-3 shrink-0">
+          <DialogTitle className="text-base font-semibold text-zinc-50 flex items-center gap-2">
+            <GraduationCap className="h-4 w-4 text-emerald-400" /> Complete Your Profile
+          </DialogTitle>
+          <div className="flex items-center gap-1.5 mb-3 mt-3">
+            {Array.from({ length: 6 }, (_, i) => i + 1).map((n) => (
+              <div key={n} className={`h-1.5 flex-1 rounded-full transition-colors ${n <= step ? "bg-emerald-500" : "bg-white/10"}`} />
+            ))}
+          </div>
+          <div className="flex items-center gap-2">
+            <Icon className="h-3.5 w-3.5 text-emerald-300" />
+            <p className="text-[10px] uppercase tracking-widest text-white/40">Step {step} of 6</p>
+          </div>
         </div>
-        <div className="flex items-center gap-2 mb-4">
-          <Icon className="h-3.5 w-3.5 text-emerald-300" />
-          <p className="text-[10px] uppercase tracking-widest text-white/40">Step {step} of 6</p>
-        </div>
 
+        {/* Scrollable step content — bounded so every step occupies the same box */}
+        <div className="flex-1 overflow-y-auto px-5 sm:px-6 py-2 min-h-0">
         {/* STEP 1 */}
         {step === 1 && (
           <div className="space-y-3">
@@ -335,20 +339,24 @@ export default function ProfileWizard({ open, onOpenChange, onCompleted }) {
           </div>
         )}
 
-        {/* Footer */}
-        <div className="flex items-center justify-between pt-3 border-t border-white/5">
-          <Button variant="ghost" onClick={back} disabled={step === 1} className="text-white/60 hover:text-white">
-            <ChevronLeft className="h-4 w-4 mr-1" /> Back
-          </Button>
-          {step < 6 ? (
-            <Button onClick={next} className="bg-emerald-500 text-black hover:bg-emerald-400">
-              {step === 1 && !form.edu_email ? "Skip for now — complete later in Settings" : "Next"} <ChevronRight className="h-4 w-4 ml-1" />
+        </div>
+
+        {/* Fixed footer — pinned below the scroll area on every step */}
+        <div className="shrink-0 p-5 sm:p-6 pt-3 border-t border-white/5">
+          <div className="flex items-center justify-between">
+            <Button variant="ghost" onClick={back} disabled={step === 1} className="text-white/60 hover:text-white">
+              <ChevronLeft className="h-4 w-4 mr-1" /> Back
             </Button>
-          ) : (
-            <Button onClick={finish} className="bg-emerald-500 text-black hover:bg-emerald-400">
-              <Check className="h-4 w-4 mr-1" /> Complete Setup
-            </Button>
-          )}
+            {step < 6 ? (
+              <Button onClick={next} className="bg-emerald-500 text-black hover:bg-emerald-400">
+                {step === 1 && !form.edu_email ? "Skip for now — complete later in Settings" : "Next"} <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            ) : (
+              <Button onClick={finish} className="bg-emerald-500 text-black hover:bg-emerald-400">
+                <Check className="h-4 w-4 mr-1" /> Complete Setup
+              </Button>
+            )}
+          </div>
         </div>
       </DialogContent>
     </Dialog>

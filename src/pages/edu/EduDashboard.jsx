@@ -7,6 +7,8 @@ import SemesterDetectModal from "@/components/edu/SemesterDetectModal";
 import PageTitle from "@/components/finance/PageTitle";
 import Reveal from "@/components/finance/Reveal";
 import EduAssistant from "@/components/edu/EduAssistant";
+import ProductivityCompare from "@/components/edu/ProductivityCompare";
+import ScheduleTaskModal from "@/components/edu/ScheduleTaskModal";
 import { Button } from "@/components/ui/button";
 import { useEduSync, detectTerm } from "@/lib/eduSyncContext";
 import { daysFromNow, badgeColor } from "@/components/edu/CourseCard";
@@ -32,6 +34,7 @@ export default function EduDashboard() {
   const { activeSemester, courses, deliverables, focuses, streak, weeklyMinutes, settings, createSemester } = useEduSync();
   const [detectOpen, setDetectOpen] = React.useState(false);
   const [taskOpen, setTaskOpen] = React.useState(false);
+  const [editTask, setEditTask] = React.useState(null);
   const detected = React.useMemo(() => detectTerm(), []);
 
   React.useEffect(() => {
@@ -99,13 +102,13 @@ export default function EduDashboard() {
                       const c = courseById[d.course_id];
                       const days = daysFromNow(d.due_date);
                       return (
-                        <div key={d.id} className="flex items-center justify-between gap-3 py-2 border-b border-white/5 last:border-0">
+                        <button key={d.id} onClick={() => setEditTask(d)} className="w-full text-left flex items-center justify-between gap-3 py-2 border-b border-white/5 last:border-0 hover:bg-white/5 rounded px-1 -mx-1 transition-colors">
                           <div className="min-w-0">
                             <p className="text-sm text-zinc-100 truncate">{d.title}</p>
                             <p className="text-[10px] uppercase tracking-widest text-white/40 font-mono">{c?.code} · {d.due_date} · {d.type}</p>
                           </div>
                           <span className={`shrink-0 text-[10px] px-1.5 py-0.5 border font-mono tabular-nums ${badgeColor(days)}`}>{days}d</span>
-                        </div>
+                        </button>
                       );
                     })}
                   </div>
@@ -171,6 +174,10 @@ export default function EduDashboard() {
             </Reveal>
 
             <Reveal delay={0.04}>
+              <ProductivityCompare />
+            </Reveal>
+
+            <Reveal delay={0.05}>
               <div className="rounded-lg border border-white/10 bg-black p-5">
                 <p className="text-[10px] uppercase tracking-widest text-white/50 mb-3">Quick Stats</p>
                 <div className="grid grid-cols-2 gap-3">
@@ -198,6 +205,11 @@ export default function EduDashboard() {
         onClose={() => setDetectOpen(false)}
       />
       <TaskFormModal open={taskOpen} onOpenChange={setTaskOpen} defaultDate={today} />
+      <ScheduleTaskModal
+        open={!!editTask}
+        onOpenChange={(o) => { if (!o) setEditTask(null); }}
+        deliverable={editTask || undefined}
+      />
     </>
   );
 }

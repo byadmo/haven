@@ -38,6 +38,32 @@ export function upcomingTerms(now = new Date()) {
   return TERMS.map((t) => upcoming(t.type, now));
 }
 
+// Build a semester payload for a given term + year (start/end derived from the
+// TERM definitions above), independent of "is it current yet".
+const TERM_DATES = {
+  fall: TERMS[0], winter: TERMS[1], spring_summer: TERMS[2],
+};
+function mkTerm(type, year) {
+  const t = TERM_DATES[type];
+  const start = new Date(year, t.m0, t.d0);
+  const end = new Date(year, t.m1, t.d1);
+  return {
+    term_type: type,
+    term_label: `${t.label} ${year}`,
+    year,
+    start_date: start.toISOString().slice(0, 10),
+    end_date: end.toISOString().slice(0, 10),
+  };
+}
+
+// Sequential next semester following the Fall → Winter → Spring/Summer cycle.
+// Fall Y → Winter (Y+1); Winter Y → Spring/Summer Y; Spring/Summer Y → Fall Y.
+export function nextSemesterAfter(termType, year) {
+  if (termType === "fall") return mkTerm("winter", year + 1);
+  if (termType === "winter") return mkTerm("spring_summer", year);
+  return mkTerm("fall", year); // spring_summer → fall (same year)
+}
+
 export default function SemesterDetectModal({ open, detected, onConfirm, onClose }) {
   const [selected, setSelected] = React.useState(detected?.term_type || "fall");
   React.useEffect(() => { if (open) setSelected(detected?.term_type || "fall"); }, [open, detected]);

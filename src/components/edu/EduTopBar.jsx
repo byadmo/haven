@@ -1,14 +1,35 @@
 import React from "react";
-import { Link, NavLink } from "react-router-dom";
-import { Flame, ArrowLeftRight, Settings as SettingsIcon } from "lucide-react";
+import { NavLink } from "react-router-dom";
+import { Flame, Plus, Settings as SettingsIcon } from "lucide-react";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { EDU_NAV, HavenEduLogo, useEduSync } from "@/lib/eduSyncContext";
+import { nextSemesterAfter } from "@/components/edu/SemesterDetectModal";
+import { useToast } from "@/components/ui/use-toast";
+
+const ADD_SEMESTER = "__add_semester__";
 
 export default function EduTopBar() {
-  const { activeSemester, semesters, setActiveSemester, streak, settings } = useEduSync();
+  const { activeSemester, semesters, setActiveSemester, streak, settings, createSemester } = useEduSync();
+  const { toast } = useToast();
   const synced = !!settings?.google_synced;
+
+  async function addNextSemester() {
+    if (!semesters.length) return;
+    const sorted = [...semesters].sort((a, b) => (b.start_date || "").localeCompare(a.start_date || ""));
+    const latest = sorted[0];
+    if (!latest?.term_type) return;
+    const next = nextSemesterAfter(latest.term_type, latest.year || new Date(latest.start_date).getFullYear());
+    if (semesters.some((s) => s.term_label === next.term_label)) {
+      const existing = semesters.find((s) => s.term_label === next.term_label);
+      toast({ title: "This semester already exists" });
+      if (existing) setActiveSemester(existing.id);
+      return;
+    }
+    await createSemester({ ...next, is_active: true });
+    toast({ title: `Added ${next.term_label}` });
+  }
 
   return (
     <header className="sticky top-0 z-30 bg-black/90 backdrop-blur-md border-b border-white/10" style={{ paddingTop: "env(safe-area-inset-top)" }}>
@@ -37,14 +58,18 @@ export default function EduTopBar() {
         <div className="flex items-center gap-2 ml-auto">
           {/* Semester selector */}
           {semesters.length > 0 && (
-            <Select value={activeSemester?.id || ""} onValueChange={(v) => setActiveSemester(v)}>
-              <SelectTrigger className="hidden sm:flex h-8 w-[150px] bg-black border-white/10 text-xs">
+            <Select value={activeSemester?.id || ""} onValueChange={(v) => { if (v === ADD_SEMESTER) { addNextSemester(); return; } setActiveSemester(v); }}>
+              <SelectTrigger className="hidden sm:flex h-8 w-[160px] bg-black border-white/10 text-xs">
                 <SelectValue placeholder="Term" />
               </SelectTrigger>
               <SelectContent className="bg-black border-white/10">
                 {semesters.map((s) => (
                   <SelectItem key={s.id} value={s.id}>{s.term_label}</SelectItem>
                 ))}
+                <div className="my-1 h-px bg-white/10" />
+                <SelectItem value={ADD_SEMESTER} className="text-emerald-300">
+                  <span className="flex items-center gap-1.5"><Plus className="h-3 w-3" /> Add next semester</span>
+                </SelectItem>
               </SelectContent>
             </Select>
           )}
@@ -67,22 +92,13 @@ export default function EduTopBar() {
           </div>
 
           {/* Settings */}
-          <Link
+          <NavLink
             to="/education/settings"
             className="flex items-center gap-1.5 h-8 w-8 rounded-md border border-white/10 text-white/50 hover:text-white hover:border-white/30 hover:bg-white/5 transition-colors justify-center"
             aria-label="Settings"
           >
             <SettingsIcon className="h-4 w-4" />
-          </Link>
-
-          {/* Finance app link */}
-          <Link
-            to="/"
-            className="flex items-center gap-1.5 h-8 px-2.5 rounded-md border border-white/10 text-[10px] uppercase tracking-widest text-white/50 hover:text-white hover:border-white/30 transition-colors"
-          >
-            <ArrowLeftRight className="h-3 w-3" />
-            <span className="hidden sm:inline">Finance</span>
-          </Link>
+          </NavLink>
         </div>
       </div>
     </header>

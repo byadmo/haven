@@ -266,7 +266,12 @@ export function useEduSync() {
 export const useEduSyncData = useEduSync;
 
 export function EduLayout() {
-  const [showSplash, setShowSplash] = React.useState(true);
+  // Splash shows only on the first Education entry of the session (matches
+  // Haven Finance's sessionStorage-gated splash in Dashboard.jsx).
+  const [showSplash, setShowSplash] = React.useState(() => {
+    try { return sessionStorage.getItem("edu_splash_shown") !== "1"; } catch { return true; }
+  });
+  React.useEffect(() => { try { sessionStorage.setItem("edu_splash_shown", "1"); } catch {} }, []);
   const [showWizard, setShowWizard] = React.useState(() => isProfileAddressed() ? false : true);
   return (
     <EduSyncProvider>
