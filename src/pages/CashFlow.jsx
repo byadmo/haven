@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import DashboardHeader from "@/components/finance/DashboardHeader";
 import PageTitle from "@/components/finance/PageTitle";
 import Reveal from "@/components/finance/Reveal";
@@ -6,6 +6,7 @@ import CashFlowAnalytics from "@/components/finance/CashFlowAnalytics";
 import CashFlowChart from "@/components/finance/CashFlowChart";
 import FundFlows from "@/components/finance/FundFlows";
 import CashFlowCalendar from "@/components/finance/CashFlowCalendar";
+import CashFlowSnoInsights from "@/components/finance/CashFlowSnoInsights";
 import RecurringPanel from "@/components/finance/RecurringPanel";
 import VariableIncomePanel from "@/components/finance/VariableIncomePanel";
 import { useFinanceData } from "@/lib/FinanceDataContext";
@@ -14,6 +15,7 @@ import { ArrowLeft, Activity } from "lucide-react";
 
 export default function CashFlow() {
   const { transactions: txns, accounts, refresh, refreshKey } = useFinanceData();
+  const [anchor, setAnchor] = useState(new Date());
 
   return (
     <div className="dd-page-enter dark min-h-screen bg-black text-zinc-100 selection:bg-emerald-500/30">
@@ -27,7 +29,11 @@ export default function CashFlow() {
         </div>
 
         <Reveal>
-          <CashFlowCalendar />
+          <CashFlowCalendar anchor={anchor} onAnchorChange={setAnchor} />
+        </Reveal>
+
+        <Reveal>
+          <CashFlowSnoInsights anchor={anchor} />
         </Reveal>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

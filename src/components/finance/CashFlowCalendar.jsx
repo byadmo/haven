@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import {
   startOfWeek,
   endOfWeek,
@@ -55,10 +55,9 @@ function occurrencesInWindow(pattern, start, end) {
 // Monthly calendar of projected income/expense per day. Fully client-side so
 // the month is freely navigable and recurring income (payroll, etc.) is
 // projected onto the days it actually lands — not just literal tx dates.
-export default function CashFlowCalendar() {
+export default function CashFlowCalendar({ anchor, onAnchorChange }) {
   const { transactions, debts, accounts } = useFinanceData();
   const { fmtMoney } = useCurrency();
-  const [anchor, setAnchor] = useState(new Date());
 
   const starting = useMemo(
     () => accounts.reduce((s, a) => s + (a.balance || 0), 0),
@@ -143,7 +142,7 @@ export default function CashFlowCalendar() {
           </div>
           <div className="flex items-center gap-1">
             <button
-              onClick={() => setAnchor((d) => addMonths(d, -1))}
+              onClick={() => onAnchorChange(addMonths(anchor, -1))}
               className="h-7 w-7 grid place-items-center rounded-md border border-white/10 bg-white/[0.03] text-white/60 hover:text-white hover:border-white/25 transition-colors"
               aria-label="Previous month"
             >
@@ -153,7 +152,7 @@ export default function CashFlowCalendar() {
               {format(anchor, "MMMM yyyy")}
             </span>
             <button
-              onClick={() => setAnchor((d) => addMonths(d, 1))}
+              onClick={() => onAnchorChange(addMonths(anchor, 1))}
               className="h-7 w-7 grid place-items-center rounded-md border border-white/10 bg-white/[0.03] text-white/60 hover:text-white hover:border-white/25 transition-colors"
               aria-label="Next month"
             >
@@ -161,7 +160,7 @@ export default function CashFlowCalendar() {
             </button>
             {!isCurrentMonth && (
               <button
-                onClick={() => setAnchor(new Date())}
+                onClick={() => onAnchorChange(new Date())}
                 className="ml-1 text-[10px] uppercase tracking-wider text-white/40 hover:text-white px-2 py-1 rounded-md border border-white/10 transition-colors"
               >
                 Today
