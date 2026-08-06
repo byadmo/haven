@@ -14,9 +14,11 @@ export function isInterestOrFee(description) {
   return INTEREST_FEE_PATTERN.test(String(description || ""));
 }
 
-// Genuine upcoming bills: scheduled, meaningful amount, not an interest/fee.
+// Genuine upcoming bills: a scheduled EXPENSE, meaningful amount, not an
+// interest/fee. Scheduled income (e.g. Payroll Deposit) is NEVER a bill.
 export function isGenuineBill(t) {
   if (!t || !t.is_scheduled || !t.next_date) return false;
+  if ((t.type || "expense") !== "expense") return false;
   if (isInterestOrFee(t.description)) return false;
   if (!t.amount || Math.abs(t.amount) < MIN_BILL_AMOUNT) return false;
   return true;

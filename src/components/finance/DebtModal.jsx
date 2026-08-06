@@ -9,8 +9,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { adjustTransferInOut } from "@/lib/accounts";
 import { format } from "date-fns";
 import { ArrowRight } from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
 
 export default function DebtModal({ open, onOpenChange, accounts = [], onSaved }) {
+  const { toast } = useToast();
   const [name, setName] = React.useState("");
   const [currentBalance, setCurrentBalance] = React.useState("");
   const [originalBalance, setOriginalBalance] = React.useState("");
@@ -41,9 +43,17 @@ export default function DebtModal({ open, onOpenChange, accounts = [], onSaved }
   async function handleSubmit(e) {
     e.preventDefault();
     if (!name || !currentBalance) return;
+    const balance = parseFloat(currentBalance);
+    // B10 — prevent an exact duplicate liability (same name AND same balance).
+    try {
+      const existing = await base44.entities.Debt.list("-created_date").catch(() => []);
+      if (existing.some((d) => d.name.trim().toLowerCase() === name.trim().toLowerCase() && Math.abs((d.current_balance || 0) - balance) < 0.005)) {
+        toast({ title: "Liability already exists", description: `A liability named "${name.trim()}" with that balance already exists.`, variant: "destructive" });
+        return;
+      }
+    } catch {}
     setSaving(true);
     try {
-      const balance = parseFloat(currentBalance);
       await base44.entities.Debt.create({
         name,
         current_balance: balance,

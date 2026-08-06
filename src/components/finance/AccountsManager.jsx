@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/select";
 import { Plus, Trash2, Pencil, Check, X, Landmark, Eye, EyeOff, ScanLine, Briefcase, ArrowLeftRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useToast } from "@/components/ui/use-toast";
 import AccountBalanceImportModal from "@/components/finance/AccountBalanceImportModal";
 import TransferModal from "@/components/finance/TransferModal";
 import DebtModal from "@/components/finance/DebtModal";
@@ -27,6 +28,7 @@ const SectionHeader = ({ icon: Icon, children }) => (
 
 export default function AccountsManager({ onChanged }) {
   const { fmtMoney: fmt } = useCurrency();
+  const { toast } = useToast();
   const [accounts, setAccounts] = React.useState([]);
   const [stocks, setStocks] = React.useState([]);
   const [debts, setDebts] = React.useState([]);
@@ -81,6 +83,11 @@ export default function AccountsManager({ onChanged }) {
   async function create(e) {
     e.preventDefault();
     if (!name.trim()) return;
+    // B10 — prevent duplicate account names.
+    if (accounts.some((a) => a.name.trim().toLowerCase() === name.trim().toLowerCase())) {
+      toast({ title: "Account already exists", description: `An account named "${name.trim()}" already exists.`, variant: "destructive" });
+      return;
+    }
     setSaving(true);
     try {
       await base44.entities.Account.create({
@@ -220,9 +227,14 @@ export default function AccountsManager({ onChanged }) {
       ) : (
         <p className="text-sm font-semibold text-zinc-100 mb-1 truncate">{a.name}</p>
       )}
-      <p className="text-lg sm:text-xl font-bold font-mono tabular-nums tracking-tight text-emerald-400">
+      <p className={`text-lg sm:text-xl font-bold font-mono tabular-nums tracking-tight ${(a.balance || 0) < 0 ? "text-rose-400" : "text-emerald-400"}`}>
         {fmt(a.balance || 0)}
       </p>
+      {(a.balance || 0) < 0 && (
+        <p className="text-[10px] uppercase tracking-widest text-rose-400/90 font-medium mt-0.5 flex items-center gap-1">
+          <span className="inline-block h-1.5 w-1.5 rounded-full bg-rose-400" /> Overdrawn
+        </p>
+      )}
     </motion.div>
   );
 

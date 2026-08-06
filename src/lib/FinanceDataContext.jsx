@@ -4,10 +4,13 @@ import { base44 } from "@/api/base44Client";
 import { CurrencyProvider } from "@/lib/currency-context";
 import { computeAnalytics } from "@/lib/financeAnalytics";
 import { fetchLivePrices } from "@/lib/netWorth";
+import { computeCategoryUpdates } from "@/lib/categorizeAuto";
+import { useToast } from "@/components/ui/use-toast";
 
 const FinanceDataContext = React.createContext(null);
 
 export function FinanceDataProvider({ children }) {
+  const { toast } = useToast();
   const [data, setData] = React.useState({
     transactions: [],
     debts: [],
@@ -44,6 +47,32 @@ export function FinanceDataProvider({ children }) {
     });
     return () => { cancelled = true; };
   }, [refreshKey]);
+
+  // B1 — auto-categorize any transaction with an empty/null category on load.
+  // Persists once per batch and surfaces a toast. Once categorized the rows
+  // are no longer empty, so this won't re-run or double-write.
+  React.useEffect(() => {
+    if (!data.transactions.length) return;
+    let cancelled = false;
+    (async () => {
+      const updates = computeCategoryUpdates(data.transactions);
+      if (!updates.length) return;
+      try {
+        await base44.entities.Transaction.bulkUpdate(updates);
+        if (cancelled) return;
+        setData((prev) => ({
+          ...prev,
+          transactions: prev.transactions.map((t) => {
+            const u = updates.find((x) => x.id === t.id);
+            return u ? { ...t, category: u.category } : t;
+          }),
+        }));
+        toast({ title: `Auto-categorized ${updates.length} transaction${updates.length === 1 ? "" : "s"}` });
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.transactions.length]);
 
   // Live stock prices — fetched once per refresh and threaded into the
   // analytics engine so net worth uses market value (not just cost basis).
