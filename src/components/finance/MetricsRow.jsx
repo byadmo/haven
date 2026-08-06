@@ -19,7 +19,11 @@ export default function MetricsRow({ netWorth, income, expense, incomePct, expen
   const fc = useForecast();
   const { fmtMoney: fmt } = useCurrency();
   const fp = fc?.point;
-  if (fp) { netWorth = fp.netWorth; income = fp.income; }
+  // Only project when the playhead is in the FUTURE. At "today" (index 0)
+  // show the canonical net worth passed in — the trajectory baseline
+  // ignores investments, so using it at present would understate net worth
+  // and disagree with the other cards.
+  if (fp && fc?.isFuture) { netWorth = fp.netWorth; income = fp.income; }
   const isFuture = !!fc?.isFuture;
 
   const cards = [
