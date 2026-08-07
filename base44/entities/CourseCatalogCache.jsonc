@@ -1,0 +1,100 @@
+{
+  "name": "CourseCatalogCache",
+  "type": "object",
+  "properties": {
+    "cache_key": {
+      "type": "string",
+      "description": "Normalized 'university_name::faculty::degree_program' lookup key (lowercased, trimmed) used to find the shared cache record for a combo."
+    },
+    "university_name": {
+      "type": "string",
+      "description": "The Canadian university this catalog cache is for."
+    },
+    "faculty": {
+      "type": "string",
+      "description": "Faculty / school the cached degree program belongs to, e.g. 'Faculty of Engineering'."
+    },
+    "degree_program": {
+      "type": "string",
+      "description": "Degree program the cached courses belong to, e.g. 'Electrical Engineering'."
+    },
+    "calendar_source_url": {
+      "type": "string",
+      "description": "The exact undergraduate academic calendar / course listing URL that was parsed to build this cache."
+    },
+    "parsed_courses": {
+      "type": "array",
+      "description": "All courses parsed from the university's course catalog for this faculty + degree program.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "course_code": {
+            "type": "string"
+          },
+          "course_title": {
+            "type": "string"
+          },
+          "course_description": {
+            "type": "string"
+          },
+          "credits": {
+            "type": "number"
+          },
+          "prerequisites": {
+            "type": "string"
+          },
+          "department": {
+            "type": "string"
+          },
+          "difficulty_hints": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "course_code",
+          "course_title"
+        ]
+      }
+    },
+    "last_parsed_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp of the last successful parse of this catalog."
+    },
+    "parse_status": {
+      "type": "string",
+      "enum": [
+        "success",
+        "partial",
+        "failed"
+      ],
+      "description": "Outcome of the last parse: success (clean), partial (low confidence / some courses), failed (no courses extracted)."
+    },
+    "parse_notes": {
+      "type": "string",
+      "description": "Any issues encountered while parsing, e.g. 'could not find calendar page, used AI fallback'."
+    }
+  },
+  "required": [
+    "university_name",
+    "parse_status"
+  ],
+  "rls": {
+    "read": {},
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

@@ -325,3 +325,110 @@ export async function generateDifficultyDetails({ code, title, course_descriptio
     return { details: "", weekly_hours: null };
   }
 }
+
+// ===========================================================================
+// Cached course catalog (pre-fetched per university + faculty + degree program)
+// ===========================================================================
+
+// Normalized lookup key shared with the refreshCourseCatalog backend function.
+// The exact same normalization MUST run on both sides or cache reads miss.
+export function catalogCacheKey(university, faculty, degree_program) {
+  const norm = (s) => (s || "").toString().toLowerCase().trim();
+  const uniName = university?.university_name || university?.name || (typeof university === "string" ? university : "");
+  return [norm(uniName), norm(faculty), norm(degree_program)].join("::");
+}
+
+export function normalizeCode(code) {
+  return String(code || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+function difficultyFromHints(hints) {
+  const h = (hints || "").toLowerCase();
+  if (!h) return { ranking: "Moderate", reason: "" };
+  if (/(weeder|very hard|difficult|intensive|rigorous|heavy workload|notoriously|challenging)/.test(h))
+    return { ranking: "Hard", reason: hints };
+  if (/(easy|light|introductory|beginner|accessible)/.test(h))
+    return { ranking: "Easy", reason: hints };
+  return { ranking: "Moderate", reason: hints };
+}
+
+// Map a cached parsed_course to the candidate shape used by autocompleteCourses.
+function cachedToCandidate(c, profile) {
+  const { ranking, reason } = difficultyFromHints(c.difficulty_hints);
+  const credits = typeof c.credits === "number" && c.credits > 0 ? c.credits : 3;
+  return {
+    code: c.course_code || "",
+    title: c.course_title || c.course_code || "",
+    description: c.course_description || "",
+    credits,
+    faculty: profile?.faculty || "",
+    degree_program: profile?.degree_program || "",
+    specialization: profile?.specialization || "",
+    prerequisites: c.prerequisites || "",
+    difficulty_ranking: ranking,
+    difficulty_reason: reason,
+    estimated_weekly_hours: fallbackHours(credits, ranking),
+    from_cache: true,
+  };
+}
+
+// Instant cache read — no AI, no spinner. Finds the shared CourseCatalogCache
+// record for the user's university + faculty + degree_program and returns the
+// courses whose normalized code starts with the typed query.
+// Resolves to { courses:[...candidates], cached, reason?, cache_id?, parse_status?, last_parsed_at? }.
+export async function lookupCachedCourses({ query, university, profile }) {
+  const q = (query || "").trim();
+  if (!q) return { courses: [], cached: false, reason: "empty-query" };
+  const uniName = university?.university_name || university?.name || "";
+  if (!uniName) return { courses: [], cached: false, reason: "no-university" };
+  const key = catalogCacheKey(university, profile?.faculty, profile?.degree_program);
+
+  let rec = null;
+  try {
+    const list = await base44.entities.CourseCatalogCache.filter({ cache_key: key });
+    rec = Array.isArray(list) && list.length ? list[0] : null;
+  } catch (e) {
+    rec = null;
+  }
+  if (!rec) return { courses: [], cached: false, reason: "no-cache" };
+
+  const all = Array.isArray(rec.parsed_courses) ? rec.parsed_courses : [];
+  if (!all.length) return { courses: [], cached: true, reason: "empty-cache", parse_status: rec.parse_status };
+
+  const needle = normalizeCode(q);
+  const matches = all
+    .filter((c) => normalizeCode(c.course_code).startsWith(needle))
+    .slice(0, 12)
+    .map((c) => cachedToCandidate(c, profile));
+
+  return { courses: matches, cached: true, cache_id: rec.id, parse_status: rec.parse_status, last_parsed_at: rec.last_parsed_at };
+}
+
+// On-demand AI lookup with a HARD timeout. Resolves to { courses } or
+// { error: "timeout" | "failed", message }. Never hangs: the timeout forces a
+// resolution and the underlying autocompleteCourses never rejects.
+export async function autocompleteCoursesTimed({ query, university, profile, timeoutMs = 12000 }) {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (val) => { if (settled) return; settled = true; resolve(val); };
+    const timer = setTimeout(() => finish({ error: "timeout", message: "The search is taking too long." }), timeoutMs);
+    autocompleteCourses({ query, university, profile })
+      .then((courses) => { clearTimeout(timer); finish({ courses: courses || [] }); })
+      .catch((e) => { clearTimeout(timer); finish({ error: "failed", message: e?.message || "Lookup failed." }); });
+  });
+}
+
+// Fire-and-forget: kick off a background catalog refresh for a combo. Used on
+// profile setup and when the user changes university/faculty/program in
+// Settings. Never throws into the caller; the backend does the heavy lifting.
+export function refreshCatalogInBackground({ university_name, faculty, degree_program }) {
+  if (!university_name) return;
+  try {
+    const p = base44.functions.invoke("refreshCourseCatalog", {
+      university_name,
+      faculty: faculty || "",
+      degree_program: degree_program || "",
+    });
+    if (p && typeof p.catch === "function") p.catch(() => {});
+  } catch (e) { /* swallow — this is best-effort */ }
+}

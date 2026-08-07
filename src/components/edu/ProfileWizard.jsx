@@ -11,6 +11,8 @@ import { GraduationCap, ChevronLeft, ChevronRight, Check, Mail, Building2, Calen
 import { useEduSync } from "@/lib/eduSyncContext";
 import { base44 } from "@/api/base44Client";
 import { getProfile, saveProfile } from "@/lib/eduProfile";
+import { useToast } from "@/components/ui/use-toast";
+import { refreshCatalogInBackground } from "@/lib/courseAutofill";
 import UniversitySelector from "@/components/edu/UniversitySelector";
 
 const SUGGESTIONS = [
@@ -27,6 +29,7 @@ export default function ProfileWizard({ open, onOpenChange, onCompleted }) {
   const navigate = useNavigate();
   const { courses, settings, activeSemester, createCourse, updateSettings } = useEduSync();
   const connected = !!settings?.google_synced;
+  const { toast } = useToast();
 
   const [step, setStep] = useState(1);
   const [form, setForm] = useState(() => ({
@@ -157,6 +160,13 @@ export default function ProfileWizard({ open, onOpenChange, onCompleted }) {
       }
     } catch {}
 
+    // Fire-and-forget: pre-fetch this program's course catalog so course-code
+    // autofill on the Add Course page reads from a local cache instead of live
+    // web-parsing every keystroke. Doesn't block the setup flow.
+    if (form.university_name && form.faculty && form.degree_program) {
+      refreshCatalogInBackground({ university_name: form.university_name, faculty: form.faculty, degree_program: form.degree_program });
+      toast({ title: "Preparing your course catalog…", description: "Fetching your program's courses in the background." });
+    }
     onCompleted?.();
     onOpenChange(false);
     if (form.import_choice === "manual") navigate("/education/courses");

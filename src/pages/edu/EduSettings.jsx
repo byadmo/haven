@@ -21,6 +21,7 @@ import UniversitySelector from "@/components/edu/UniversitySelector";
 import ProfileWizard from "@/components/edu/ProfileWizard";
 import EduDangerZone from "@/components/edu/EduDangerZone";
 import { isProfileComplete } from "@/lib/eduProfile";
+import { refreshCatalogInBackground } from "@/lib/courseAutofill";
 
 export default function EduSettings() {
   const { settings, updateSettings, activeSemester, refresh, navItems, saveNavItems } = useEduSyncData();
@@ -329,6 +330,12 @@ function UniversitySection() {
         specialization: spec,
       });
       toast({ title: "University saved" });
+      // Re-fetch the catalog cache if the program combo changed (fresh parse
+      // only runs if the existing cache is stale/missing — see refreshCourseCatalog).
+      if (next?.name && faculty && program) {
+        refreshCatalogInBackground({ university_name: next.name, faculty, degree_program: program });
+        toast({ title: "Refreshing your course catalog…", description: "Fetching the new program's courses in the background." });
+      }
     } catch {
       toast({ title: "Couldn't save university", variant: "destructive" });
     }
