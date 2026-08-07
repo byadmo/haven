@@ -3,7 +3,6 @@ import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ShieldCheck, Wallet, GraduationCap, ArrowRight } from "lucide-react";
 import ThemeRoot from "@/components/ThemeRoot";
-import { getStoredTheme } from "@/lib/themes";
 
 const CARDS = [
   {
@@ -32,7 +31,9 @@ const CARDS = [
 
 export default function Hub() {
   const navigate = useNavigate();
-  const theme = React.useMemo(() => getStoredTheme("finance"), []);
+  // The Haven Hub always uses the neutral "original" (true-black) theme so the
+  // chooser reads cleanly regardless of the user's chosen sub-app theme.
+  const theme = "original";
 
   return (
     <ThemeRoot theme={theme} app="finance" className="dd-page-enter dark min-h-screen overflow-hidden">

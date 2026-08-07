@@ -57,6 +57,21 @@ export default function ProfileWizard({ open, onOpenChange, onCompleted }) {
     if (settings.specialization && !form.specialization) set("specialization", settings.specialization);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings]);
+
+  // As soon as the user has entered university + faculty + degree program
+  // (mid-wizard), Haven immediately kicks off the course-catalog parser in
+  // the background so course-code autofill works by the time they reach the
+  // Add Course page. Ref-guarded so it only fires once per setup.
+  const catalogFiredRef = React.useRef(false);
+  React.useEffect(() => {
+    if (catalogFiredRef.current) return;
+    if (form.university_name && form.faculty && form.degree_program) {
+      catalogFiredRef.current = true;
+      refreshCatalogInBackground({ university_name: form.university_name, faculty: form.faculty, degree_program: form.degree_program });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.university_name, form.faculty, form.degree_program]);
+
   const back = () => setStep((s) => Math.max(1, s - 1));
   const toggleDay = (d) => setForm((f) => ({
     ...f, work_days: f.work_days.includes(d) ? f.work_days.filter((x) => x !== d) : [...f.work_days, d],
@@ -160,11 +175,14 @@ export default function ProfileWizard({ open, onOpenChange, onCompleted }) {
       }
     } catch {}
 
-    // Fire-and-forget: pre-fetch this program's course catalog so course-code
-    // autofill on the Add Course page reads from a local cache instead of live
-    // web-parsing every keystroke. Doesn't block the setup flow.
+    // Pre-fetch the program's course catalog (already auto-kicked off in step 2
+    // the moment university + faculty + program were entered). Guarded by the
+    // same ref so we don't double-fire. The toast reminds them it's running.
     if (form.university_name && form.faculty && form.degree_program) {
-      refreshCatalogInBackground({ university_name: form.university_name, faculty: form.faculty, degree_program: form.degree_program });
+      if (!catalogFiredRef.current) {
+        catalogFiredRef.current = true;
+        refreshCatalogInBackground({ university_name: form.university_name, faculty: form.faculty, degree_program: form.degree_program });
+      }
       toast({ title: "Preparing your course catalog…", description: "Fetching your program's courses in the background." });
     }
     onCompleted?.();
@@ -231,6 +249,9 @@ export default function ProfileWizard({ open, onOpenChange, onCompleted }) {
                   <div><Label className="text-[11px] text-white/50 mb-1 block">Specialization</Label><Input value={form.specialization || ""} onChange={(e) => set("specialization", e.target.value)} placeholder="e.g. Power Systems" className="bg-black border-white/10 h-9" /></div>
                 </div>
                 {form.university_domain && <p className="text-[10px] text-white/30 font-mono">Domain: {form.university_domain}</p>}
+                <div className="rounded-md border border-emerald-400/20 bg-emerald-500/5 px-3 py-2.5 text-[11px] text-emerald-200/80 leading-relaxed">
+                  Once you complete setup, Haven will automatically find and parse your university's course catalog based on this info — so adding your courses later takes one click.
+                </div>
               </div>
             )}
           </div>

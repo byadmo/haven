@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,7 +14,6 @@ const EDU_DATA_ENTITIES = ["Semester", "Course", "Deliverable", "StudySession", 
 export default function EduDangerZone() {
   const { refresh } = useEduSyncData();
   const { toast } = useToast();
-  const navigate = useNavigate();
   const [modal, setModal] = useState(null); // "reset" | "delete" | null
   const [confirmText, setConfirmText] = useState("");
   const [busy, setBusy] = useState(false);
@@ -62,7 +60,9 @@ export default function EduDangerZone() {
       toast({ title: "Haven Education account deleted." });
       setModal(null);
       setConfirmText("");
-      navigate("/");
+      // Hard reload to the Haven Hub so the Education layout fully unmounts
+      // and the user lands back at the main Haven chooser.
+      window.location.assign("/");
     } catch (e) {
       toast({ title: "Failed", description: e?.message, variant: "destructive" });
     } finally {

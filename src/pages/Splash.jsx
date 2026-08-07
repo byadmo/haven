@@ -4,7 +4,7 @@ import { safeReturnTo } from "@/lib/authReturnTo";
 import { ArrowLeft, ShieldCheck, Mail, Lock, User } from "lucide-react";
 import GoogleIcon from "@/components/GoogleIcon";
 import AppleIcon from "@/components/AppleIcon";
-import { applyTheme, getStoredTheme } from "@/lib/themes";
+import { applyTheme } from "@/lib/themes";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -17,9 +17,9 @@ export default function Splash() {
   const go = () => { setLeaving(true); setTimeout(() => { window.location.href = dest.current; }, 280); };
 
   useEffect(() => {
-    // Sync the splash background to the user's saved theme so it matches the
-    // sub-app they are entering (re-applied by ThemeRoot once the app loads).
-    applyTheme(document.documentElement, getStoredTheme("finance"));
+    // The auth splash always uses the neutral "original" (true-black) theme
+    // so entry reads cleanly regardless of the user's chosen sub-app theme.
+    applyTheme(document.documentElement, "original");
     return () => {
       const e = document.documentElement;
       ["--th-bg","--th-surface","--th-primary","--th-secondary","--th-text","--th-muted","--th-border","--th-success","--th-danger","--th-chart-1","--th-chart-2","--th-chart-3","--th-chart-4","--e-200","--e-300","--e-400","--e-500","--e-600","--primary","--primary-foreground","--ring","--destructive","--destructive-foreground"].forEach((v) => e.style.removeProperty(v));
