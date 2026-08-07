@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CalendarClock, Loader2, CheckCircle2, AlertTriangle } from "lucide-react";
 import { useEduSync } from "@/lib/eduSyncContext";
+import { bestGuessTitle } from "@/lib/courseAutofill";
 
 export default function CalendarImport({ semesterId, semesterStart, onDone }) {
   const { createCourse, settings } = useEduSync();
@@ -52,7 +53,7 @@ export default function CalendarImport({ semesterId, semesterStart, onDone }) {
         await createCourse({
           course: {
             code: c.code || c.title.slice(0, 8).toUpperCase(),
-            title: c.title,
+            title: c.title?.trim() || bestGuessTitle(c.code) || c.code || "Course",
             professor_name: c.professor_name || "",
             professor_email: "",
             office_hours: "",

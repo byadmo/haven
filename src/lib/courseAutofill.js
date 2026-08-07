@@ -57,6 +57,40 @@ export function guessFromCode(code) {
   return PREFIX_MAP[m[1]] || null;
 }
 
+// Subject noun per course-code prefix — used to generate a best-guess course
+// title when AI autofill can't find a real one. Conservative, well-known
+// prefixes; unknown prefixes fall back to the PREFIX_MAP department, then to
+// the raw code. The course-number's leading digit decides the level:
+// 1xxx / 1xx (first-year) → "Introduction to <Subject>"; higher → "<Subject> Course".
+const SUBJECT_TITLES = {
+  PSYC: "Psychology", PSY: "Psychology", PSYCH: "Psychology",
+  MATH: "Mathematics", MATHS: "Mathematics", AM: "Applied Mathematics", AMS: "Applied Mathematics", PMATH: "Pure Mathematics", ACTSC: "Actuarial Science", CO: "Combinatorics & Optimization",
+  CS: "Computer Science", CSC: "Computer Science", CPSC: "Computer Science", SE: "Software Engineering", SOFTWARE: "Software Engineering",
+  STAT: "Statistics",
+  PHYS: "Physics", PHYSICS: "Physics", ASTR: "Astronomy",
+  CHEM: "Chemistry", CHEMISTRY: "Chemistry",
+  BIOL: "Biology", BIO: "Biology", BIOLOGY: "Biology",
+  ECON: "Economics",
+  ENGL: "English", HIST: "History", ARTS: "Arts", SPCOM: "Speech Communication",
+  GEOG: "Geography", ENV: "Environment", ERS: "Environment & Resource Studies", ENBUS: "Environment & Business",
+  ECE: "Electrical & Computer Engineering", EE: "Electrical Engineering", ELE: "Electrical Engineering", ELEC: "Electrical Engineering",
+  ME: "Mechanical Engineering", MENG: "Mechanical Engineering",
+  CIVE: "Civil Engineering", CHE: "Chemical Engineering",
+  ENG: "Engineering",
+};
+
+export function bestGuessTitle(code) {
+  const raw = String(code || "").trim();
+  if (!raw) return "";
+  const m = raw.toUpperCase().match(/^([A-Z]+)\s?(\d{1,4})/);
+  if (!m) return raw;
+  const prefix = m[1];
+  const numStr = m[2];
+  const subject = SUBJECT_TITLES[prefix] || guessFromCode(raw)?.department || `${prefix} Course`;
+  const isIntro = parseInt(numStr[0], 10) === 1;
+  return isIntro ? `Introduction to ${subject}` : `${subject} Course`;
+}
+
 // Does the typed course code's subject prefix belong to the user's declared
 // degree program / specialization? Used to decide whether to auto-run the AI
 // catalog lookup (in-program) or wait for a manual button press (elective).

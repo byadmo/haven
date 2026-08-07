@@ -12,7 +12,7 @@ import SyllabusUpload from "@/components/edu/SyllabusUpload";
 import CalendarImport from "@/components/edu/CalendarImport";
 import { useEduSync } from "@/lib/eduSyncContext";
 import { useToast } from "@/components/ui/use-toast";
-import { lookupCachedCourses, researchCourse } from "@/lib/courseAutofill";
+import { lookupCachedCourses, researchCourse, bestGuessTitle } from "@/lib/courseAutofill";
 
 const DAYS = ["M", "T", "W", "Th", "F", "S", "Su"];
 const DIFF_OPTIONS = ["Easy", "Moderate", "Hard", "Very Hard", "Brutal"];
@@ -79,6 +79,10 @@ export default function CourseFormModal({ open, onOpenChange, semesterId, semest
   // chain and writes the results back to the saved course via updateCourse.
   const researchInFlightRef = React.useRef(false);
   const researchPromiseRef = React.useRef(Promise.resolve(null));
+  // Whether the Title field currently holds an auto-generated best guess (so a
+  // real cached pick can replace it, while the user typing the field clears it).
+  const [titleAuto, setTitleAuto] = React.useState(false);
+  const titleStateRef = React.useRef(true);
 
   React.useEffect(() => {
     if (!open) return;
@@ -104,6 +108,8 @@ export default function CourseFormModal({ open, onOpenChange, semesterId, semest
     lastAutoResearchedRef.current = "";
     researchInFlightRef.current = false;
     researchPromiseRef.current = Promise.resolve(null);
+    setTitleAuto(false);
+    titleStateRef.current = true;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, settings, course, isEdit]);
 
@@ -143,6 +149,13 @@ export default function CourseFormModal({ open, onOpenChange, semesterId, semest
     faculty: settings?.faculty,
   }), [settings]);
 
+  // Keep the "title is empty or auto" flag fresh so the lookup effect below
+  // can decide whether to seed a best-guess title without overwriting a real
+  // title the user typed or a cached match they picked.
+  React.useEffect(() => {
+    titleStateRef.current = !((form.title || "").trim()) || titleAuto;
+  }, [form.title, titleAuto]);
+
   // Live, debounced CACHE lookup — fast local DB read, no spinner, fills the
   // code dropdown from the program's parsed catalog. The "Generate" button
   // beside the description handles the heavier web research.
@@ -152,6 +165,12 @@ export default function CourseFormModal({ open, onOpenChange, semesterId, semest
     const q = (form.code || "").trim();
     if (q.length < 2 || !settings?.university_name) {
       setSuggestions([]); setSuggOpen(false); setSuggSource(null);
+      // No university lookup ran, but never leave the Title blank after a code
+      // is entered — seed a best-guess from the course-code prefix.
+      if (q.length >= 2 && titleStateRef.current) {
+        setForm((p) => ({ ...p, title: bestGuessTitle(q) }));
+        setTitleAuto(true);
+      }
       return;
     }
     const id = ++reqIdRef.current;
@@ -161,6 +180,12 @@ export default function CourseFormModal({ open, onOpenChange, semesterId, semest
       setSuggestions(res.courses);
       setSuggSource(res.cached ? "cache" : null);
       setSuggOpen(res.courses.length > 0);
+      // No cache hit either — seed a best-guess title so the field is never
+      // empty after a lookup attempt (editable; a real pick can replace it).
+      if (!res.courses.length && titleStateRef.current) {
+        setForm((p) => ({ ...p, title: bestGuessTitle(q) }));
+        setTitleAuto(true);
+      }
     }, 300);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -192,6 +217,10 @@ export default function CourseFormModal({ open, onOpenChange, semesterId, semest
       const out = await researchCourse({ code, title: overrideTitle || form.title, university: uniObj, profile: profileObj });
       if (id !== researchReqIdRef.current) { resolveResearch(null); return; }
       if (!out || (!out.description?.trim() && !out.difficulty_ranking)) {
+        if (titleStateRef.current && code) {
+          setForm((p) => ({ ...p, title: bestGuessTitle(code) }));
+          setTitleAuto(true);
+        }
         if (!auto) {
           setDescError("Couldn't find anything definitive — try again or paste it in manually.");
           toast({ title: "Nothing found", variant: "destructive" });
@@ -230,6 +259,7 @@ export default function CourseFormModal({ open, onOpenChange, semesterId, semest
     applyCandidate(c);
     set("code", c.code);
     setSuggOpen(false);
+    setTitleAuto(false);
     // User just selected a specific class code — auto-trigger the web research
     // (RateMyProfessors, Reddit, the university's own course page) to upgrade
     // the cached heuristic difficulty ranking into a grounded one, per the
@@ -240,8 +270,12 @@ export default function CourseFormModal({ open, onOpenChange, semesterId, semest
 
   async function saveManual(e) {
     e.preventDefault();
-    if (!form.code || !form.title) {
-      toast({ title: "Code and Title are required", variant: "destructive" });
+    if (!form.code || !form.code.trim()) {
+      toast({ title: "Course code is required", variant: "destructive" });
+      return;
+    }
+    if (!form.title || !form.title.trim()) {
+      toast({ title: "Please enter a course name or use AI Autofill.", variant: "destructive" });
       return;
     }
     if (!isEdit && !semesterId) {
@@ -422,7 +456,15 @@ export default function CourseFormModal({ open, onOpenChange, semesterId, semest
 
             <div>
               <Label className="text-white/50">Title</Label>
-              <Input value={form.title} onChange={(e) => set("title", e.target.value)} className="bg-black border-white/10 mt-1" required />
+              <Input
+                value={form.title}
+                onChange={(e) => { set("title", e.target.value); setTitleAuto(false); }}
+                className={`bg-black border-white/10 mt-1 ${titleAuto ? "border-emerald-400/40" : ""}`}
+                required
+              />
+              {titleAuto && (
+                <p className="text-[10px] text-emerald-300/70 mt-1">Auto-generated from the course code — click to edit.</p>
+              )}
             </div>
 
             {form.difficulty_ranking && (

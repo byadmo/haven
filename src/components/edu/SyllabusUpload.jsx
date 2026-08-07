@@ -3,7 +3,9 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { UploadCloud, Loader2, CheckCircle2, Trash2, Plus } from "lucide-react";
+import { Loader2, CheckCircle2, Trash2, Plus } from "lucide-react";
+import FileDropzone from "@/components/edu/FileDropzone";
+import { bestGuessTitle } from "@/lib/courseAutofill";
 
 const DAYS = ["M", "T", "W", "Th", "F", "S", "Su"];
 const TYPES = ["assignment", "exam", "quiz", "project", "midterm", "final", "lab", "other"];
@@ -26,7 +28,7 @@ export default function SyllabusUpload({ onConfirmed }) {
       const out = parsed?.data ?? parsed;
       setData({
         code: out?.code || "",
-        title: out?.title || "",
+        title: out?.title?.trim() || bestGuessTitle(out?.code) || out?.code || "",
         professor_name: out?.professor_name || "",
         professor_email: out?.professor_email || "",
         office_hours: out?.office_hours || "",
@@ -126,22 +128,17 @@ export default function SyllabusUpload({ onConfirmed }) {
   }
 
   return (
-    <label className="flex flex-col items-center justify-center gap-3 border-2 border-dashed border-white/15 rounded-lg p-8 text-center cursor-pointer hover:border-emerald-400/40 transition-colors">
-      <input type="file" accept=".pdf,.docx,.txt" className="hidden" onChange={(e) => handleFile(e.target.files?.[0])} />
+    <div className="space-y-2">
       {status === "uploading" || status === "parsing" ? (
-        <>
+        <div className="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-emerald-400/40 bg-emerald-500/5 p-8 text-center">
           <Loader2 className="h-8 w-8 text-emerald-400 animate-spin" />
           <p className="text-sm text-white/60">{status === "uploading" ? "Uploading syllabus…" : "Parsing with AI…"}</p>
-        </>
+        </div>
       ) : (
-        <>
-          <UploadCloud className="h-8 w-8 text-emerald-400/70" />
-          <p className="text-sm text-white/60">Drag & drop or click to upload a syllabus</p>
-          <p className="text-[10px] uppercase tracking-widest text-white/30">PDF · DOCX · TXT</p>
-          {file && <p className="text-xs text-white/40 mt-1">{file.name}</p>}
-          {error && <p className="text-xs text-rose-400 mt-1">{error}</p>}
-        </>
+        <FileDropzone hint="Drag & drop your syllabus or class list here" onFiles={(files) => files?.[0] && handleFile(files[0])} />
       )}
-    </label>
+      {file && <p className="text-xs text-white/40 text-center">{file.name}</p>}
+      {error && <p className="text-xs text-rose-400 text-center">{error}</p>}
+    </div>
   );
 }

@@ -9,6 +9,7 @@ import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { GraduationCap, ChevronLeft, ChevronRight, Check, AlertCircle, Mail, Building2, Calendar, Target, Clock, Briefcase, ListChecks, ImageUp, FileText, Loader2, X, Sparkles } from "lucide-react";
 import { useEduSync } from "@/lib/eduSyncContext";
+import FileDropzone from "@/components/edu/FileDropzone";
 import { base44 } from "@/api/base44Client";
 import { getProfile, saveProfile } from "@/lib/eduProfile";
 import { useToast } from "@/components/ui/use-toast";
@@ -320,11 +321,8 @@ export default function ProfileWizard({ open, onOpenChange, onCompleted }) {
                   <p className="text-sm text-zinc-100">Upload Schedule Screenshot</p>
                   {parsing === "schedule" && <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-300 ml-auto" />}
                 </div>
-                <p className="text-[10px] text-white/40 mb-2">We'll use AI to read your schedule and extract course details. PNG, JPG, or WEBP.</p>
-                <label className="inline-flex items-center gap-1.5 rounded-md border border-emerald-400/30 bg-emerald-500/10 px-3 py-1.5 text-xs text-emerald-200 cursor-pointer hover:bg-emerald-500/20">
-                  <ImageUp className="h-3.5 w-3.5" /> Choose image
-                  <input type="file" accept="image/png,image/jpeg,image/jpg,image/webp" className="hidden" onChange={(e) => parseSchedule(e.target.files?.[0])} />
-                </label>
+                <p className="text-[10px] text-white/40 mb-2">We'll use AI to read your schedule and extract course details. Any file format works.</p>
+                <FileDropzone hint="Drag & drop your schedule screenshot" onFiles={(files) => files?.[0] && parseSchedule(files[0])} />
                 {parseNote && parsing !== "schedule" && <p className="text-[11px] text-white/50 mt-2">{parseNote}</p>}
 
                 {form.screenshot_courses?.length > 0 && (
@@ -354,11 +352,8 @@ export default function ProfileWizard({ open, onOpenChange, onCompleted }) {
                 <p className="text-sm text-zinc-100">Upload Transcript</p>
                 {parsing === "transcript" && <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-300 ml-auto" />}
               </div>
-              <p className="text-[10px] text-white/40 mb-2">We'll detect your GPA and past courses. PDF, PNG, or JPG.</p>
-              <label className="inline-flex items-center gap-1.5 rounded-md border border-emerald-400/30 bg-emerald-500/10 px-3 py-1.5 text-xs text-emerald-200 cursor-pointer hover:bg-emerald-500/20">
-                <FileText className="h-3.5 w-3.5" /> Choose file
-                <input type="file" accept="application/pdf,image/png,image/jpeg,image/jpg" className="hidden" onChange={(e) => parseTranscript(e.target.files?.[0])} />
-              </label>
+              <p className="text-[10px] text-white/40 mb-2">We'll detect your GPA and past courses. Any file format works.</p>
+              <FileDropzone hint="Drag & drop your transcript" onFiles={(files) => files?.[0] && parseTranscript(files[0])} />
               {parseNote && parsing !== "transcript" && (
                 <p className="text-[11px] text-emerald-300 mt-2 flex items-center gap-1"><Sparkles className="h-3 w-3" /> {parseNote}</p>
               )}

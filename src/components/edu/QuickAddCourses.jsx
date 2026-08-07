@@ -5,11 +5,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ListPlus, Loader2, X } from "lucide-react";
+import { ListPlus, Loader2, X, CalendarDays } from "lucide-react";
 import { useEduSync } from "@/lib/eduSyncContext";
 import { useToast } from "@/components/ui/use-toast";
-import { lookupCachedCourses, researchCourse } from "@/lib/courseAutofill";
+import { lookupCachedCourses, researchCourse, bestGuessTitle } from "@/lib/courseAutofill";
 import { useDebounce } from "@/hooks/useDebounce";
+import SemesterSelect from "@/components/edu/SemesterSelect";
 
 const DIFF_DOT = {
   Easy: "bg-emerald-400",
@@ -32,36 +33,65 @@ const nextRid = () => ++_rid;
 // (description + difficulty) in the background. As research lands, the pill
 // gains a colored dot matching the discovered difficulty.
 export default function QuickAddCourses({ open, onOpenChange, semesterId }) {
-  const { settings } = useEduSync();
+  const { settings, semesters, createSemester } = useEduSync();
   const [rowIds, setRowIds] = React.useState(() => [nextRid()]);
+  const [selectedSemesterId, setSelectedSemesterId] = React.useState(semesterId || "");
 
   React.useEffect(() => {
-    if (!open) setRowIds([nextRid()]);
-  }, [open]);
+    if (open) {
+      setRowIds([nextRid()]);
+      setSelectedSemesterId(semesterId || semesters[0]?.id || "");
+    }
+  }, [open, semesterId, semesters]);
 
   function spawnNext() {
     setRowIds((ids) => [...ids, nextRid()]);
   }
+
+  const selectedSemester = semesters.find((s) => s.id === selectedSemesterId);
+  const canAdd = !!selectedSemesterId;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="bg-black border-white/10 text-zinc-100 max-w-2xl w-[92vw]">
         <DialogHeader>
           <DialogTitle className="text-zinc-100 flex items-center gap-2">
-            <ListPlus className="h-4 w-4 text-emerald-400" /> Quick Add Courses
+            <ListPlus className="h-4 w-4 text-emerald-400" /> Quick Add
+            {selectedSemester && (
+              <span className="text-emerald-300 text-sm font-normal">— {selectedSemester.term_label}</span>
+            )}
           </DialogTitle>
           <DialogDescription className="text-white/50">
-            Type a code — pick from the dropdown or press Enter. Each commit saves the course and AI-researches its description + difficulty in the background; a new empty box appears underneath for the next one.
+            Pick a semester, then type each course code — pick from the dropdown or press Enter. Each commit saves the course and AI-researches its description + difficulty in the background; a new empty box appears underneath for the next one.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-1.5 py-1">
-          <Label className="text-white/50">Course codes</Label>
-          <div className="mt-1 flex flex-col gap-1.5">
-            {rowIds.map((rid) => (
-              <Row key={rid} settings={settings} semesterId={semesterId} onCommit={spawnNext} />
-            ))}
+        <div className="space-y-3 py-1">
+          {/* Semester selection — the FIRST box in the Quick Add flow. */}
+          <div>
+            <Label className="text-white/50 flex items-center gap-1.5 mb-1.5">
+              <CalendarDays className="h-3.5 w-3.5 text-emerald-300/70" /> Select Semester
+            </Label>
+            <SemesterSelect
+              semesters={semesters}
+              value={selectedSemesterId}
+              onSelect={setSelectedSemesterId}
+              createSemester={createSemester}
+            />
           </div>
+
+          {canAdd ? (
+            <div className="space-y-1.5">
+              <Label className="text-white/50">Course codes — adding to {selectedSemester?.term_label}</Label>
+              <div className="flex flex-col gap-1.5">
+                {rowIds.map((rid) => (
+                  <Row key={rid} settings={settings} semesterId={selectedSemesterId} onCommit={spawnNext} />
+                ))}
+              </div>
+            </div>
+          ) : (
+            <p className="text-[11px] text-white/40">Create or pick a semester above to start adding courses.</p>
+          )}
         </div>
 
         <DialogFooter className="pt-2">
@@ -124,7 +154,7 @@ function Row({ settings, semesterId, onCommit }) {
       toast({ title: "No active semester", description: "Create a semester first.", variant: "destructive" });
       return;
     }
-    const title = candidate?.title || c;
+    const title = (candidate?.title || "").trim() || bestGuessTitle(c) || c;
     const credits = typeof candidate?.credits === "number" && candidate.credits > 0 ? candidate.credits : 3;
     const weeklyHours = typeof candidate?.estimated_weekly_hours === "number" && candidate.estimated_weekly_hours > 0 ? candidate.estimated_weekly_hours : 6;
     setCommitted({ code: c, title });
