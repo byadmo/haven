@@ -152,21 +152,27 @@ export default function ProfileWizard({ open, onOpenChange, onCompleted }) {
     };
     saveProfile(payload);
 
-    // Persist university + transcript to EduSettings + imported courses to
-    // the active semester.
+    // Persist ALL wizard fields to EduSettings in ONE updateSettings call. The
+    // previous two-call flow raced: the second (transcript-only) create fired
+    // before the first call's refresh applied the new settings id, so it
+    // created a second EduSettings record that shadowed the first — leaving
+    // the Settings page reading the transcript-only record with empty
+    // university/faculty/program fields and the auto-parser with nothing.
+    // Imported screenshot courses still go to the active semester separately.
     try {
-      if ((form.university_name || settings?.university_name) && updateSettings) {
-        await updateSettings({
+      if (updateSettings) {
+        const settingsPatch = {
           university_name: form.university_name || settings?.university_name || "",
           university_domain: form.university_domain || settings?.university_domain || "",
           university_course_catalog_url: form.university_course_catalog_url || settings?.university_course_catalog_url || "",
           faculty: form.faculty || settings?.faculty || "",
           degree_program: form.degree_program || settings?.degree_program || "",
           specialization: form.specialization || settings?.specialization || "",
-        });
-      }
-      if (form.transcript_courses?.length && updateSettings) {
-        updateSettings({ transcript: { gpa: payload.gpa_current, courses: form.transcript_courses } });
+        };
+        if (form.transcript_courses?.length) {
+          settingsPatch.transcript = { gpa: payload.gpa_current, courses: form.transcript_courses };
+        }
+        await updateSettings(settingsPatch);
       }
       if (form.screenshot_courses?.length && activeSemester?.id && createCourse) {
         for (const c of form.screenshot_courses) {

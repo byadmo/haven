@@ -220,9 +220,21 @@ export function EduSyncProvider({ children }) {
   async function updateFocus(id, patch) { await base44.entities.Focus.update(id, patch); refresh(); }
   async function deleteFocus(id) { await base44.entities.Focus.delete(id); refresh(); }
 
+  // Track the latest EduSettings id across async gaps via a ref so back-to-back
+  // updateSettings calls (e.g. the wizard's finish, or Settings-option toggles
+  // firing before the first refresh applies) all target the same record. Without
+  // this, the second call would see stale `data.settings` (still null), create a
+  // new record, and shadow the first — losing the first call's fields.
+  const settingsIdRef = React.useRef(null);
+  React.useEffect(() => { settingsIdRef.current = data.settings?.id || null; }, [data.settings]);
   async function updateSettings(patch) {
-    if (data.settings?.id) { await base44.entities.EduSettings.update(data.settings.id, patch); }
-    else { await base44.entities.EduSettings.create({ weekly_sleep_hours: 56, google_synced: false, ...patch }); }
+    const id = settingsIdRef.current || data.settings?.id;
+    if (id) {
+      await base44.entities.EduSettings.update(id, patch);
+    } else {
+      const created = await base44.entities.EduSettings.create({ weekly_sleep_hours: 56, google_synced: false, ...patch });
+      if (created?.id) settingsIdRef.current = created.id;
+    }
     refresh();
   }
 
