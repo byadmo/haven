@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
-import { Bell, Check, Receipt, Ban } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Bell, Check, Receipt, Ban, ArrowRight } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import { filterGenuineBills } from "@/lib/billFilters";
@@ -82,17 +83,22 @@ export default function UpcomingBills({ transactions, onChanged }) {
   const dueSoon = bills.filter((b) => dayDiff(b.next_date) < 3).length;
 
   return (
-    <div className="rounded-lg border border-white/10 bg-black p-5 h-full">
+    <div className="rounded-lg border border-white/10 bg-black p-5 h-full flex flex-col">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <Receipt className="h-4 w-4 text-emerald-300" />
           <p className="text-[10px] uppercase tracking-widest text-white/50">Upcoming Bills</p>
         </div>
-        {dueSoon > 0 && (
-          <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border border-rose-400/40 bg-rose-500/15 text-rose-300 font-mono tabular-nums">
-            <Bell className="h-3 w-3" /> {dueSoon} due
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {dueSoon > 0 && (
+            <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border border-rose-400/40 bg-rose-500/15 text-rose-300 font-mono tabular-nums">
+              <Bell className="h-3 w-3" /> {dueSoon} due
+            </span>
+          )}
+          <Link to="/recurring-bills" className="inline-flex items-center gap-0.5 text-[10px] font-mono tabular-nums text-emerald-300 hover:text-emerald-200 transition-colors">
+            See all <ArrowRight className="h-3 w-3" />
+          </Link>
+        </div>
       </div>
       {bills.length ? (
         <div className="space-y-1.5">

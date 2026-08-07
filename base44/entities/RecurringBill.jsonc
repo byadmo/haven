@@ -1,0 +1,94 @@
+{
+  "name": "RecurringBill",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Bill / subscription name e.g. Spotify, Rent, Car Loan Payment"
+    },
+    "amount": {
+      "type": "number",
+      "description": "Amount charged per occurrence in dollars"
+    },
+    "frequency": {
+      "type": "string",
+      "enum": [
+        "weekly",
+        "biweekly",
+        "monthly",
+        "quarterly",
+        "annual",
+        "custom"
+      ],
+      "default": "monthly"
+    },
+    "custom_interval_days": {
+      "type": "number",
+      "description": "When frequency = custom, the number of days between occurrences"
+    },
+    "next_due_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "category": {
+      "type": "string",
+      "description": "Category: Subscription, Utility, Rent, Loan Payment, Insurance, Phone, Internet, Gym, Other"
+    },
+    "payment_account_id": {
+      "type": "string",
+      "description": "Reference to the Account this bill is paid from"
+    },
+    "is_auto_pay": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether this bill is on auto-pay"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true,
+      "description": "False when the user has paused tracking without deleting"
+    },
+    "is_ai_detected": {
+      "type": "boolean",
+      "default": false,
+      "description": "True when the AI auto-detection added this bill"
+    },
+    "ai_review_status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "confirmed",
+        "rejected"
+      ],
+      "description": "Review state for AI-detected bills. Null for manually-added bills. Rejected bills stay in the DB only to dedupe future AI scans and are hidden from views."
+    },
+    "notes": {
+      "type": "string"
+    },
+    "last_paid_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Last date this bill was marked paid"
+    }
+  },
+  "required": [
+    "name",
+    "amount",
+    "frequency",
+    "next_due_date"
+  ],
+  "rls": {
+    "read": {
+      "created_by_id": "{{user.id}}"
+    },
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}

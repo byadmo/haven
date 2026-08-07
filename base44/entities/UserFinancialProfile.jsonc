@@ -54,6 +54,11 @@
       "type": "string",
       "default": "midnight",
       "description": "Selected Haven Finance theme key (midnight, daylight, cottonCandy, forest, sunset)."
+    },
+    "ai_auto_detect_bills": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether AI auto-detection scans transactions for recurring bills and subscriptions."
     }
   },
   "required": [

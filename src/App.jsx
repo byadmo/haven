@@ -22,6 +22,7 @@ import Insights from '@/pages/Insights';
 import Settings from '@/pages/Settings';
 import Forecast from '@/pages/Forecast';
 import Budgeting from '@/pages/Budgeting';
+import RecurringBills from '@/pages/RecurringBills';
 import CashFlow from '@/pages/CashFlow';
 import Portfolio from '@/pages/Portfolio';
 import Assistant from '@/pages/Assistant';
@@ -87,6 +88,7 @@ const AuthenticatedApp = () => {
             <Route path="/goals" element={<Goals />} />
             <Route path="/debts" element={<Debts />} />
             <Route path="/transactions" element={<Transactions />} />
+            <Route path="/recurring-bills" element={<RecurringBills />} />
             <Route path="/insights" element={<Insights />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/forecast" element={<Forecast />} />

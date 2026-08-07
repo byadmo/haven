@@ -165,6 +165,27 @@ export function FinanceDataProvider({ children }) {
     }
   }
 
+  // AI Auto-Detection toggle for the Recurring Bills page — persisted on the
+  // financial profile (survives logout/login). Optimistic local update first.
+  const aiAutoDetect = data.profile?.ai_auto_detect_bills ?? true;
+  async function setAiAutoDetect(value) {
+    setData((prev) => ({
+      ...prev,
+      profile: prev.profile ? { ...prev.profile, ai_auto_detect_bills: value } : { income_type: "fixed", ai_auto_detect_bills: value },
+    }));
+    try {
+      if (data.profile?.id) {
+        await base44.entities.UserFinancialProfile.update(data.profile.id, { ai_auto_detect_bills: value });
+      } else {
+        const created = await base44.entities.UserFinancialProfile.create({ income_type: "fixed", ai_auto_detect_bills: value });
+        setData((prev) => ({ ...prev, profile: created }));
+      }
+    } catch (e) {
+      refresh();
+      toast({ title: "Could not save setting", variant: "destructive" });
+    }
+  }
+
   const value = {
     ...data,
     // Aliases the rest of the app expects
@@ -178,6 +199,8 @@ export function FinanceDataProvider({ children }) {
     saveNavItems,
     theme: data.profile?.theme || "midnight",
     setTheme,
+    aiAutoDetect,
+    setAiAutoDetect,
     ...analytics,
   };
 
