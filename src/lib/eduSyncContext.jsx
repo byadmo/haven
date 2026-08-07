@@ -71,6 +71,18 @@ export function EduSyncProvider({ children }) {
   });
   const [loading, setLoading] = React.useState(true);
   const [refreshKey, setRefreshKey] = React.useState(0);
+  // Ephemeral, client-only set of course IDs currently being enriched by a
+  // background AI research task (the user saved mid-research). Resolves when
+  // the detached runResearch promise lands + writeBack happens, or resets to
+  // empty on reload (course just keeps whatever AI fields were saved then).
+  const [aiResearchingIds, _setAiResearching] = React.useState(() => new Set());
+  const setAiResearching = React.useCallback((id, isResearching) => {
+    _setAiResearching((prev) => {
+      const next = new Set(prev);
+      if (isResearching) next.add(id); else next.delete(id);
+      return next;
+    });
+  }, []);
 
   const refresh = React.useCallback(() => setRefreshKey((k) => k + 1), []);
   const { toast } = useToast();
@@ -292,6 +304,8 @@ export function EduSyncProvider({ children }) {
     updateSettings,
     navItems,
     saveNavItems,
+    aiResearchingIds,
+    setAiResearching,
   };
 
   return <EduSyncContext.Provider value={value}>{children}</EduSyncContext.Provider>;

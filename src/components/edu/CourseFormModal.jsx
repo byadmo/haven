@@ -56,7 +56,7 @@ function courseToForm(c, settings) {
 }
 
 export default function CourseFormModal({ open, onOpenChange, semesterId, semesterStart, course = null }) {
-  const { createCourse, updateCourse, settings } = useEduSync();
+  const { createCourse, updateCourse, settings, setAiResearching } = useEduSync();
   const { toast } = useToast();
   const isEdit = !!course;
 
@@ -73,6 +73,12 @@ export default function CourseFormModal({ open, onOpenChange, semesterId, semest
   const selectedRef = React.useRef(false);
   const researchReqIdRef = React.useRef(0);
   const lastAutoResearchedRef = React.useRef("");
+  // Track the in-flight AI research run independently of the form state — the
+  // modal can close before research completes. saveManual, when it detects
+  // researching at save time, awaits researchPromiseRef in a detached async
+  // chain and writes the results back to the saved course via updateCourse.
+  const researchInFlightRef = React.useRef(false);
+  const researchPromiseRef = React.useRef(Promise.resolve(null));
 
   React.useEffect(() => {
     if (!open) return;
@@ -96,6 +102,8 @@ export default function CourseFormModal({ open, onOpenChange, semesterId, semest
     selectedRef.current = false;
     researchReqIdRef.current = 0;
     lastAutoResearchedRef.current = "";
+    researchInFlightRef.current = false;
+    researchPromiseRef.current = Promise.resolve(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, settings, course, isEdit]);
 
@@ -175,14 +183,20 @@ export default function CourseFormModal({ open, onOpenChange, semesterId, semest
     if (!code) { if (!auto) toast({ title: "Enter a course code first", variant: "destructive" }); return; }
     const id = ++researchReqIdRef.current;
     setDescLoading(true); setDescError(null);
+    // Mark research as in-flight and publish a promise so saveManual can wait
+    // for the result even after the modal has closed.
+    researchInFlightRef.current = true;
+    let resolveResearch;
+    researchPromiseRef.current = new Promise((r) => { resolveResearch = r; });
     try {
       const out = await researchCourse({ code, title: overrideTitle || form.title, university: uniObj, profile: profileObj });
-      if (id !== researchReqIdRef.current) return;
+      if (id !== researchReqIdRef.current) { resolveResearch(null); return; }
       if (!out || (!out.description?.trim() && !out.difficulty_ranking)) {
         if (!auto) {
           setDescError("Couldn't find anything definitive — try again or paste it in manually.");
           toast({ title: "Nothing found", variant: "destructive" });
         }
+        resolveResearch(null);
         return;
       }
       setForm((p) => ({
@@ -199,10 +213,15 @@ export default function CourseFormModal({ open, onOpenChange, semesterId, semest
           description: out.source_url ? "Pulled from your university's catalog + student sources." : "Drafted from catalog + reputation data — review and adjust.",
         });
       }
+      resolveResearch(out);
     } catch (e) {
       if (!auto && id === researchReqIdRef.current) setDescError("Lookup failed — try again or paste the description in.");
+      if (id === researchReqIdRef.current) resolveResearch(null);
     } finally {
-      if (id === researchReqIdRef.current) setDescLoading(false);
+      if (id === researchReqIdRef.current) {
+        setDescLoading(false);
+        researchInFlightRef.current = false;
+      }
     }
   }
 
@@ -238,11 +257,42 @@ export default function CourseFormModal({ open, onOpenChange, semesterId, semest
         semester_id: isEdit ? course.semester_id : semesterId,
         university_name: form.university_name || settings?.university_name || null,
       };
+      let savedCourseId = null;
       if (isEdit) {
         await updateCourse(course.id, payload);
+        savedCourseId = course.id;
       } else {
-        await createCourse({ course: payload, deliverables: [], materials: [] });
+        const created = await createCourse({ course: payload, deliverables: [], materials: [] });
+        savedCourseId = created?.id || null;
       }
+
+      // If AI research is still in flight when the user pressed Save, let it
+      // keep running in the background. Mark the saved course as "AI
+      // researching" so CourseCard shows a spinner, then detach a chain that
+      // writes the AI results back via updateCourse when they finally land.
+      if (savedCourseId && researchInFlightRef.current) {
+        const courseId = savedCourseId;
+        const pendingResearch = researchPromiseRef.current;
+        setAiResearching(courseId, true);
+        toast({ title: "Saved — AI still researching", description: "We'll enrich the course once the AI details come in." });
+        (async () => {
+          try {
+            const out = await pendingResearch;
+            if (!out) return;
+            const patch = {};
+            if (out.description?.trim()) patch.course_description = out.description.trim();
+            if (out.prerequisites?.trim()) patch.prerequisites = out.prerequisites.trim();
+            if (out.difficulty_ranking) patch.difficulty_ranking = out.difficulty_ranking;
+            if (out.difficulty_reason) patch.difficulty_reason = out.difficulty_reason;
+            if (Object.keys(patch).length) await updateCourse(courseId, patch);
+          } catch (e) {
+            // Silent — the course already saved fine; background enrichment is best-effort.
+          } finally {
+            setAiResearching(courseId, false);
+          }
+        })();
+      }
+
       onOpenChange(false);
     } catch (err) {
       console.error("Save failed", err);

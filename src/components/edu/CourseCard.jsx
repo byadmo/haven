@@ -1,9 +1,10 @@
 import React, { useState } from "react";
-import { Calendar, Target, ListPlus } from "lucide-react";
+import { Calendar, Target, ListPlus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import FocusFormModal from "@/components/edu/FocusFormModal";
 import DeliverableFormModal from "@/components/edu/DeliverableFormModal";
 import CourseDifficulty from "@/components/edu/CourseDifficulty";
+import { useEduSync } from "@/lib/eduSyncContext";
 
 const DAY_LABELS = { M: "M", T: "T", W: "W", Th: "Th", F: "F", S: "S", Su: "Su" };
 
@@ -21,6 +22,8 @@ function badgeColor(days) {
 }
 
 export default function CourseCard({ course, onOpen }) {
+  const { aiResearchingIds } = useEduSync();
+  const researching = aiResearchingIds?.has(course.id);
   const [focusOpen, setFocusOpen] = useState(false);
   const [delivOpen, setDelivOpen] = useState(false);
   const next = course.next;
@@ -49,6 +52,11 @@ export default function CourseCard({ course, onOpen }) {
           <p className="text-[11px] text-white/50 font-mono tabular-nums mb-2">{schedule}{course.schedule_time ? ` · ${course.schedule_time}` : ""}{course.location ? ` · ${course.location}` : ""}</p>
         )}
 
+        {researching && (
+          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-emerald-300/80 mb-1.5">
+            <Loader2 className="h-3 w-3 animate-spin" /> AI researching…
+          </div>
+        )}
         <CourseDifficulty course={course} />
 
         {next ? (
