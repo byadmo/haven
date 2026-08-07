@@ -96,11 +96,33 @@ export default function EduSchedule() {
   // courses → weekly recurring timed sessions
   function courseBlocksForDate(d) {
     const ab = DAY_ABBREV[d.getDay()];
-    return courses.filter((c) => (c.schedule_days || []).includes(ab) && c.schedule_time?.includes("-"))
-      .map((c) => {
-        const [s, e] = c.schedule_time.split("-").map((x) => x.trim());
-        return { kind: "course", title: `${c.code}`, subtitle: c.location || c.title || "", color: courseHex(c), startMin: parseTime(s), endMin: parseTime(e) };
-      });
+    const out = [];
+    for (const c of courses) {
+      const days = c.schedule_days || [];
+      if (!days.length || !days.includes(ab)) continue;
+      const raw = c.schedule_time;
+      if (!raw) continue;
+      // schedule_time is one or more parts joined by "·", each optionally
+      // day-prefixed: "M 10:00-12:00 · F 08:00-10:00", or a bare "10:00-11:30".
+      const parts = String(raw).split("·").map((p) => p.trim()).filter(Boolean);
+      for (const part of parts) {
+        const tm = part.match(/(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/);
+        if (!tm) continue;
+        // If this part carries a day prefix (e.g. "M 10:00-12:00", "Th 08:00-10:00"),
+        // only render it on that weekday; otherwise it applies to every scheduled day.
+        const pm = part.match(/^([A-Za-z]{1,2})\s+\d/);
+        if (pm && pm[1].trim() !== ab) continue;
+        out.push({
+          kind: "course",
+          title: `${c.code}`,
+          subtitle: c.location || c.title || "",
+          color: courseHex(c),
+          startMin: parseTime(tm[1]),
+          endMin: parseTime(tm[2]),
+        });
+      }
+    }
+    return out;
   }
   function gcalBlocksForDate(d) {
     const k = localKey(d);

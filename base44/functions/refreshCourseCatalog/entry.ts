@@ -46,6 +46,91 @@ const MAX_ALTERNATES = 3;
 // avoid runaway Gemini credit spend.
 const MAX_SEARCH_ROUNDS = 3;
 
+// ============================================================================
+// CWCS — Course Workload & Complexity Score calculator.
+// Deterministic, synchronous, zero-LLM-overhead heuristic that scores every
+// extracted course on a 1.0–10.0 scale DURING the parsing phase. The score is
+// derived purely from the course code (level digit), prerequisite count, and
+// regex scans of the description for lab/tutorial/capstone/intro markers — no
+// LLM is consulted for the value, so it adds no token cost.
+// ============================================================================
+
+interface CourseDifficulty {
+  /** 1.0 – 10.0, clamped to one decimal. */
+  score: number;
+  /** Workload band label derived from the score. */
+  label: string;
+  /** True when the description mentions a lab(/laboratory) component. */
+  hasLab: boolean;
+}
+
+interface ParsedCourse {
+  code: string;
+  title: string;
+  credits: number;
+  prerequisites?: string[];
+  description?: string;
+  difficulty: CourseDifficulty;
+}
+
+function calculateCourseDifficulty(
+  courseCode: string,
+  description: string,
+  prereqs: string[],
+): { score: number; label: string } {
+  const code = String(courseCode || '');
+  const desc = String(description || '');
+  const pr = Array.isArray(prereqs) ? prereqs : [];
+
+  // 1) Level weight — first digit of the course number.
+  const numMatch = code.match(/\d/);
+  const levelDigit = numMatch ? parseInt(numMatch[0], 10) : 0;
+  let score: number;
+  if (levelDigit >= 5) score = 9.0;
+  else if (levelDigit === 4) score = 8.0;
+  else if (levelDigit === 3) score = 6.0;
+  else if (levelDigit === 2) score = 4.0;
+  else score = 2.0; // 1xx or unknown level — gentlest baseline.
+
+  // 2) Prerequisite weight: +0.5 each, capped at +2.0.
+  score += Math.min(2.0, pr.length * 0.5);
+
+  // 3) Contact-hour weight (description regex).
+  if (/\blab(oratory)?\b/i.test(desc)) score += 1.0;
+  if (/\btutorial\b/i.test(desc)) score += 0.5;
+
+  // 4) Semantic weight (description regex).
+  if (/\b(capstone|thesis|independent study|project-based)\b/i.test(desc)) score += 1.5;
+  if (/\b(intensive|advanced|rigorous|comprehensive)\b/i.test(desc)) score += 0.5;
+  if (/\b(introductory|survey of|fundamentals of|basics)\b/i.test(desc)) score -= 1.0;
+
+  // Clamp to [1.0, 10.0], one decimal.
+  score = Math.max(1.0, Math.min(10.0, Math.round(score * 10) / 10));
+
+  let label: string;
+  if (score < 4.0) label = 'Introductory / Low Workload';
+  else if (score < 6.5) label = 'Standard / Moderate Workload';
+  else if (score < 8.5) label = 'Advanced / High Workload';
+  else label = 'Intensive / Capstone Level';
+
+  return { score, label };
+}
+
+// Wrapper that also derives `hasLab` and tolerates prereqs as array or string.
+function difficultyForCourse(
+  code: string,
+  description: string,
+  prerequisites: string[] | string | undefined,
+): CourseDifficulty {
+  const pr: string[] = Array.isArray(prerequisites)
+    ? prerequisites
+    : (typeof prerequisites === 'string' && prerequisites.trim()
+      ? prerequisites.split(/[,;]/).map((s) => s.trim()).filter(Boolean)
+      : []);
+  const hasLab = /\blab(oratory)?\b/i.test(String(description || ''));
+  return { ...calculateCourseDifficulty(code, description, pr), hasLab };
+}
+
 function normKey(parts) {
   return parts.map((p) => (p || '').toString().trim().toLowerCase()).filter(Boolean).join('::');
 }
@@ -302,7 +387,12 @@ function addCourse(years, year, term, code, title, credits) {
   if (!years[year]) years[year] = {};
   if (!years[year][term]) years[year][term] = [];
   if (years[year][term].some((c) => c.code === code)) return;
-  years[year][term].push({ code, title: title || code, credits: Number(credits) || 0 });
+  years[year][term].push({
+    code,
+    title: title || code,
+    credits: Number(credits) || 0,
+    difficulty: difficultyForCourse(code, '', []),
+  });
 }
 
 function stageAstParse(isolatedHtml, trackType) {
@@ -406,7 +496,7 @@ function salvageCourses(htmlOrText) {
       title = title.replace(/\s*\(?\d+(?:\.\d+)?\s*(?:cr|credits?|hrs?|units?)?\)?\s*$/i, '').trim();
     }
     if (!title || isCodeCell(title, code, raw)) title = code;
-    out.push({ code, title, credits: 0 });
+    out.push({ code, title, credits: 0, difficulty: difficultyForCourse(code, '', []) });
   });
   return out;
 }
@@ -439,6 +529,18 @@ const PROGRAM_SCHEMA = {
                       code: { type: 'string' },
                       title: { type: 'string' },
                       credits: { type: 'number' },
+                      prerequisites: {
+                        type: 'array',
+                        items: { type: 'string' },
+                      },
+                      difficulty: {
+                        type: 'object',
+                        properties: {
+                          score: { type: 'number' },
+                          label: { type: 'string' },
+                          hasLab: { type: 'boolean' },
+                        },
+                      },
                     },
                     required: ['code', 'title'],
                   },
@@ -571,11 +673,21 @@ async function parseOneUrl({ base44, university, faculty, degree_program, specia
           yearNumber: Number(y.yearNumber) || 0,
           terms: (y.terms || []).map((t) => ({
             termName: String(t.termName || '').trim(),
-            requiredCourses: (t.requiredCourses || []).map((c) => ({
-              code: String(c.code || '').trim(),
-              title: String(c.title || c.code || '').trim(),
-              credits: typeof c.credits === 'number' ? c.credits : 0,
-            })).filter((c) => c.code),
+            requiredCourses: (t.requiredCourses || []).map((c) => {
+              const prereqs = Array.isArray(c.prerequisites)
+                ? c.prerequisites.map((p) => String(p || '').trim()).filter(Boolean)
+                : [];
+              const desc = String(c.description || '').trim();
+              return {
+                code: String(c.code || '').trim(),
+                title: String(c.title || c.code || '').trim(),
+                credits: typeof c.credits === 'number' ? c.credits : 0,
+                prerequisites: prereqs,
+                description: desc,
+                // Authoritative CWCS value — overwrite any LLM-supplied guess.
+                difficulty: difficultyForCourse(String(c.code || ''), desc, prereqs),
+              };
+            }).filter((c) => c.code),
           })),
         }));
       if (academicYears.length > 0) {
@@ -635,6 +747,18 @@ const WEB_SEARCH_COURSE_SCHEMA = {
           title: { type: 'string' },
           credits: { type: 'number' },
           description: { type: 'string' },
+          prerequisites: {
+            type: 'array',
+            items: { type: 'string' },
+          },
+          difficulty: {
+            type: 'object',
+            properties: {
+              score: { type: 'number' },
+              label: { type: 'string' },
+              hasLab: { type: 'boolean' },
+            },
+          },
         },
         required: ['code', 'title'],
       },
@@ -669,14 +793,22 @@ async function aiWebSearchExtract({ base44, university, faculty, degree_program,
     const conf = String(d?.confidence || 'low').toLowerCase();
     const courses = Array.isArray(d?.courses) ? d.courses
       .filter((c) => c && c.code)
-      .map((c) => ({
-        code: String(c.code).trim(),
-        title: String(c.title || c.code).trim(),
-        credits: typeof c.credits === 'number' ? c.credits : 0,
-        description: String(c.description || '').trim(),
-      })) : [];
+      .map((c) => {
+        const prereqs = Array.isArray(c.prerequisites)
+          ? c.prerequisites.map((p) => String(p || '').trim()).filter(Boolean)
+          : [];
+        const desc = String(c.description || '').trim();
+        return {
+          code: String(c.code).trim(),
+          title: String(c.title || c.code).trim(),
+          credits: typeof c.credits === 'number' ? c.credits : 0,
+          description: desc,
+          prerequisites: prereqs,
+          difficulty: difficultyForCourse(String(c.code), desc, prereqs),
+        };
+      }) : [];
     const academicYears = courses.length
-      ? [{ yearNumber: 1, terms: [{ termName: 'Catalog', requiredCourses: courses.map((c) => ({ code: c.code, title: c.title, credits: c.credits, description: c.description })) }] }]
+      ? [{ yearNumber: 1, terms: [{ termName: 'Catalog', requiredCourses: courses.map((c) => ({ code: c.code, title: c.title, credits: c.credits, description: c.description, difficulty: c.difficulty })) }] }]
       : [];
     return {
       sourceUrl: `AI web-search (${university})`,
@@ -750,14 +882,20 @@ function mergeResults(results) {
           const credits = typeof c.credits === 'number' ? c.credits : 0;
           const existing = entryMap.get(key);
           if (!existing) {
+            const prereqArr = Array.isArray(c.prerequisites)
+              ? c.prerequisites
+              : (typeof c.prerequisites === 'string' && c.prerequisites.trim()
+                ? c.prerequisites.split(/[,;]/).map((s) => s.trim()).filter(Boolean)
+                : []);
             entryMap.set(key, {
               course_code: code,
               course_title: title,
               course_description: c.description || '',
               credits,
-              prerequisites: '',
+              prerequisites: Array.isArray(c.prerequisites) ? c.prerequisites.join(', ') : (c.prerequisites || ''),
               department: '',
               difficulty_hints: '',
+              difficulty: c.difficulty || difficultyForCourse(code, c.description || '', prereqArr),
               source_url: r.sourceUrl,
             });
             order.push(key);
@@ -786,7 +924,8 @@ function mergeResults(results) {
         courses: (t.requiredCourses || []).map((c) => {
           const key = normCode(c.code);
           richSeen.add(key);
-          return { code: c.code, title: c.title || c.code };
+          const prereqArr = Array.isArray(c.prerequisites) ? c.prerequisites : [];
+          return { code: c.code, title: c.title || c.code, difficulty: c.difficulty || difficultyForCourse(c.code, c.description || '', prereqArr) };
         }),
       })),
     }));
@@ -795,11 +934,11 @@ function mergeResults(results) {
     if (leftovers.length) {
       curriculum.push({
         year: 'Catalog',
-        terms: [{ term: 'Catalog', courses: leftovers.map((f) => ({ code: f.course_code, title: f.course_title })) }],
+        terms: [{ term: 'Catalog', courses: leftovers.map((f) => ({ code: f.course_code, title: f.course_title, difficulty: f.difficulty || difficultyForCourse(f.course_code, f.course_description || '', []) })) }],
       });
     }
   } else if (flat.length) {
-    curriculum = [{ year: 'Catalog', terms: [{ term: 'Catalog', courses: flat.map((f) => ({ code: f.course_code, title: f.course_title })) }] }];
+    curriculum = [{ year: 'Catalog', terms: [{ term: 'Catalog', courses: flat.map((f) => ({ code: f.course_code, title: f.course_title, difficulty: f.difficulty || difficultyForCourse(f.course_code, f.course_description || '', []) })) }] }];
   }
   return { flatCourses: flat, curriculum };
 }
@@ -845,10 +984,28 @@ export default async function (req) {
     if (!force && rec && rec.last_parsed_at && (rec.parse_status === 'success' || rec.parse_status === 'partial') &&
         (now - +new Date(rec.last_parsed_at) < FRESH_MS)) {
       const m = (rec.parse_notes || '').match(/(VENDOR_API|DETERMINISTIC_AST|GEMINI_FALLBACK)/);
+      // Enrich curriculum courses with cached CWCS difficulty (computed during
+      // the original parse). Fall back to a fresh deterministic calc for legacy
+      // caches that predate the difficulty field.
+      const diffByCode: Record<string, CourseDifficulty> = {};
+      for (const pc of (rec.parsed_courses || [])) {
+        const k = normCode(pc.course_code);
+        if (k && pc.difficulty) diffByCode[k] = pc.difficulty as CourseDifficulty;
+      }
+      const acadYearsFromCache = (rec.curriculum || []).map((y: any) => ({
+        ...y,
+        terms: (y.terms || []).map((t: any) => ({
+          ...t,
+          courses: (t.courses || []).map((c: any) => ({
+            ...c,
+            difficulty: c.difficulty || diffByCode[normCode(c.code)] || difficultyForCourse(c.code, '', []),
+          })),
+        })),
+      }));
       return Response.json({
         status: 'success', executionMode: m ? m[1] : 'GEMINI_FALLBACK',
         meta: { university, faculty, specialization: degree_program, trackType, sourceUrl: rec.calendar_source_url, tokenUsage: 0 },
-        program: { degreeTitle: '', academicYears: rec.curriculum || [] },
+        program: { degreeTitle: '', academicYears: acadYearsFromCache },
         cached: true, cache_id: rec.id, parse_status: rec.parse_status,
         course_count: (rec.parsed_courses || []).length, last_parsed_at: rec.last_parsed_at,
         calendar_source_url: rec.calendar_source_url,

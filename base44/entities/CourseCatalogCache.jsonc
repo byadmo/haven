@@ -52,6 +52,24 @@
           },
           "difficulty_hints": {
             "type": "string"
+          },
+          "difficulty": {
+            "type": "object",
+            "description": "Deterministic Course Workload & Complexity Score (CWCS) computed during parsing \u2014 no LLM overhead.",
+            "properties": {
+              "score": {
+                "type": "number",
+                "description": "1.0\u201310.0 clamped complexity score (one decimal)."
+              },
+              "label": {
+                "type": "string",
+                "description": "Workload band: 'Introductory / Low Workload' | 'Standard / Moderate Workload' | 'Advanced / High Workload' | 'Intensive / Capstone Level'."
+              },
+              "hasLab": {
+                "type": "boolean",
+                "description": "True when the course description mentions a lab(/laboratory) component."
+              }
+            }
           }
         },
         "required": [
@@ -87,6 +105,21 @@
                       },
                       "title": {
                         "type": "string"
+                      },
+                      "difficulty": {
+                        "type": "object",
+                        "description": "Deterministic CWCS score carried into the curriculum so cache-hit responses include it.",
+                        "properties": {
+                          "score": {
+                            "type": "number"
+                          },
+                          "label": {
+                            "type": "string"
+                          },
+                          "hasLab": {
+                            "type": "boolean"
+                          }
+                        }
                       }
                     },
                     "required": [
