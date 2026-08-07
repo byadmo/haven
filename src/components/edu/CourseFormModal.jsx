@@ -188,6 +188,7 @@ export default function CourseFormModal({ open, onOpenChange, semesterId, semest
       setForm((p) => ({
         ...p,
         course_description: out.description?.trim() ? out.description.trim() : p.course_description,
+        prerequisites: out.prerequisites || p.prerequisites,
         difficulty_ranking: out.difficulty_ranking || p.difficulty_ranking,
         difficulty_reason: out.difficulty_reason || p.difficulty_reason,
       }));
@@ -220,7 +221,14 @@ export default function CourseFormModal({ open, onOpenChange, semesterId, semest
 
   async function saveManual(e) {
     e.preventDefault();
-    if (!form.code || !form.title) return;
+    if (!form.code || !form.title) {
+      toast({ title: "Code and Title are required", variant: "destructive" });
+      return;
+    }
+    if (!isEdit && !semesterId) {
+      toast({ title: "No active semester", description: "Create a semester in the dashboard first.", variant: "destructive" });
+      return;
+    }
     setSaving(true);
     try {
       const payload = {
@@ -236,6 +244,13 @@ export default function CourseFormModal({ open, onOpenChange, semesterId, semest
         await createCourse({ course: payload, deliverables: [], materials: [] });
       }
       onOpenChange(false);
+    } catch (err) {
+      console.error("Save failed", err);
+      toast({
+        title: isEdit ? "Could not update course" : "Could not save course",
+        description: err?.message || "Please try again in a moment.",
+        variant: "destructive",
+      });
     } finally { setSaving(false); }
   }
 

@@ -2,7 +2,6 @@
 
 import * as React from "react"
 import * as DialogPrimitive from "@radix-ui/react-dialog"
-import { X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
@@ -42,10 +41,12 @@ const DialogOverlay = React.forwardRef(({ className, ...props }, ref) => (
     style={{ backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)" }}
     className={cn(
       "fixed inset-0 z-50 bg-black/80",
-      "data-[state=open]:animate-in data-[state=closed]:animate-out",
-      "data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0",
-      "data-[state=open]:ease-enter data-[state=closed]:ease-exit",
-      "data-[state=open]:duration-200 data-[state=closed]:duration-150",
+      // CSS-only opacity fade — Tailwind's `animate-in` plugin overrides the
+      // static transform during its keyframe, which is what made the panel
+      // appear to fly out of the bottom-right corner. `animate-enter-fade`
+      // only touches opacity, so the static `-translate-x/-y-1/2` on the
+      // panel keeps it dead-center through the whole fade.
+      "data-[state=open]:animate-enter-fade data-[state=closed]:animate-exit-fade",
       className
     )}
     {...props} />
@@ -76,23 +77,19 @@ const DialogContent = React.forwardRef(({ className, children, onKeyDown, ...pro
       ref={ref}
       onKeyDown={(e) => { dialogHandleKeyDown(e); onKeyDown?.(e); }}
       className={cn(
+        // Static transform is GPU-composited and never animates, so the box
+        // sits dead-center through the entire fade — no mid-transition jump.
+        // `animate-enter-fade` is CSS-only opacity (no transform override),
+        // preserving center placement on open/close.
         "fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2",
         "grid w-full max-w-lg gap-4",
         "border border-white/10 bg-background text-foreground p-4 sm:p-6",
-        "shadow-lg sm:rounded-lg max-h-[90dvh] overflow-y-auto",
-        "data-[state=open]:animate-in data-[state=closed]:animate-out",
-        "data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0",
-        "data-[state=open]:ease-enter data-[state=closed]:ease-exit",
-        "data-[state=open]:duration-200 data-[state=closed]:duration-150",
+        "shadow-lg sm:rounded-lg max-h-[90dvh] overflow-y-auto overflow-x-hidden",
+        "data-[state=open]:animate-enter-fade data-[state=closed]:animate-exit-fade",
         className
       )}
       {...props}>
       {children}
-      <DialogPrimitive.Close
-        className="absolute right-4 top-4 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">
-        <X className="h-4 w-4" />
-        <span className="sr-only">Close</span>
-      </DialogPrimitive.Close>
     </DialogPrimitive.Content>
   </DialogPortal>
 ))

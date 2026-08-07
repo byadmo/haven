@@ -128,9 +128,9 @@ module.exports = {
   		animation: {
   			'accordion-down': 'accordion-down 0.2s cubic-bezier(0, 0, 0.2, 1)',
   			'accordion-up': 'accordion-up 0.2s cubic-bezier(0.4, 0, 1, 1)',
-  			'enter-fade-up': 'enter-fade-up 200ms cubic-bezier(0, 0, 0.2, 1)',
-  			'enter-fade': 'enter-fade 200ms cubic-bezier(0, 0, 0.2, 1)',
-  			'exit-fade': 'exit-fade 150ms cubic-bezier(0.4, 0, 1, 1)'
+  			'enter-fade-up': 'enter-fade-up 200ms cubic-bezier(0, 0, 0.2, 1) both',
+  			'enter-fade': 'enter-fade 200ms cubic-bezier(0, 0, 0.2, 1) both',
+  			'exit-fade': 'exit-fade 150ms cubic-bezier(0.4, 0, 1, 1) both'
   		}
   	}
   },
