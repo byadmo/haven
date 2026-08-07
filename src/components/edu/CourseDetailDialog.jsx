@@ -5,20 +5,61 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Trash2, Check, Pencil } from "lucide-react";
+import { Plus, Trash2, Check, Pencil, Sparkles, Loader2 } from "lucide-react";
 import { useEduSync } from "@/lib/eduSyncContext";
 import { currentGrade, percentToLetter } from "@/lib/eduGrading";
 import ProfessorContact from "@/components/edu/ProfessorContact";
 import GradeCalculator from "@/components/edu/GradeCalculator";
 import SessionNotesList from "@/components/edu/SessionNotesList";
+import { researchCourse } from "@/lib/courseAutofill";
+import { useToast } from "@/components/ui/use-toast";
 
 const TYPES = ["assignment", "exam", "quiz", "project", "midterm", "final", "lab", "other"];
 
 export default function CourseDetailDialog({ course, open, onOpenChange, onEditCourse }) {
-  const { deliverablesByCourse, materialsByCourse, createDeliverable, updateDeliverable, deleteDeliverable, createMaterial, deleteMaterial, deleteCourse } = useEduSync();
+  const { deliverablesByCourse, materialsByCourse, createDeliverable, updateDeliverable, deleteDeliverable, createMaterial, deleteMaterial, deleteCourse, settings, updateCourse } = useEduSync();
+  const { toast } = useToast();
   const [dlv, setDlv] = React.useState({ title: "", due_date: "", weight: 0, type: "assignment", is_exam: false });
   const [mat, setMat] = React.useState({ title: "", estimated_cost: 0, required: true });
   const [grades, setGrades] = React.useState({});
+  const [generatingDesc, setGeneratingDesc] = React.useState(false);
+
+  // Run description + prerequisites + difficulty research AFTER a course is
+  // already saved — the user wants Generate available here too, not just in
+  // the add-course form.
+  async function generateFromWeb() {
+    if (generatingDesc || !course?.code) return;
+    setGeneratingDesc(true);
+    try {
+      const out = await researchCourse({
+        code: course.code,
+        title: course.title,
+        university: {
+          university_name: course.university_name || settings?.university_name,
+          university_domain: settings?.university_domain,
+          university_course_catalog_url: settings?.university_course_catalog_url,
+        },
+        profile: {
+          degree_program: settings?.degree_program,
+          specialization: settings?.specialization,
+          faculty: settings?.faculty,
+        },
+      });
+      const patch = {};
+      if (out.description?.trim()) patch.course_description = out.description.trim();
+      if (out.prerequisites?.trim()) patch.prerequisites = out.prerequisites.trim();
+      if (out.difficulty_ranking) patch.difficulty_ranking = out.difficulty_ranking;
+      if (out.difficulty_reason) patch.difficulty_reason = out.difficulty_reason;
+      if (Object.keys(patch).length) {
+        await updateCourse(course.id, patch);
+        toast({ title: "Researched", description: "Description, prerequisites & difficulty updated." });
+      } else {
+        toast({ title: "Nothing found", description: "Try again or edit manually.", variant: "destructive" });
+      }
+    } catch (e) {
+      toast({ title: "Research failed", variant: "destructive" });
+    } finally { setGeneratingDesc(false); }
+  }
 
   if (!course) return null;
   const dlvs = (deliverablesByCourse[course.id] || []).slice().sort((a, b) => (a.due_date || "").localeCompare(b.due_date || ""));
@@ -62,12 +103,24 @@ export default function CourseDetailDialog({ course, open, onOpenChange, onEditC
         </DialogHeader>
 
         <div className="space-y-5 max-h-[65vh] overflow-y-auto pr-1">
-          {course.course_description && (
-            <div className="rounded-lg border border-white/10 p-4">
-              <p className="text-[10px] uppercase tracking-widest text-white/50 mb-1.5">Course description</p>
-              <p className="text-xs text-white/70 leading-relaxed whitespace-normal break-words">{course.course_description}</p>
+          <div className="rounded-lg border border-white/10 p-4">
+            <div className="flex items-center justify-between mb-1.5">
+              <p className="text-[10px] uppercase tracking-widest text-white/50">Course description</p>
+              <button
+                type="button"
+                onClick={generateFromWeb}
+                disabled={generatingDesc || !course?.code}
+                className="inline-flex items-center gap-1 text-[10px] text-emerald-300/80 hover:text-emerald-200 disabled:opacity-50"
+                title="Research description, prerequisites & difficulty from the web"
+              >
+                {generatingDesc ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                {generatingDesc ? "Researching…" : "Generate"}
+              </button>
             </div>
-          )}
+            <p className="text-xs text-white/70 leading-relaxed whitespace-normal break-words">
+              {course.course_description || (generatingDesc ? "Researching…" : "Press Generate to research this course online.")}
+            </p>
+          </div>
           <ProfessorContact course={course} />
           {/* Grading breakdown */}
           <div className="rounded-lg border border-white/10 p-4">

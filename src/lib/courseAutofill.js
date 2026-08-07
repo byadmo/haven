@@ -293,14 +293,11 @@ export async function generateDifficultyDetails({ code, title, course_descriptio
   const uniName = university?.university_name || university?.name || "the student's university";
   const desc = course_description ? `\nCourse description: "${course_description}"` : "";
   const prompt = [
-    `Produce a detailed difficulty briefing for the university course "${code} — ${title}" at ${uniName}.`,
-    `It is worth ${credits ?? 3} credits.${desc}`,
-    "Search online sources (RateMyProfessors, Reddit, course outline pages, university forums) to ground your answer in real student experience.",
-    "Return a JSON object with:",
-    "- details: a string with 4 short paragraphs separated by '\\n'. Paragraph 1: what specifically makes it hard/easy (topics, concepts, workload). Paragraph 2: common student experiences and reported difficulty. Paragraph 3: recommended study strategies and tips. Paragraph 4: estimated weekly study hours and a one-line bottom line.",
-    "- weekly_hours: a number — recommended study hours per week.",
-    "Be concrete and specific to THIS course at THIS university. Avoid generic filler.",
-  ].join(" ");
+    `Briefly summarize what makes "${code} — ${title}" at ${uniName} hard or easy (${credits ?? 3} credits).`,
+    desc ? `Catalog context:${desc}` : "",
+    "Write a CONCISE summary — at most 2 short sentences (~40-60 words total) — of ONLY the parts that matter most: the core difficulty driver (specific topics, workload) plus one practical takeaway. No filler, no lists, no generic platitudes, no markdown, no links. Plain text only.",
+    "Return JSON: details (a 1-2 sentence plain-text string) and weekly_hours (a number).",
+  ].filter(Boolean).join(" ");
 
   try {
     const res = await base44.integrations.Core.InvokeLLM({
@@ -346,8 +343,11 @@ export async function researchCourse({ code, title, university, profile }) {
   const prompt = [
     `Look up course "${code}"${title ? ` (${title})` : ""}${uniName ? ` at ${uniName}` : ""}.`,
     catalogUrl ? `Catalog: ${catalogUrl}.` : (uniDomain ? `Site: ${uniDomain}.` : ""),
-    "From the official catalog + RateMyProfessors + Reddit + course outlines, return JSON with:",
-    "description (1-3 sentence catalog desc), prerequisites (short e.g. 'MATH 137' or 'None'), difficulty_ranking (Easy|Moderate|Hard|Very Hard|Brutal — brutal+honest; upper-year STEM are usually Hard+), difficulty_reason (one ~20-word sentence citing evidence).",
+    "Return PLAIN TEXT ONLY — no markdown, no URLs, no links anywhere in the output. JSON fields:",
+    "- description: 1-2 sentence plain-text course description (NO links, NO markdown).",
+    "- prerequisites: just comma-separated course codes, e.g. 'MATH 137, PHYS 122' or 'None' — NO URLs, NO prose.",
+    "- difficulty_ranking: Easy|Moderate|Hard|Very Hard|Brutal — brutal+honest; upper-year STEM are usually Hard+.",
+    "- difficulty_reason: ONE ~15-word sentence citing the strongest evidence you found.",
   ].filter(Boolean).join(" ");
 
   try {

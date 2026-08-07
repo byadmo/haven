@@ -3,6 +3,21 @@ import { Moon, BookOpen, GraduationCap, Briefcase, Clock, Loader2 } from "lucide
 import { base44 } from "@/api/base44Client";
 import { useEduSync } from "@/lib/eduSyncContext";
 
+// Parse a course's weekly class hours from its schedule_days × schedule_time
+// (e.g. "10:00-11:30" on 3 days = 4.5h/wk). Returns 0 if the schedule is
+// missing or unparseable — caller falls back to credits in that case.
+function parseScheduleHours(c) {
+  const days = Array.isArray(c.schedule_days) ? c.schedule_days : [];
+  if (!days.length || !c.schedule_time) return 0;
+  const m = String(c.schedule_time).match(/(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/);
+  if (!m) return 0;
+  const start = Number(m[1]) * 60 + Number(m[2]);
+  const end = Number(m[3]) * 60 + Number(m[4]);
+  if (end <= start) return 0;
+  const perSession = (end - start) / 60;
+  return Math.round(perSession * days.length * 10) / 10;
+}
+
 const HEALTH = {
   green: { bg: "bg-emerald-500/10", border: "border-emerald-400/40", text: "text-emerald-300", dot: "bg-emerald-400", label: "Optimal" },
   yellow: { bg: "bg-amber-500/10", border: "border-amber-400/40", text: "text-amber-300", dot: "bg-amber-400", label: "Sub-optimal" },
@@ -13,25 +28,35 @@ export default function WorkStudyBalance() {
   const { courses } = useEduSync();
   const defaultCredits = courses.reduce((s, c) => s + (c.credits || 0), 0);
   const defaultStudy = courses.reduce((s, c) => s + (c.target_weekly_hours || 0), 0);
+  // Class hours/week from the actual course schedule (days × duration in hours)
+  // when set; falls back to credits when a course has no schedule set.
+  const defaultClassHours = courses.reduce((s, c) => {
+    const sh = parseScheduleHours(c);
+    return s + (sh > 0 ? sh : Math.round(c.credits || 0));
+  }, 0);
 
   const [vals, setVals] = React.useState({
     credits: defaultCredits,
     target_study_hours: defaultStudy,
-    class_hours: Math.round(defaultCredits * 1) || 0,
+    class_hours: defaultClassHours || Math.round(defaultCredits) || 0,
     sleep_hours_per_day: 8,
   });
   const [result, setResult] = React.useState(null);
   const [loadingResult, setLoadingResult] = React.useState(false);
 
+  // Auto-recalculate credits, study & class hours whenever the user's course
+  // list changes (course added / edited / removed). Only the user's sleep-day
+  // setting is preserved — credits / study / class hours always reflect the
+  // current course data per the user's request.
   React.useEffect(() => {
     setVals((v) => ({
       credits: defaultCredits,
       target_study_hours: defaultStudy,
-      class_hours: v.class_hours || Math.round(defaultCredits * 1) || 0,
-      sleep_hours_per_day: 8,
+      class_hours: defaultClassHours || Math.round(defaultCredits) || 0,
+      sleep_hours_per_day: v.sleep_hours_per_day || 8,
     }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [defaultCredits, defaultStudy]);
+  }, [defaultCredits, defaultStudy, defaultClassHours]);
 
   React.useEffect(() => {
     let cancelled = false;

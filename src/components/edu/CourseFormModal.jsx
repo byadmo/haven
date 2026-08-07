@@ -392,7 +392,7 @@ export default function CourseFormModal({ open, onOpenChange, semesterId, semest
                   {descLoading ? "Researching…" : "Generate"}
                 </button>
               </div>
-              <Textarea value={form.course_description || ""} onChange={(e) => set("course_description", e.target.value)} rows={3} className="bg-black border-white/10 mt-1 text-sm leading-relaxed whitespace-normal break-words" placeholder="Auto-filled from the catalog — or press Generate to research it on the web" />
+              <Textarea value={form.course_description || ""} onChange={(e) => set("course_description", e.target.value)} rows={6} className="bg-black border-white/10 mt-1 text-sm leading-relaxed whitespace-normal break-words" placeholder="Auto-filled from the catalog — or press Generate to research it on the web" />
               {descError && (
                 <p className="text-[10px] text-rose-300/80 mt-1 break-words">{descError}</p>
               )}
