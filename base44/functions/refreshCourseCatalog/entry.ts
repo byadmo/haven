@@ -489,37 +489,69 @@ function normCode(code) {
   return String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 }
 
+// Title-quality helpers for the merge. A "bare" title is one that's just the
+// course code (or empty) — the parser/salvage couldn't recover a real name.
+// When the same code appears on multiple cached links, the BETTER title wins
+// (descriptive > bare, longer descriptive > shorter) and missing credits are
+// filled from whichever source had them.
+function isBareTitle(title, code) {
+  if (!title) return true;
+  const t = String(title).trim();
+  if (!t) return true;
+  const key = normCode(code);
+  if (normCode(t) === key) return true;
+  return t.replace(/[^A-Za-z0-9]/g, '').toUpperCase() === key;
+}
+function betterTitle(a, b, code) {
+  const bareA = isBareTitle(a, code);
+  const bareB = isBareTitle(b, code);
+  if (bareA && !bareB) return b;
+  if (!bareA && bareB) return a;
+  const la = String(a || '').trim().length, lb = String(b || '').trim().length;
+  return lb > la ? b : a;
+}
+
 // Merge per-URL parse results into ONE deduplicated flat course list + a single
 // curriculum (uses the richest source's academicYears, then appends any
 // courses found only on alternate pages under a 'Catalog' catch-all term so
-// search-by-code still surfaces them).
+// search-by-code still surfaces them). Duplicate codes across sources are
+// collapsed to one row with the best title.
 function mergeResults(results) {
-  const seen = new Set();
-  const flat = [];
-  const byCode = new Map();
+  const entryMap = new Map();
+  const order = [];
   for (const r of results) {
     for (const y of (r.academicYears || [])) {
       for (const t of (y.terms || [])) {
         for (const c of (t.requiredCourses || [])) {
           const key = normCode(c.code);
           if (!key) continue;
-          if (seen.has(key)) continue;
-          seen.add(key);
-          flat.push({
-            course_code: c.code,
-            course_title: c.title || c.code,
-            course_description: '',
-            credits: typeof c.credits === 'number' ? c.credits : 0,
-            prerequisites: '',
-            department: '',
-            difficulty_hints: '',
-            source_url: r.sourceUrl,
-          });
-          byCode.set(key, { code: c.code, title: c.title || c.code });
+          const code = c.code;
+          const title = c.title || c.code;
+          const credits = typeof c.credits === 'number' ? c.credits : 0;
+          const existing = entryMap.get(key);
+          if (!existing) {
+            entryMap.set(key, {
+              course_code: code,
+              course_title: title,
+              course_description: '',
+              credits,
+              prerequisites: '',
+              department: '',
+              difficulty_hints: '',
+              source_url: r.sourceUrl,
+            });
+            order.push(key);
+          } else {
+            if (betterTitle(existing.course_title, title, key) !== existing.course_title) {
+              existing.course_title = title;
+            }
+            if (!existing.credits && credits) existing.credits = credits;
+          }
         }
       }
     }
   }
+  const flat = order.map((k) => entryMap.get(k));
   // Curriculum: use the richest source's structure; any leftover courses go to
   // a 'Catalog' catch-all year so the curriculum reflects the merged set.
   const richest = results.slice().sort((a, b) => countCourses(b.academicYears) - countCourses(a.academicYears))[0];
