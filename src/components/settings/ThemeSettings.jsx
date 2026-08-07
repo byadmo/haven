@@ -20,7 +20,7 @@ export default function ThemeSettings({ currentTheme, onChange }) {
         Pick a theme — it applies instantly and is saved to your account for next time.
       </p>
 
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         {THEME_KEYS.map((key) => {
           const t = THEMES[key];
           const active = key === current;

@@ -5,9 +5,31 @@
 
 export const DEFAULT_THEME = "midnight";
 
-export const THEME_KEYS = ["midnight", "daylight", "cottonCandy", "forest", "sunset"];
+export const THEME_KEYS = ["original", "midnight", "daylight", "cottonCandy", "forest", "sunset"];
 
 export const THEMES = {
+  // Original: the pre-theme-system look — true-black canvas (the telemetry
+  // overrides), white/opacity text, hairline white borders, and the native
+  // per-sub-app accent (emerald for Education, indigo for Finance) left intact.
+  // `nativeAccent` tells applyTheme to skip the --e-* override so the .finance-accent
+  // class and default emerald channels keep working exactly as before.
+  original: {
+    key: "original",
+    label: "Original",
+    tagline: "Classic black",
+    tint: "dark",
+    nativeAccent: true,
+    bg: "#000000",
+    surface: "#000000",
+    primary: "#10b981",
+    secondary: "#059669",
+    text: "#ffffff",
+    muted: "rgba(255, 255, 255, 0.5)",
+    border: "rgba(255, 255, 255, 0.10)",
+    success: "#22c55e",
+    danger: "#ef4444",
+    charts: ["#10b981", "#6366f1", "#f59e0b", "#ec4899"],
+  },
   midnight: {
     key: "midnight",
     label: "Midnight",
@@ -122,13 +144,19 @@ export function applyTheme(el, key) {
   t.charts.forEach((c, i) => s.setProperty(`--th-chart-${i + 1}`, c));
   // Emerald accent scale follows the theme primary (300/200 lean on secondary
   // for depth) so every emerald-* utility recolors with the theme automatically.
-  const prim = hexToChannels(t.primary);
-  const sec = hexToChannels(t.secondary);
-  s.setProperty("--e-200", sec);
-  s.setProperty("--e-300", sec);
-  s.setProperty("--e-400", prim);
-  s.setProperty("--e-500", prim);
-  s.setProperty("--e-600", prim);
+  // Emerald accent scale follows the theme primary (300/200 lean on secondary
+  // for depth) so every emerald-* utility recolors with the theme automatically.
+  // The "original" theme keeps the native per-sub-app accents (emerald/indigo
+  // via .finance-accent) untouched, so we skip the override entirely.
+  if (!t.nativeAccent) {
+    const prim = hexToChannels(t.primary);
+    const sec = hexToChannels(t.secondary);
+    s.setProperty("--e-200", sec);
+    s.setProperty("--e-300", sec);
+    s.setProperty("--e-400", prim);
+    s.setProperty("--e-500", prim);
+    s.setProperty("--e-600", prim);
+  }
   el.setAttribute("data-theme", t.key);
   el.setAttribute("data-tint", t.tint);
 }
