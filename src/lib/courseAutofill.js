@@ -380,7 +380,7 @@ export async function researchCourse({ code, title, university, profile }) {
     "Return PLAIN TEXT ONLY — no markdown, no URLs, no links anywhere in the output. JSON fields:",
     "- description: 1-2 sentence plain-text course description (NO links, NO markdown).",
     "- prerequisites: just comma-separated course codes, e.g. 'MATH 137, PHYS 122' or 'None' — NO URLs, NO prose.",
-    "- difficulty_ranking: Easy|Moderate|Hard|Very Hard|Brutal — brutal+honest; upper-year STEM are usually Hard+.",
+    "- difficulty_ranking: Easy|Moderate|Hard|Very Hard|Brutal. SPREAD courses across the FULL range honestly — most intro/first-year courses are Easy or Moderate, and Moderate is the typical default, NOT Hard. Easy = light intro/overview, minimal workload. Moderate = standard course, average workload. Hard = clearly demanding upper-year content or heavy workload. Very Hard = notoriously tough / high fail rates. Brutal = the rare infamous weeder or legendary course. Only go Hard or above when the evidence genuinely justifies it.",
     "- difficulty_reason: ONE ~15-word sentence citing the strongest evidence you found.",
   ].filter(Boolean).join(" ");
 
@@ -432,12 +432,19 @@ export function normalizeCode(code) {
 function difficultyFromHints(hints, title, description) {
   const h = `${hints || ""} ${title || ""} ${description || ""}`.toLowerCase();
   if (!h.trim()) return { ranking: "Moderate", reason: "" };
-  if (/(notoriously|brutal|legendary|killer|extremely difficult|very hard|high fail|dropout|one of the hardest|rigorous|heavy workload|intensive|capstone|thesis|challenging|weeder)/.test(h))
-    return { ranking: "Brutal", reason: hints || "Catalog + reputation signal this as a demanding course." };
-  if (/(advanced|hard|difficult|complex|proof|proofs|design|project-based|honours)/.test(h))
-    return { ranking: "Hard", reason: hints || "Topics and workload point to a hard course." };
-  if (/(introductory|intro|beginner|easy|light|accessible|overview|fundamentals|survey)/.test(h))
-    return { ranking: "Easy", reason: hints || "Introductory / low-workload content." };
+  // Brutal — only the truly infamous weeder / legendary courses (rare).
+  if (/(notoriously brutal|killer class|killer course|legendary|one of the hardest|infamous|weeder class|weeder course|brutal)/.test(h))
+    return { ranking: "Brutal", reason: hints || "Notorious / legendary-difficulty signal." };
+  // Very Hard — rigorous advanced, heavy proof load, thesis/capstone-level.
+  if (/(very hard|extremely difficult|rigorous|heavy proof|proof-heavy|high workload|heavy workload|thesis|capstone|advanced honours)/.test(h))
+    return { ranking: "Very Hard", reason: hints || "Rigorous advanced / heavy workload signal." };
+  // Hard — clearly demanding but not infamous: advanced topics, project-based, design.
+  if (/(advanced|hard|difficult|complex|proof|proofs|design|project-based|honours|challenging|high fail|dropout)/.test(h))
+    return { ranking: "Hard", reason: hints || "Advanced / demanding content." };
+  // Easy — gentle intro / survey / light.
+  if (/(introductory|intro|beginner|easy|light|accessible|overview|fundamentals|survey|basic)/.test(h))
+    return { ranking: "Easy", reason: hints || "Introductory / light content." };
+  // Default — the typical course, not Hard.
   return { ranking: "Moderate", reason: hints || "" };
 }
 
