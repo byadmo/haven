@@ -117,14 +117,17 @@ function Row({ settings, semesterId, onCommit }) {
     return () => { cancelled = true; };
   }, [debouncedRaw, phase, uniObj, profileObj]);
 
-  async function commit(code, title) {
-    const c = (code || "").trim().toUpperCase();
+  async function commit(candidate) {
+    const c = (candidate?.code || "").trim().toUpperCase();
     if (c.length < 2 || phase !== "input") return;
     if (!semesterId) {
       toast({ title: "No active semester", description: "Create a semester first.", variant: "destructive" });
       return;
     }
-    setCommitted({ code: c, title: title || c });
+    const title = candidate?.title || c;
+    const credits = typeof candidate?.credits === "number" && candidate.credits > 0 ? candidate.credits : 3;
+    const weeklyHours = typeof candidate?.estimated_weekly_hours === "number" && candidate.estimated_weekly_hours > 0 ? candidate.estimated_weekly_hours : 6;
+    setCommitted({ code: c, title });
     setShowSug(false);
     setSuggestions([]);
     setPhase("saving");
@@ -135,14 +138,18 @@ function Row({ settings, semesterId, onCommit }) {
       const created = await createCourse({
         course: {
           code: c,
-          title: title || c,
+          title,
           semester_id: semesterId,
-          credits: 3,
-          target_weekly_hours: 6,
+          credits,
+          target_weekly_hours: weeklyHours,
           university_name: settings?.university_name || null,
-          faculty: settings?.faculty || "",
-          degree_program: settings?.degree_program || "",
-          specialization: settings?.specialization || "",
+          faculty: candidate?.faculty || settings?.faculty || "",
+          degree_program: candidate?.degree_program || settings?.degree_program || "",
+          specialization: candidate?.specialization || settings?.specialization || "",
+          course_description: candidate?.description || "",
+          prerequisites: candidate?.prerequisites || "",
+          difficulty_ranking: candidate?.difficulty_ranking || "",
+          difficulty_reason: candidate?.difficulty_reason || "",
         },
         deliverables: [],
         materials: [],
@@ -177,9 +184,8 @@ function Row({ settings, semesterId, onCommit }) {
     if (e.key !== "Enter") return;
     e.preventDefault();
     const first = suggestions[0];
-    const code = (first?.code || raw).trim().toUpperCase();
-    const title = first?.title || "";
-    if (code.length >= 2) commit(code, title);
+    const candidate = first || { code: raw.trim().toUpperCase(), title: "" };
+    if ((candidate.code || "").length >= 2) commit(candidate);
   }
 
   async function removePill() {
@@ -216,7 +222,7 @@ function Row({ settings, semesterId, onCommit }) {
               <button
                 key={(s.code || "") + i}
                 type="button"
-                onMouseDown={(e) => { e.preventDefault(); commit(s.code, s.title); }}
+                onMouseDown={(e) => { e.preventDefault(); commit(s); }}
                 className="w-full text-left px-3 py-2 hover:bg-emerald-500/10 flex flex-col gap-0.5 border-b border-white/5 last:border-0"
               >
                 <div className="flex items-center justify-between">
