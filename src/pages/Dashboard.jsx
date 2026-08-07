@@ -11,7 +11,7 @@ import ChartSwitcher from "@/components/finance/ChartSwitcher";
 import RecentTransactions from "@/components/finance/RecentTransactions";
 import UpcomingBills from "@/components/finance/UpcomingBills";
 import FinancialHealthScore from "@/components/finance/FinancialHealthScore";
-import UpcomingRecurring from "@/components/finance/UpcomingRecurring";
+import UpcomingBillsWidget from "@/components/finance/UpcomingBillsWidget";
 import AccountsSummary from "@/components/finance/AccountsSummary";
 import Reveal from "@/components/finance/Reveal";
 import { ForecastProvider } from "@/lib/forecast-context";
@@ -150,7 +150,7 @@ export default function Dashboard() {
               <Reveal><ChartSwitcher transactions={txns} accounts={accounts} debts={debts} /></Reveal>
             </div>
             <div className="space-y-6">
-              <Reveal><UpcomingRecurring transactions={txns} accounts={accounts} onChanged={refresh} /></Reveal>
+              <Reveal><UpcomingBillsWidget /></Reveal>
             </div>
           </div>
 

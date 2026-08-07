@@ -3,6 +3,7 @@ import { Calendar, Target, ListPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import FocusFormModal from "@/components/edu/FocusFormModal";
 import DeliverableFormModal from "@/components/edu/DeliverableFormModal";
+import CourseDifficulty from "@/components/edu/CourseDifficulty";
 
 const DAY_LABELS = { M: "M", T: "T", W: "W", Th: "Th", F: "F", S: "S", Su: "Su" };
 
@@ -45,8 +46,10 @@ export default function CourseCard({ course, onOpen }) {
         </div>
 
         {(schedule || course.schedule_time) && (
-          <p className="text-[11px] text-white/50 font-mono tabular-nums mb-3">{schedule}{course.schedule_time ? ` · ${course.schedule_time}` : ""}{course.location ? ` · ${course.location}` : ""}</p>
+          <p className="text-[11px] text-white/50 font-mono tabular-nums mb-2">{schedule}{course.schedule_time ? ` · ${course.schedule_time}` : ""}{course.location ? ` · ${course.location}` : ""}</p>
         )}
+
+        <CourseDifficulty course={course} />
 
         {next ? (
           <div className="flex items-center justify-between mb-3">

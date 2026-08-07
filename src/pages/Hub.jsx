@@ -52,12 +52,7 @@ export default function Hub() {
             </div>
             <span className="text-base font-semibold tracking-tight text-white">Haven</span>
           </div>
-          <button
-            onClick={() => navigate("/overview")}
-            className="text-[10px] uppercase tracking-widest text-white/40 hover:text-white transition-colors"
-          >
-            Skip to Finance
-          </button>
+          <span className="text-[10px] uppercase tracking-widest text-white/30 hidden sm:inline">Choose your workspace</span>
         </header>
 
         {/* Hero */}

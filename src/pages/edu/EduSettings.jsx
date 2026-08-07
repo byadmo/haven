@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Settings as SettingsIcon, CalendarCheck, CheckCircle2, Link2, ShieldCheck, RefreshCw, Loader2, GraduationCap, BadgeCheck, Pencil } from "lucide-react";
+import { Settings as SettingsIcon, CalendarCheck, CheckCircle2, Link2, ShieldCheck, RefreshCw, Loader2, GraduationCap, BadgeCheck, Pencil, Building2 } from "lucide-react";
 import CustomizeNavModal from "@/components/nav/CustomizeNavModal";
 import { EDU_PAGES, EDU_DEFAULT_NAV, EDU_LOCKED } from "@/lib/navConfig";
 import { base44 } from "@/api/base44Client";
@@ -17,6 +17,7 @@ import { useEduSyncData, GCALENDAR_CONNECTOR_ID } from "@/lib/eduSyncContext";
 import TaskTypesSettings from "@/components/edu/TaskTypesSettings";
 import UiSizeSetting from "@/components/finance/UiSizeSetting";
 import ThemeSettings from "@/components/settings/ThemeSettings";
+import UniversitySelector from "@/components/edu/UniversitySelector";
 import ProfileWizard from "@/components/edu/ProfileWizard";
 import EduDangerZone from "@/components/edu/EduDangerZone";
 import { isProfileComplete } from "@/lib/eduProfile";
@@ -146,6 +147,11 @@ export default function EduSettings() {
               {profileComplete ? "Edit Profile" : "Complete Profile"}
             </Button>
           </div>
+        </Reveal>
+
+        {/* University */}
+        <Reveal>
+          <UniversitySection />
         </Reveal>
 
         {/* Navigation */}
@@ -293,6 +299,58 @@ function Toggle({ label, checked, onChange }) {
     <div className="flex items-center justify-between gap-3">
       <Label className="text-xs text-zinc-100 font-normal">{label}</Label>
       <Switch checked={checked} onCheckedChange={onChange} />
+    </div>
+  );
+}
+
+function UniversitySection() {
+  const { settings, updateSettings } = useEduSyncData();
+  const { toast } = useToast();
+  const [uni, setUni] = React.useState({ name: settings?.university_name || "", domain: settings?.university_domain || "", catalogUrl: settings?.university_course_catalog_url || "" });
+  const [program, setProgram] = React.useState(settings?.degree_program || "");
+  const [spec, setSpec] = React.useState(settings?.specialization || "");
+
+  React.useEffect(() => {
+    setUni({ name: settings?.university_name || "", domain: settings?.university_domain || "", catalogUrl: settings?.university_course_catalog_url || "" });
+    setProgram(settings?.degree_program || "");
+    setSpec(settings?.specialization || "");
+  }, [settings]);
+
+  async function save(next) {
+    try {
+      await updateSettings({
+        university_name: next?.name || "",
+        university_domain: next?.domain || "",
+        university_course_catalog_url: next?.catalogUrl || "",
+        degree_program: program,
+        specialization: spec,
+      });
+      toast({ title: "University saved" });
+    } catch {
+      toast({ title: "Couldn't save university", variant: "destructive" });
+    }
+  }
+
+  return (
+    <div className="rounded-lg border border-white/10 bg-black p-5">
+      <div className="flex items-center gap-2 mb-4">
+        <Building2 className="h-4 w-4 text-emerald-300" />
+        <p className="text-[10px] uppercase tracking-widest text-white/50">University</p>
+      </div>
+      <UniversitySelector value={uni} onChange={(n) => { setUni(n || { name: "", domain: "", catalogUrl: "" }); save(n); }} />
+      <div className="grid grid-cols-2 gap-3 mt-3">
+        <div>
+          <Label className="text-[11px] text-white/50 mb-1 block">Degree program</Label>
+          <Input value={program} onChange={(e) => setProgram(e.target.value)} onBlur={() => save(uni)} placeholder="e.g. Electrical Engineering" className="bg-black border-white/10 h-9" />
+        </div>
+        <div>
+          <Label className="text-[11px] text-white/50 mb-1 block">Specialization</Label>
+          <Input value={spec} onChange={(e) => setSpec(e.target.value)} onBlur={() => save(uni)} placeholder="e.g. Power Systems" className="bg-black border-white/10 h-9" />
+        </div>
+      </div>
+      {(uni.domain || settings?.university_domain) && (
+        <p className="text-[10px] text-white/30 font-mono mt-3 truncate">Domain: {uni.domain || settings?.university_domain}{(uni.catalogUrl || settings?.university_course_catalog_url) ? ` · catalog: ${uni.catalogUrl || settings?.university_course_catalog_url}` : ""}</p>
+      )}
     </div>
   );
 }

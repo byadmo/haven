@@ -79,6 +79,26 @@
       "type": "string",
       "default": "midnight",
       "description": "Selected Haven Education theme key (midnight, daylight, cottonCandy, forest, sunset)."
+    },
+    "university_name": {
+      "type": "string",
+      "description": "The Canadian university the user attends."
+    },
+    "university_domain": {
+      "type": "string",
+      "description": "University website domain e.g. uwaterloo.ca"
+    },
+    "university_course_catalog_url": {
+      "type": "string",
+      "description": "URL of the university's course catalog / academic calendar page."
+    },
+    "degree_program": {
+      "type": "string",
+      "description": "User's degree program e.g. Electrical Engineering"
+    },
+    "specialization": {
+      "type": "string",
+      "description": "User's specialization within the degree program."
     }
   },
   "required": [],

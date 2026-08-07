@@ -20,27 +20,16 @@ import {
 } from "@/lib/recurringBills";
 
 export default function RecurringBills() {
-  const { transactions, accounts, aiAutoDetect, setAiAutoDetect } = useFinanceData();
+  const { transactions, accounts, recurringBills, aiAutoDetect, setAiAutoDetect, refresh, loading: ctxLoading } = useFinanceData();
+  const bills = recurringBills || [];
+  const loading = ctxLoading;
   const { toast } = useToast();
-  const [bills, setBills] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [scannedOnce, setScannedOnce] = useState(false);
   const [vaults, setVaults] = useState([]);
   const [loadingVaults, setLoadingVaults] = useState(true);
-
-  const loadBills = useCallback(async () => {
-    try {
-      const list = await base44.entities.RecurringBill.list("-created_date", 500);
-      setBills(list || []);
-    } catch {
-      setBills([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
 
   const loadVaults = useCallback(async () => {
     try {
@@ -53,7 +42,7 @@ export default function RecurringBills() {
     }
   }, []);
 
-  useEffect(() => { loadBills(); loadVaults(); }, [loadBills, loadVaults]);
+  useEffect(() => { loadVaults(); }, [loadVaults]);
 
   // Auto-scan once on mount when AI detection is enabled.
   useEffect(() => {
@@ -75,7 +64,7 @@ export default function RecurringBills() {
           title: `AI detected ${candidates.length} new recurring bill${candidates.length === 1 ? "" : "s"}`,
           description: candidates.slice(0, 3).map((c) => `${c.name} — $${c.amount.toFixed(2)}/${freqLabel(c.frequency)}`).join("  ·  "),
         });
-        loadBills();
+        refresh();
       } else if (announce) {
         toast({ title: "No new recurring bills detected" });
       }
@@ -104,7 +93,7 @@ export default function RecurringBills() {
         } catch {}
       }
       toast({ title: "Bill marked paid", description: `${b.name} — next due ${next}` });
-      loadBills();
+      refresh();
     } catch {
       toast({ title: "Couldn't update bill", variant: "destructive" });
     }
@@ -113,7 +102,7 @@ export default function RecurringBills() {
   async function toggleActive(b) {
     try {
       await base44.entities.RecurringBill.update(b.id, { is_active: !b.is_active });
-      loadBills();
+      refresh();
     } catch {
       toast({ title: "Couldn't update bill", variant: "destructive" });
     }
@@ -126,7 +115,7 @@ export default function RecurringBills() {
     try {
       await base44.entities.RecurringBill.update(b.id, patch);
       toast({ title: status === "confirmed" ? "Bill confirmed" : "Bill dismissed" });
-      loadBills();
+      refresh();
     } catch {
       toast({ title: "Couldn't review bill", variant: "destructive" });
     }
@@ -135,7 +124,7 @@ export default function RecurringBills() {
   async function deleteBill(b) {
     try {
       await base44.entities.RecurringBill.delete(b.id);
-      loadBills();
+      refresh();
     } catch {
       toast({ title: "Couldn't delete bill", variant: "destructive" });
     }
@@ -263,7 +252,7 @@ export default function RecurringBills() {
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-white/30 text-center py-6">No recurring bills yet. Add one, or enable AI Auto-Detection and run a scan.</p>
+              <p className="text-sm text-white/30 text-center py-6">No recurring bills yet — click Add Bill to get started.</p>
             )}
           </section>
         </Reveal>
@@ -284,7 +273,7 @@ export default function RecurringBills() {
         </Tabs>
       </main>
 
-      <RecurringBillForm open={formOpen} onOpenChange={setFormOpen} bill={editing} accounts={accounts} vaults={vaults} onSaved={loadBills} />
+      <RecurringBillForm open={formOpen} onOpenChange={setFormOpen} bill={editing} accounts={accounts} vaults={vaults} onSaved={refresh} />
     </div>
   );
 }

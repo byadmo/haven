@@ -7,10 +7,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
-import { GraduationCap, ChevronLeft, ChevronRight, Check, Mail, Calendar, Target, Clock, Briefcase, ListChecks, ImageUp, FileText, Loader2, X, Sparkles } from "lucide-react";
+import { GraduationCap, ChevronLeft, ChevronRight, Check, Mail, Building2, Calendar, Target, Clock, Briefcase, ListChecks, ImageUp, FileText, Loader2, X, Sparkles } from "lucide-react";
 import { useEduSync } from "@/lib/eduSyncContext";
 import { base44 } from "@/api/base44Client";
 import { getProfile, saveProfile } from "@/lib/eduProfile";
+import UniversitySelector from "@/components/edu/UniversitySelector";
 
 const SUGGESTIONS = [
   { label: "Light", range: "5–10h", short: "Light loads or working full-time", min: 5, max: 10 },
@@ -20,7 +21,7 @@ const SUGGESTIONS = [
   { label: "Maximum", range: "30–40h", short: "Extreme cases — not sustainable", min: 30, max: 40 },
 ];
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const STEP_ICONS = [Mail, Calendar, Target, Clock, Briefcase, ListChecks];
+const STEP_ICONS = [Mail, Building2, Calendar, Target, Clock, Briefcase, ListChecks];
 
 export default function ProfileWizard({ open, onOpenChange, onCompleted }) {
   const navigate = useNavigate();
@@ -32,13 +33,26 @@ export default function ProfileWizard({ open, onOpenChange, onCompleted }) {
     edu_email: "", gpa_current: "", gpa_target: "", academic_goals: "",
     weekly_study_hours: 15, has_job: false, work_hours: 0, work_days: [], import_choice: "",
     screenshot_courses: [], transcript_courses: [],
+    university_name: "", university_domain: "", university_course_catalog_url: "",
+    degree_program: "", specialization: "",
     ...(getProfile() || {}),
   }));
   const [parsing, setParsing] = useState(null); // 'schedule' | 'transcript' | null
   const [parseNote, setParseNote] = useState("");
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
-  const next = () => setStep((s) => Math.min(6, s + 1));
+  const next = () => setStep((s) => Math.min(7, s + 1));
+
+  // Seed university fields from saved EduSettings if the user already set them.
+  React.useEffect(() => {
+    if (!settings) return;
+    if (settings.university_name && !form.university_name) set("university_name", settings.university_name);
+    if (settings.university_domain && !form.university_domain) set("university_domain", settings.university_domain);
+    if (settings.university_course_catalog_url && !form.university_course_catalog_url) set("university_course_catalog_url", settings.university_course_catalog_url);
+    if (settings.degree_program && !form.degree_program) set("degree_program", settings.degree_program);
+    if (settings.specialization && !form.specialization) set("specialization", settings.specialization);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings]);
   const back = () => setStep((s) => Math.max(1, s - 1));
   const toggleDay = (d) => setForm((f) => ({
     ...f, work_days: f.work_days.includes(d) ? f.work_days.filter((x) => x !== d) : [...f.work_days, d],
@@ -110,11 +124,26 @@ export default function ProfileWizard({ open, onOpenChange, onCompleted }) {
       work_days: form.work_days || [],
       screenshot_courses: form.screenshot_courses || [],
       transcript_courses: form.transcript_courses || [],
+      university_name: form.university_name || "",
+      university_domain: form.university_domain || "",
+      university_course_catalog_url: form.university_course_catalog_url || "",
+      degree_program: form.degree_program || "",
+      specialization: form.specialization || "",
     };
     saveProfile(payload);
 
-    // Persist transcript to EduSettings + imported courses to the active semester.
+    // Persist university + transcript to EduSettings + imported courses to
+    // the active semester.
     try {
+      if ((form.university_name || settings?.university_name) && updateSettings) {
+        await updateSettings({
+          university_name: form.university_name || settings?.university_name || "",
+          university_domain: form.university_domain || settings?.university_domain || "",
+          university_course_catalog_url: form.university_course_catalog_url || settings?.university_course_catalog_url || "",
+          degree_program: form.degree_program || settings?.degree_program || "",
+          specialization: form.specialization || settings?.specialization || "",
+        });
+      }
       if (form.transcript_courses?.length && updateSettings) {
         updateSettings({ transcript: { gpa: payload.gpa_current, courses: form.transcript_courses } });
       }
@@ -147,13 +176,13 @@ export default function ProfileWizard({ open, onOpenChange, onCompleted }) {
             <GraduationCap className="h-4 w-4 text-emerald-400" /> Complete Your Profile
           </DialogTitle>
           <div className="flex items-center gap-1.5 mb-3 mt-3">
-            {Array.from({ length: 6 }, (_, i) => i + 1).map((n) => (
+            {Array.from({ length: 7 }, (_, i) => i + 1).map((n) => (
               <div key={n} className={`h-1.5 flex-1 rounded-full transition-colors ${n <= step ? "bg-emerald-500" : "bg-white/10"}`} />
             ))}
           </div>
           <div className="flex items-center gap-2">
             <Icon className="h-3.5 w-3.5 text-emerald-300" />
-            <p className="text-[10px] uppercase tracking-widest text-white/40">Step {step} of 6</p>
+            <p className="text-[10px] uppercase tracking-widest text-white/40">Step {step} of 7</p>
           </div>
         </div>
 
@@ -171,8 +200,30 @@ export default function ProfileWizard({ open, onOpenChange, onCompleted }) {
           </div>
         )}
 
-        {/* STEP 2 — Import Courses */}
+        {/* STEP 2 — University */}
         {step === 2 && (
+          <div className="space-y-3">
+            <p className="text-sm text-zinc-200">Which Canadian university do you attend?</p>
+            <p className="text-[11px] text-white/40 -mt-1">We use this to autofill course details from your university's catalog and rank course difficulty.</p>
+            <UniversitySelector
+              value={{ name: form.university_name, domain: form.university_domain, catalogUrl: form.university_course_catalog_url }}
+              onChange={(u) => { set("university_name", u?.name || ""); set("university_domain", u?.domain || ""); set("university_course_catalog_url", u?.catalogUrl || ""); }}
+            />
+            {form.university_name && (
+              <div className="rounded-md border border-white/10 p-3 space-y-2.5">
+                <p className="text-[10px] uppercase tracking-widest text-white/40">Program (optional)</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <div><Label className="text-[11px] text-white/50 mb-1 block">Degree program</Label><Input value={form.degree_program || ""} onChange={(e) => set("degree_program", e.target.value)} placeholder="e.g. Electrical Engineering" className="bg-black border-white/10 h-9" /></div>
+                  <div><Label className="text-[11px] text-white/50 mb-1 block">Specialization</Label><Input value={form.specialization || ""} onChange={(e) => set("specialization", e.target.value)} placeholder="e.g. Power Systems" className="bg-black border-white/10 h-9" /></div>
+                </div>
+                {form.university_domain && <p className="text-[10px] text-white/30 font-mono">Domain: {form.university_domain}</p>}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* STEP 3 — Import Courses */}
+        {step === 3 && (
           <div className="space-y-3">
             <p className="text-sm text-zinc-200">How do you want to add your courses?</p>
             {courses.length > 0 && (
@@ -214,8 +265,8 @@ export default function ProfileWizard({ open, onOpenChange, onCompleted }) {
           </div>
         )}
 
-        {/* STEP 3 — Transcript & Goals */}
-        {step === 3 && (
+        {/* STEP 4 — Transcript & Goals */}
+        {step === 4 && (
           <div className="space-y-3">
             <div className="rounded-md border border-white/10 p-3">
               <div className="flex items-center gap-2 mb-2">
@@ -260,8 +311,8 @@ export default function ProfileWizard({ open, onOpenChange, onCompleted }) {
           </div>
         )}
 
-        {/* STEP 4 — Weekly Study Hours (compact, no scroll) */}
-        {step === 4 && (
+        {/* STEP 5 — Weekly Study Hours (compact, no scroll) */}
+        {step === 5 && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <Label className="text-[10px] uppercase tracking-widest text-white/50">Hours per week</Label>
@@ -285,8 +336,8 @@ export default function ProfileWizard({ open, onOpenChange, onCompleted }) {
           </div>
         )}
 
-        {/* STEP 5 — Work & Schedule */}
-        {step === 5 && (
+        {/* STEP 6 — Work & Schedule */}
+        {step === 6 && (
           <div className="space-y-3">
             <Label className="text-[10px] uppercase tracking-widest text-white/50">Do you have a job?</Label>
             <div className="flex gap-2">
@@ -327,10 +378,11 @@ export default function ProfileWizard({ open, onOpenChange, onCompleted }) {
           </div>
         )}
 
-        {/* STEP 6 — Review */}
-        {step === 6 && (
+        {/* STEP 7 — Review */}
+        {step === 7 && (
           <div className="space-y-2.5">
             <Summary k="School email" v={form.edu_email || "—"} />
+            <Summary k="University" v={form.university_name ? `${form.university_name}${form.degree_program ? ` · ${form.degree_program}` : ""}` : "—"} />
             <Summary k="Courses set up" v={`${courses.length}${form.screenshot_courses?.length ? ` · ${form.screenshot_courses.length} from screenshot` : ""}`} />
             <Summary k="GPA (current / target)" v={`${form.gpa_current || "—"} / ${form.gpa_target || "—"}${form.transcript_courses?.length ? ` · ${form.transcript_courses.length} past courses` : ""}`} />
             <Summary k="Weekly study hours" v={`${form.weekly_study_hours}h${studyLevel ? ` · ${studyLevel.label}` : ""}`} />
@@ -347,7 +399,7 @@ export default function ProfileWizard({ open, onOpenChange, onCompleted }) {
             <Button variant="ghost" onClick={back} disabled={step === 1} className="text-white/60 hover:text-white">
               <ChevronLeft className="h-4 w-4 mr-1" /> Back
             </Button>
-            {step < 6 ? (
+            {step < 7 ? (
               <Button onClick={next} className="bg-emerald-500 text-black hover:bg-emerald-400">
                 {step === 1 && !form.edu_email ? "Skip for now — complete later in Settings" : "Next"} <ChevronRight className="h-4 w-4 ml-1" />
               </Button>

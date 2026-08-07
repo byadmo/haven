@@ -21,6 +21,7 @@ export function FinanceDataProvider({ children }) {
     debtPayments: [],
     goals: [],
     profile: null,
+    recurringBills: [],
   });
   const [loading, setLoading] = React.useState(true);
   const [refreshKey, setRefreshKey] = React.useState(0);
@@ -41,9 +42,10 @@ export function FinanceDataProvider({ children }) {
       base44.entities.DebtPayment.list("-date", 500).catch(() => []),
       base44.entities.ActiveGoal.list("-created_date").catch(() => []),
       base44.entities.UserFinancialProfile.list("-created_date", 1).catch(() => []),
-    ]).then(([transactions, debts, accounts, stocks, categories, debtPayments, goals, profileRows]) => {
+      base44.entities.RecurringBill.list("-created_date", 500).catch(() => []),
+    ]).then(([transactions, debts, accounts, stocks, categories, debtPayments, goals, profileRows, recurringBills]) => {
       if (cancelled) return;
-      setData({ transactions, debts, accounts, stocks, categories, debtPayments, goals, profile: profileRows?.[0] || null });
+      setData({ transactions, debts, accounts, stocks, categories, debtPayments, goals, profile: profileRows?.[0] || null, recurringBills });
       setLoading(false);
     });
     return () => { cancelled = true; };

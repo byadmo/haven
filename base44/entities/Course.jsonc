@@ -47,6 +47,47 @@
     "color": {
       "type": "string",
       "default": "emerald"
+    },
+    "university_name": {
+      "type": "string",
+      "description": "University this course belongs to (inherited from profile, overridable per course)."
+    },
+    "course_description": {
+      "type": "string",
+      "description": "Course description pulled from the university course catalog."
+    },
+    "faculty": {
+      "type": "string",
+      "description": "Faculty / department offering the course (e.g. Faculty of Engineering)."
+    },
+    "degree_program": {
+      "type": "string",
+      "description": "Degree program the course belongs to (e.g. Electrical Engineering)."
+    },
+    "specialization": {
+      "type": "string",
+      "description": "Specialization / specialty within the degree program."
+    },
+    "prerequisites": {
+      "type": "string",
+      "description": "Prerequisite courses (free-form text from the catalog)."
+    },
+    "difficulty_ranking": {
+      "type": "string",
+      "enum": [
+        "Easy",
+        "Moderate",
+        "Hard"
+      ],
+      "description": "AI-assessed difficulty ranking for the course."
+    },
+    "difficulty_reason": {
+      "type": "string",
+      "description": "Short explanation shown next to the difficulty ranking."
+    },
+    "difficulty_details": {
+      "type": "string",
+      "description": "Full AI-generated explanation of the course difficulty (cached, shown on Learn More)."
     }
   },
   "required": [
