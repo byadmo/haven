@@ -200,14 +200,49 @@
   html[data-theme] .border-zinc-800\/70 { border-color: var(--th-border) !important; }
 
   html[data-theme] .text-white,
+  html[data-theme] .text-zinc-50,
   html[data-theme] .text-zinc-100,
-  html[data-theme] .text-zinc-200 { color: var(--th-text) !important; }
+  html[data-theme] .text-zinc-200,
+  html[data-theme] .text-zinc-300 { color: var(--th-text) !important; }
+  html[data-theme] .text-white\/10,
+  html[data-theme] .text-white\/20,
   html[data-theme] .text-white\/30,
   html[data-theme] .text-white\/40,
   html[data-theme] .text-white\/50,
   html[data-theme] .text-zinc-400,
   html[data-theme] .text-zinc-500,
   html[data-theme] .text-zinc-600 { color: var(--th-muted) !important; }
+  html[data-theme] .text-white\/60,
+  html[data-theme] .text-white\/70,
+  html[data-theme] .text-white\/80,
+  html[data-theme] .text-white\/90 { color: var(--th-text) !important; }
+
+  /* shadcn semantic tokens — follow the theme so portaled dialogs/menus
+     (bg-background/card/popover, text-foreground/muted-foreground) inherit
+     the active palette instead of staying on the dark-mode defaults. */
+  html[data-theme] .text-foreground,
+  html[data-theme] .text-card-foreground,
+  html[data-theme] .text-popover-foreground { color: var(--th-text) !important; }
+  html[data-theme] .text-muted-foreground { color: var(--th-muted) !important; }
+  html[data-theme] .bg-background,
+  html[data-theme] .bg-card,
+  html[data-theme] .bg-popover { background-color: var(--th-surface) !important; }
+
+  /* Hover-state text that would otherwise stay white on a light surface. */
+  html[data-theme] .hover\:text-white:hover,
+  html[data-theme] .hover\:text-white\/70:hover,
+  html[data-theme] .hover\:text-white\/80:hover { color: var(--th-text) !important; }
+
+  /* Subtle white-tint row/zebra backgrounds (bg-white/[0.02], /5, /10, /20 and
+     their hover variants) become a subtle text-color overlay so they stay
+     visible on a light surface too (white-on-white → invisible otherwise). */
+  html[data-theme] .bg-white\/\[0\.02\] { background-color: color-mix(in srgb, var(--th-text) 3%, transparent) !important; }
+  html[data-theme] .bg-white\/5 { background-color: color-mix(in srgb, var(--th-text) 6%, transparent) !important; }
+  html[data-theme] .bg-white\/10 { background-color: color-mix(in srgb, var(--th-text) 12%, transparent) !important; }
+  html[data-theme] .bg-white\/20 { background-color: color-mix(in srgb, var(--th-text) 22%, transparent) !important; }
+  html[data-theme] .hover\:bg-white\/\[0\.04\]:hover { background-color: color-mix(in srgb, var(--th-text) 5%, transparent) !important; }
+  html[data-theme] .hover\:bg-white\/5:hover { background-color: color-mix(in srgb, var(--th-text) 7%, transparent) !important; }
+  html[data-theme] .hover\:bg-white\/10:hover { background-color: color-mix(in srgb, var(--th-text) 14%, transparent) !important; }
 
   /* Danger / negative tones follow the theme danger color. */
   html[data-theme] .text-rose-300,
