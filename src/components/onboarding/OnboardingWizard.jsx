@@ -66,6 +66,24 @@ export default function OnboardingWizard({ existingProfile, force = false, onCom
     saveDraft(draft);
   }, [draft]);
 
+  // Keyboard advance: Enter / Space outside text fields moves the wizard
+  // forward (Next / Finish), mirroring the Dialog-content behavior.
+  React.useEffect(() => {
+    function onKey(e) {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      if (isDone || finishing || !canAdvance) return;
+      const t = e.target;
+      const tag = t?.tagName?.toLowerCase?.();
+      if (tag === "input" || tag === "textarea" || tag === "select" || tag === "button" ||
+          t?.isContentEditable) return;
+      e.preventDefault();
+      next();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDone, finishing, canAdvance, step]);
+
   const set = (patch) => setDraft((d) => ({ ...d, ...patch }));
 
   const step = draft.step;

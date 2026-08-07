@@ -18,20 +18,45 @@ const DialogOverlay = React.forwardRef(({ className, ...props }, ref) => (
   <DialogPrimitive.Overlay
     ref={ref}
     className={cn(
-      "fixed inset-0 z-50 bg-black data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      "fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
       className
     )}
     {...props} />
 ))
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 
-const DialogContent = React.forwardRef(({ className, children, ...props }, ref) => (
+// Advance a Dialog's primary action (Next / Finish / Complete / Confirm) when
+// the user presses Enter or Space outside of a text field — so any modal that
+// has a forward action is keyboard-advanceable. Buttons handle their own
+// Enter/Space natively, so they're skipped; inputs/textareas are skipped so
+// typing a literal space or pressing Enter inside a field isn't hijacked.
+function dialogHandleKeyDown(e) {
+  if (e.key !== "Enter" && e.key !== " ") return;
+  const tgt = e.target;
+  const tag = tgt?.tagName?.toLowerCase?.();
+  if (tag === "input" || tag === "textarea" || tag === "select" || tag === "button" ||
+      tgt?.isContentEditable) return;
+  const root = e.currentTarget;
+  // Preferred: an explicitly-marked primary action.
+  const marked = root.querySelector("[data-next]:not([disabled]), [data-primary-action]:not([disabled])");
+  if (marked) { e.preventDefault(); marked.click(); return; }
+  // Fallback: first enabled button whose caption starts with a primary word.
+  const words = ["next", "finish", "complete", "continue", "confirm", "save", "ok", "apply"];
+  const btns = root.querySelectorAll("button:not([disabled])");
+  for (const b of btns) {
+    const t = (b.textContent || "").trim().toLowerCase();
+    if (words.some((w) => t.startsWith(w))) { e.preventDefault(); b.click(); return; }
+  }
+}
+
+const DialogContent = React.forwardRef(({ className, children, onKeyDown, ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content
       ref={ref}
+      onKeyDown={(e) => { dialogHandleKeyDown(e); onKeyDown?.(e); }}
       className={cn(
-        "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-4 sm:p-6 shadow-lg duration-200 max-h-[90dvh] overflow-y-auto data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg",
+        "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border border-white/10 bg-background text-foreground p-4 sm:p-6 shadow-lg duration-200 max-h-[90dvh] overflow-y-auto data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:rounded-lg",
         className
       )}
       {...props}>

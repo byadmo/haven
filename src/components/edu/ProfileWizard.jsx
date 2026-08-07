@@ -475,11 +475,11 @@ export default function ProfileWizard({ open, onOpenChange, onCompleted }) {
               <ChevronLeft className="h-4 w-4 mr-1" /> Back
             </Button>
             {step < 7 ? (
-              <Button onClick={next} className="bg-emerald-500 text-black hover:bg-emerald-400">
+              <Button data-next onClick={next} className="bg-emerald-500 text-black hover:bg-emerald-400">
                 {step === 1 && !form.edu_email ? "Skip for now — complete later in Settings" : "Next"} <ChevronRight className="h-4 w-4 ml-1" />
               </Button>
             ) : (
-              <Button onClick={finish} className="bg-emerald-500 text-black hover:bg-emerald-400">
+              <Button data-next onClick={finish} className="bg-emerald-500 text-black hover:bg-emerald-400">
                 <Check className="h-4 w-4 mr-1" /> Complete Setup
               </Button>
             )}
