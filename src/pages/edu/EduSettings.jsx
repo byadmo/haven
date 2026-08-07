@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Settings as SettingsIcon, CalendarCheck, CheckCircle2, Link2, ShieldCheck, RefreshCw, Loader2, GraduationCap, BadgeCheck, Pencil, Building2 } from "lucide-react";
+import { Settings as SettingsIcon, CalendarCheck, CheckCircle2, Link2, ShieldCheck, RefreshCw, Loader2, GraduationCap, BadgeCheck, Pencil, Building2, Globe, Sparkles, Database } from "lucide-react";
 import CustomizeNavModal from "@/components/nav/CustomizeNavModal";
 import { EDU_PAGES, EDU_DEFAULT_NAV, EDU_LOCKED } from "@/lib/navConfig";
 import { base44 } from "@/api/base44Client";
@@ -21,7 +21,7 @@ import UniversitySelector from "@/components/edu/UniversitySelector";
 import ProfileWizard from "@/components/edu/ProfileWizard";
 import EduDangerZone from "@/components/edu/EduDangerZone";
 import { isProfileComplete } from "@/lib/eduProfile";
-import { refreshCatalogInBackground } from "@/lib/courseAutofill";
+import { refreshCatalogInBackground, catalogCacheKey } from "@/lib/courseAutofill";
 
 export default function EduSettings() {
   const { settings, updateSettings, activeSemester, refresh, navItems, saveNavItems } = useEduSyncData();
@@ -311,20 +311,42 @@ function UniversitySection() {
   const [program, setProgram] = React.useState(settings?.degree_program || "");
   const [spec, setSpec] = React.useState(settings?.specialization || "");
   const [faculty, setFaculty] = React.useState(settings?.faculty || "");
+  const [catalogUrl, setCatalogUrl] = React.useState(settings?.university_course_catalog_url || "");
+  const [parsing, setParsing] = React.useState(false);
+  const [cache, setCache] = React.useState(null);
 
   React.useEffect(() => {
     setUni({ name: settings?.university_name || "", domain: settings?.university_domain || "", catalogUrl: settings?.university_course_catalog_url || "" });
     setProgram(settings?.degree_program || "");
     setSpec(settings?.specialization || "");
     setFaculty(settings?.faculty || "");
+    setCatalogUrl(settings?.university_course_catalog_url || "");
   }, [settings]);
+
+  // Read the locally cached catalog (if any) so the user sees what's stored.
+  const loadCache = React.useCallback(async () => {
+    if (!settings?.university_name) { setCache(null); return; }
+    try {
+      const key = catalogCacheKey({ university_name: settings.university_name }, settings?.faculty, settings?.degree_program);
+      const list = await base44.entities.CourseCatalogCache.filter({ cache_key: key });
+      const rec = Array.isArray(list) && list[0];
+      setCache(rec ? {
+        course_count: (rec.parsed_courses || []).length,
+        last_parsed_at: rec.last_parsed_at,
+        calendar_source_url: rec.calendar_source_url,
+        parse_status: rec.parse_status,
+        parse_notes: rec.parse_notes,
+      } : null);
+    } catch { setCache(null); }
+  }, [settings]);
+  React.useEffect(() => { loadCache(); }, [loadCache]);
 
   async function save(next) {
     try {
       await updateSettings({
         university_name: next?.name || "",
         university_domain: next?.domain || "",
-        university_course_catalog_url: next?.catalogUrl || "",
+        university_course_catalog_url: next?.catalogUrl || catalogUrl || "",
         faculty,
         degree_program: program,
         specialization: spec,
@@ -332,13 +354,55 @@ function UniversitySection() {
       toast({ title: "University saved" });
       // Re-fetch the catalog cache if the program combo changed (fresh parse
       // only runs if the existing cache is stale/missing — see refreshCourseCatalog).
-      if (next?.name && faculty && program) {
-        refreshCatalogInBackground({ university_name: next.name, faculty, degree_program: program });
-        toast({ title: "Refreshing your course catalog…", description: "Fetching the new program's courses in the background." });
+      if ((next?.name || uni.name) && faculty && program) {
+        refreshCatalogInBackground({ university_name: next?.name || uni.name, faculty, degree_program: program });
+        setTimeout(loadCache, 1500);
       }
     } catch {
       toast({ title: "Couldn't save university", variant: "destructive" });
     }
+  }
+
+  async function saveCatalogUrl() {
+    try { await updateSettings({ university_course_catalog_url: catalogUrl }); toast({ title: "Calendar URL saved" }); }
+    catch { toast({ title: "Couldn't save URL", variant: "destructive" }); }
+  }
+
+  // AI finds + parses the university's undergraduate calendar for this program
+  // and stores the parsed courses locally (CourseCatalogCache). force:true
+  // bypasses the freshness check so the user can re-parse the corrected URL.
+  async function runAiParse() {
+    const name = uni.name || settings?.university_name;
+    if (!name) { toast({ title: "Add a university first" }); return; }
+    setParsing(true);
+    try {
+      const res = await base44.functions.invoke("refreshCourseCatalog", {
+        university_name: name,
+        faculty,
+        degree_program: program,
+        university_domain: uni.domain || settings?.university_domain,
+        university_course_catalog_url: catalogUrl,
+        force: true,
+      });
+      const d = res?.data ?? res;
+      if (d?.error) {
+        toast({ title: "Couldn't parse catalog", description: d.error, variant: "destructive" });
+      } else {
+        setCache({
+          course_count: d.course_count || 0,
+          last_parsed_at: d.last_parsed_at,
+          calendar_source_url: d.calendar_source_url,
+          parse_status: d.parse_status,
+          parse_notes: d.parse_notes,
+        });
+        toast({
+          title: `Catalog parsed · ${d.course_count || 0} courses cached`,
+          description: d.calendar_source_url ? `Source: ${d.calendar_source_url}` : undefined,
+        });
+      }
+    } catch (e) {
+      toast({ title: "Couldn't parse catalog", description: e?.message, variant: "destructive" });
+    } finally { setParsing(false); }
   }
 
   return (
@@ -363,8 +427,41 @@ function UniversitySection() {
         </div>
       </div>
       {(uni.domain || settings?.university_domain) && (
-        <p className="text-[10px] text-white/30 font-mono mt-3 truncate">Domain: {uni.domain || settings?.university_domain}{(uni.catalogUrl || settings?.university_course_catalog_url) ? ` · catalog: ${uni.catalogUrl || settings?.university_course_catalog_url}` : ""}</p>
+        <p className="text-[10px] text-white/30 font-mono mt-3 truncate">Domain: {uni.domain || settings?.university_domain}</p>
       )}
+
+      {/* Undergraduate calendar URL — manual override + AI parse */}
+      <div className="mt-4 pt-4 border-t border-white/5 space-y-2.5">
+        <Label className="text-[11px] text-white/50 flex items-center gap-1.5"><Globe className="h-3.5 w-3.5 text-emerald-300/70" /> Undergraduate Calendar URL</Label>
+        <Input value={catalogUrl} onChange={(e) => setCatalogUrl(e.target.value)} onBlur={saveCatalogUrl} placeholder="https://ucalendar.uwaterloo.ca/…" className="bg-black border-white/10 h-9" />
+        <p className="text-[10px] text-white/30 leading-snug">If the auto-detected URL is wrong, paste the correct undergraduate academic calendar / course-listing URL here — we'll use it when parsing your catalog.</p>
+
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button type="button" onClick={runAiParse} disabled={parsing || !(uni.name || settings?.university_name)} className="bg-emerald-500/15 border border-emerald-400/30 text-emerald-300 hover:bg-emerald-500/25">
+            {parsing ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Sparkles className="h-4 w-4 mr-1.5" />} AI Find &amp; Parse
+          </Button>
+
+          {cache && (
+            <span className="inline-flex items-center gap-1.5 text-[11px] text-white/50">
+              <Database className="h-3.5 w-3.5 text-emerald-300/70" />
+              {cache.course_count} courses cached
+              {cache.last_parsed_at && <> · {new Date(cache.last_parsed_at).toLocaleDateString()}</>}
+              {cache.parse_status === "partial" && <span className="text-amber-300"> (partial)</span>}
+              {cache.parse_status === "failed" && <span className="text-rose-300"> (failed)</span>}
+            </span>
+          )}
+        </div>
+
+        {cache?.calendar_source_url && (
+          <p className="text-[10px] text-white/30 font-mono truncate">Source: {cache.calendar_source_url}</p>
+        )}
+        {cache?.parse_notes && (
+          <p className="text-[10px] text-white/30 break-words">{cache.parse_notes}</p>
+        )}
+        {!cache && (uni.name || settings?.university_name) && !parsing && (
+          <p className="text-[10px] text-white/30">No cached catalog yet — press <span className="text-emerald-300/70">AI Find &amp; Parse</span> to fetch and store it locally.</p>
+        )}
+      </div>
     </div>
   );
 }

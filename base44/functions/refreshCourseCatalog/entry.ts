@@ -31,6 +31,7 @@ export default async function(req) {
     let degree_program = body.degree_program;
     let university_domain = body.university_domain;
     let university_course_catalog_url = body.university_course_catalog_url;
+    const force = !!body.force;
 
     // Fallback: pull from the caller's EduSettings if params weren't supplied.
     if (!university_name || faculty === undefined || degree_program === undefined) {
@@ -59,7 +60,7 @@ export default async function(req) {
 
     const FRESH_MS = 7 * 24 * 60 * 60 * 1000;
     const now = Date.now();
-    if (rec && rec.last_parsed_at && rec.parse_status === 'success') {
+    if (!force && rec && rec.last_parsed_at && rec.parse_status === 'success') {
       try {
         const age = now - new Date(rec.last_parsed_at).getTime();
         if (age < FRESH_MS) {
@@ -75,7 +76,7 @@ export default async function(req) {
       } catch (e) { /* fall through to re-parse */ }
     }
     // A stale or failed record gets re-parsed; a fresh partial stays as-is too.
-    if (rec && rec.parse_status === 'partial' && rec.last_parsed_at) {
+    if (!force && rec && rec.parse_status === 'partial' && rec.last_parsed_at) {
       try {
         if (now - new Date(rec.last_parsed_at).getTime() < FRESH_MS) {
           return Response.json({
