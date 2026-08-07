@@ -80,6 +80,19 @@ module.exports = {
   			display: ['var(--font-display)'],
   			mono: ['var(--font-mono)']
   		},
+  		// Standardized motion physics tokens (consumed by `ease-enter`,
+  		// `ease-exit`, `ease-state` Tailwind utilities, mapped below to the
+  		// cubic-bezier curves in the design spec).
+  		//   enter: ease-out — elements that need to appear (modals, dropdowns, cards).
+  		//   exit:  ease-in  — elements that need to disappear (close animations).
+  		//   state: ease-in-out — toggle / hover / color state transitions.
+  		// Hard cap: 300ms for any UI animation. Primitives default to 150ms.
+  		transitionTimingFunction: {
+  			DEFAULT: 'cubic-bezier(0.4, 0.0, 0.2, 1)',
+  			enter: 'cubic-bezier(0.0, 0.0, 0.2, 1)',
+  			exit: 'cubic-bezier(0.4, 0.0, 1, 1)',
+  			state: 'cubic-bezier(0.4, 0.0, 0.2, 1)'
+  		},
   		keyframes: {
   			'accordion-down': {
   				from: {
@@ -96,11 +109,28 @@ module.exports = {
   				to: {
   					height: '0'
   				}
+  			},
+  			// GPU-only keyframes for enter/exit content. Animate transform +
+  			// opacity only — never layout-affecting properties (width/height/top).
+  			'enter-fade-up': {
+  				from: { opacity: '0', transform: 'translateY(6px)' },
+  				to: { opacity: '1', transform: 'translateY(0)' }
+  			},
+  			'enter-fade': {
+  				from: { opacity: '0' },
+  				to: { opacity: '1' }
+  			},
+  			'exit-fade': {
+  				from: { opacity: '1' },
+  				to: { opacity: '0' }
   			}
   		},
   		animation: {
-  			'accordion-down': 'accordion-down 0.2s ease-out',
-  			'accordion-up': 'accordion-up 0.2s ease-out'
+  			'accordion-down': 'accordion-down 0.2s cubic-bezier(0, 0, 0.2, 1)',
+  			'accordion-up': 'accordion-up 0.2s cubic-bezier(0.4, 0, 1, 1)',
+  			'enter-fade-up': 'enter-fade-up 200ms cubic-bezier(0, 0, 0.2, 1)',
+  			'enter-fade': 'enter-fade 200ms cubic-bezier(0, 0, 0.2, 1)',
+  			'exit-fade': 'exit-fade 150ms cubic-bezier(0.4, 0, 1, 1)'
   		}
   	}
   },

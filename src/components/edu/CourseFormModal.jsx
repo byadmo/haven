@@ -153,7 +153,7 @@ export default function CourseFormModal({ open, onOpenChange, semesterId, semest
       setSuggestions(res.courses);
       setSuggSource(res.cached ? "cache" : null);
       setSuggOpen(res.courses.length > 0);
-    }, 250);
+    }, 300);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.code, step, settings, uniObj, profileObj]);

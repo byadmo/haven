@@ -49,6 +49,13 @@
     --e-400: 52 211 153;
     --e-500: 16 185 129;
     --e-600: 5 150 105;
+
+    /* Standardized motion physics tokens. Consumed by Tailwind's `ease-enter` /
+       `ease-exit` / `ease-state` utilities (mapped in tailwind.config.js) and
+       by custom CSS animations. Hard cap: 300ms for any UI animation. */
+    --ease-enter: cubic-bezier(0.0, 0.0, 0.2, 1);
+    --ease-exit: cubic-bezier(0.4, 0.0, 1, 1);
+    --ease-state: cubic-bezier(0.4, 0.0, 0.2, 1);
   }
 
   .dark {
@@ -106,7 +113,23 @@
   body {
     @apply bg-background text-foreground font-body;
     background-color: #000;
+    /* Body copy at 1.55 line-height — within the 1.5–1.6 spec, balances
+       readability with the compact vertical rhythm of the app. */
+    line-height: 1.55;
   }
+
+  /* Global focus-visible fallback: a 2px ring with 2px offset so any tabbable
+     element that doesn't carry a per-component focus style still gets a clear,
+     high-contrast indicator. Shadcn primitives override this via their own
+     focus-visible:ring-* utilities. Outline (not box-shadow) — adds no paint
+     cost and never triggers layout/reflow. */
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring) / 0.6);
+    outline-offset: 2px;
+  }
+  /* Elements that explicitly opt out of focus visuals (e.g. decorative icons)
+     can opt back out with .no-focus-ring. */
+  .no-focus-ring:focus-visible { outline: none; }
 
   /* Dark theme: typed text in every input/textarea/select is white on the
      black canvas. Placeholders are dim. Applied globally (CSS-level) so it
