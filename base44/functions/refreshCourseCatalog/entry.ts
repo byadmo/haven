@@ -104,6 +104,29 @@ async function verifyLive(url, timeoutMs = 7000) {
   } catch { return false; }
 }
 
+// Visible (rendered-text) length of an HTML body with nav/script/boilerplate
+// stripped — a true content page has thousands of chars; a JavaScript-rendered
+// SPA shell (Coursedog / CourseLeaf / Acalog catalogs) returns a near-empty
+// body whose content is loaded by client JS a plain fetch can't execute.
+function visibleTextLength(html) {
+  try {
+    const $ = cheerio.load(html || '');
+    $(NOISE_SEL).remove();
+    return ($('body').text() || $.root().text()).replace(/\s+/g, ' ').trim().length;
+  } catch { return 0; }
+}
+
+// Known JS-rendered academic-calendar VENDOR signatures (common across
+// Canadian / US universities). When the fetched HTML carries one of these
+// markers AND has no extractable course codes, the page is a client-rendered
+// SPA shell — raw scraping is impossible, so we skip straight to AI web-search
+// extraction instead of burning more fetch + parse attempts.
+function detectSpaVendor(html) {
+  const h = (html || '').toLowerCase();
+  const m = h.match(/coursecatalog|coursedog|courseleaf|acalog|leeplfrog|digarc|stellic/);
+  return m ? m[0] : '';
+}
+
 // ---------------------------- Stage 1: Precision Search + URL Weight Scoring
 // Issues the spec's exact SERP-style query via gemini-3-flash web-search (the
 // only Base44 InvokeLLM model that supports add_context_from_internet), then
@@ -133,6 +156,10 @@ function scoreUrl(url, specialization) {
       }
     }
     if (/\/(admissions|news|events|apply|faculty-directory)\//.test(path)) score -= 100;
+    // Penalize archived year-prefixed subdomains (e.g.
+    // 2022-2023.calendars.students.yorku.ca) — the current-year calendar lives
+    // on the unprefixed domain, so prefer that over stale archives.
+    if (/^https?:\/\/\d{4}[-_]\d{4}\./i.test(url)) score -= 40;
   } catch {}
   return score;
 }
@@ -463,6 +490,31 @@ async function parseOneUrl({ base44, university, faculty, degree_program, specia
 
   const html = await fetchText(sourceUrl);
   const tierACodes = extractCodes(html || '');
+  // ---- JS-rendered SPA shell detection ----
+  // Known catalog vendors (Coursedog, CourseLeaf, Acalog, …) and generic JS
+  // shells deliver an empty <body> with the real content loaded by client
+  // scripts a plain fetch can't execute. If the static HTML has no course
+  // codes AND either a vendor marker or a near-empty body, bail out of raw
+  // scraping and flag the URL so the orchestrator switches to AI web-search
+  // extraction instead of wasting more fetch attempts on the same SPA.
+  if (html && tierACodes.length < TIER_A_CODE_FLOOR) {
+    const vendor = detectSpaVendor(html);
+    const vtext = visibleTextLength(html);
+    if (vendor || vtext < 500) {
+      return {
+        sourceUrl,
+        academicYears: [],
+        parse_status: 'failed',
+        parse_notes: vendor
+          ? `Detected JS-rendered catalog vendor "${vendor}" — static HTML carries ${tierACodes.length} course code(s) / ${vtext} visible chars; client-rendered, needs AI web-search extraction.`
+          : `Static HTML is a likely JS-rendered shell (${vtext} visible chars, ${tierACodes.length} course code(s)); AI web-search extraction required.`,
+        executionMode: null,
+        courseCount: 0,
+        cleanedHtml: html,
+        js_shell: true,
+      };
+    }
+  }
   if (!html || html.length < 200) {
     const salvaged = salvageCourses(html || '');
     return {
@@ -560,6 +612,98 @@ async function parseOneUrl({ base44, university, faculty, degree_program, specia
   return { sourceUrl, academicYears: [], parse_status: 'failed', parse_notes, executionMode: null, courseCount: 0, cleanedHtml };
 }
 
+// ---------------------------- AI Web-Search Extraction ----------------------
+// For JS-rendered calendar platforms (and any URL whose raw fetch yields no
+// course content), fall back to a Gemini-3-flash WEB SEARCH that hunts the
+// program's course list across the open web — department pages, syllabi, PDF
+// calendars, third-party aggregators — rather than scraping one broken SPA.
+// Whatever real courses it finds are cached so search-by-code works even when
+// the official calendar cannot be scraped at all.
+const WEB_SEARCH_COURSE_SCHEMA = {
+  type: 'object',
+  properties: {
+    university: { type: 'string' },
+    program: { type: 'string' },
+    confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
+    notes: { type: 'string' },
+    courses: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          code: { type: 'string' },
+          title: { type: 'string' },
+          credits: { type: 'number' },
+          description: { type: 'string' },
+        },
+        required: ['code', 'title'],
+      },
+    },
+  },
+  required: ['courses'],
+};
+
+function buildWebSearchPrompt(university, faculty, degree_program, specialization, trackType) {
+  const prog = degree_program || specialization || 'the program';
+  return [
+    `You are researching the undergraduate curriculum for the "${trackType}" in ${prog} at ${university}${faculty ? ' (' + faculty + ')' : ''}.`,
+    'The official academic calendar is a JavaScript-rendered site that cannot be scraped, so use your WEB SEARCH to find the actual course list from other sources (department pages, course outlines, syllabi, catalog mirrors, reputable aggregators).',
+    `Search the web for: "${university}" "${prog}" undergraduate program required courses course codes`,
+    `If helpful, also search for individual course descriptions: e.g. "${university}" PSYC 1010 course description.`,
+    'Return the full set of courses a student in this program takes (core/required courses and common electives). For EACH course return: code (subject + number, e.g. "PSYC 1010"), title (the human-readable name as published), credits (number; 0 if unknown), description (1-2 sentence summary from an official source).',
+    'Only include courses you actually found evidence for — NEVER invent course codes. If no real courses can be found, return an empty courses array with confidence "low" and a short note describing what you searched.',
+  ].join('\n');
+}
+
+async function aiWebSearchExtract({ base44, university, faculty, degree_program, specialization, trackType, tokenUsageRef }) {
+  try {
+    const res = await base44.integrations.Core.InvokeLLM({
+      prompt: buildWebSearchPrompt(university, faculty, degree_program, specialization, trackType),
+      model: 'gemini_3_flash',
+      add_context_from_internet: true,
+      response_json_schema: WEB_SEARCH_COURSE_SCHEMA,
+    });
+    tokenUsageRef.value += 1;
+    const d = res?.data ?? res;
+    const notes = String(d?.notes || '').trim();
+    const conf = String(d?.confidence || 'low').toLowerCase();
+    const courses = Array.isArray(d?.courses) ? d.courses
+      .filter((c) => c && c.code)
+      .map((c) => ({
+        code: String(c.code).trim(),
+        title: String(c.title || c.code).trim(),
+        credits: typeof c.credits === 'number' ? c.credits : 0,
+        description: String(c.description || '').trim(),
+      })) : [];
+    const academicYears = courses.length
+      ? [{ yearNumber: 1, terms: [{ termName: 'Catalog', requiredCourses: courses.map((c) => ({ code: c.code, title: c.title, credits: c.credits, description: c.description })) }] }]
+      : [];
+    return {
+      sourceUrl: `AI web-search (${university})`,
+      academicYears,
+      parse_status: courses.length ? (conf === 'high' || conf === 'medium' ? 'success' : 'partial') : 'failed',
+      parse_notes: courses.length
+        ? `AI web-search extraction: ${courses.length} courses (confidence ${conf}).${notes ? ' ' + notes : ''}`
+        : `AI web-search extraction found no courses.${notes ? ' ' + notes : ''}`,
+      executionMode: 'AI_WEB_SEARCH',
+      courseCount: courses.length,
+      cleanedHtml: '',
+      js_shell: false,
+    };
+  } catch (e) {
+    return {
+      sourceUrl: `AI web-search (${university})`,
+      academicYears: [],
+      parse_status: 'failed',
+      parse_notes: `AI web-search extraction failed: ${e?.message || 'unknown'}`,
+      executionMode: null,
+      courseCount: 0,
+      cleanedHtml: '',
+      js_shell: false,
+    };
+  }
+}
+
 // Normalize a course code for dedup (uppercase, alnum only).
 function normCode(code) {
   return String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -609,7 +753,7 @@ function mergeResults(results) {
             entryMap.set(key, {
               course_code: code,
               course_title: title,
-              course_description: '',
+              course_description: c.description || '',
               credits,
               prerequisites: '',
               department: '',
@@ -622,6 +766,7 @@ function mergeResults(results) {
               existing.course_title = title;
             }
             if (!existing.credits && credits) existing.credits = credits;
+            if (!existing.course_description && c.description) existing.course_description = c.description;
           }
         }
       }
@@ -759,62 +904,82 @@ export default async function (req) {
     const needsMore = (r) => r.parse_status === 'failed' || (r.parse_status === 'partial' && r.courseCount < MIN_ACCEPTABLE_COURSES);
 
     if (needsMore(primary)) {
-      let liveAlts = [];
-      const seen = new Set([sourceUrl]);
-      for (const u of [...callerAlternates, ...stage1Urls]) {
-        if (seen.has(u) || liveAlts.length >= MAX_ALTERNATES) continue;
-        seen.add(u);
-        if (await verifyLive(u)) liveAlts.push(u);
-      }
-      if (liveAlts.length === 0) {
-        // All caller/Stage-1 alternates were dead — restart the link search
-        // with rephrased queries until a LIVE url surfaces, or all MAX_SEARCH
-        // ROUNDS are spent. (per user request: keep restarting until it's no
-        // longer returning dead links.)
-        const { live, searches } = await discoverLiveUrls({
-          university, faculty, specialization: degree_program || specialization, trackType,
-          invokeLLM: (p) => base44.integrations.Core.InvokeLLM(p),
-          known: seen, cap: MAX_ALTERNATES, minWanted: 1,
-          bump: () => { tokenUsageRef.value += 1; },
-        });
-        liveAlts = live;
-        if (live.length === 0) {
-          parse_notes_stage1 = (parse_notes_stage1 ? parse_notes_stage1 + ' ' : '') +
-            `Self-heal: ${searches} rephrased search round(s) all returned dead links.`;
+      if (primary.js_shell) {
+        // JS-rendered SPA / known catalog vendor (Coursedog, CourseLeaf, Acalog…):
+        // raw scraping is impossible on this domain, so DON'T burn more fetch
+        // attempts on alternate URLs of the same broken platform. Switch
+        // straight to AI web-search extraction across the open web.
+        const ws = await aiWebSearchExtract({ base44, university, faculty, degree_program, specialization, trackType, tokenUsageRef });
+        results.push(ws);
+        if (ws.parse_status !== 'failed') sourceUrl = ws.sourceUrl;
+      } else {
+        let liveAlts = [];
+        const seen = new Set([sourceUrl]);
+        for (const u of [...callerAlternates, ...stage1Urls]) {
+          if (seen.has(u) || liveAlts.length >= MAX_ALTERNATES) continue;
+          seen.add(u);
+          if (await verifyLive(u)) liveAlts.push(u);
         }
-      } else if (liveAlts.length < MAX_ALTERNATES) {
-        // Already have ≥1 live alt; top up with one more round if short.
-        try {
-          const found = await precisionSearch(university, faculty, degree_program || specialization, trackType,
-            (p) => base44.integrations.Core.InvokeLLM(p), 0);
-          tokenUsageRef.value += 1;
-          for (const u of found) {
-            if (seen.has(u) || liveAlts.length >= MAX_ALTERNATES) continue;
-            seen.add(u);
-            if (await verifyLive(u)) liveAlts.push(u);
+        if (liveAlts.length === 0) {
+          // All caller/Stage-1 alternates were dead — restart the link search
+          // with rephrased queries until a LIVE url surfaces, or all MAX_SEARCH
+          // ROUNDS are spent. (per user request: keep restarting until it's no
+          // longer returning dead links.)
+          const { live, searches } = await discoverLiveUrls({
+            university, faculty, specialization: degree_program || specialization, trackType,
+            invokeLLM: (p) => base44.integrations.Core.InvokeLLM(p),
+            known: seen, cap: MAX_ALTERNATES, minWanted: 1,
+            bump: () => { tokenUsageRef.value += 1; },
+          });
+          liveAlts = live;
+          if (live.length === 0) {
+            parse_notes_stage1 = (parse_notes_stage1 ? parse_notes_stage1 + ' ' : '') +
+              `Self-heal: ${searches} rephrased search round(s) all returned dead links.`;
           }
-        } catch {}
-      }
+        } else if (liveAlts.length < MAX_ALTERNATES) {
+          // Already have ≥1 live alt; top up with one more round if short.
+          try {
+            const found = await precisionSearch(university, faculty, degree_program || specialization, trackType,
+              (p) => base44.integrations.Core.InvokeLLM(p), 0);
+            tokenUsageRef.value += 1;
+            for (const u of found) {
+              if (seen.has(u) || liveAlts.length >= MAX_ALTERNATES) continue;
+              seen.add(u);
+              if (await verifyLive(u)) liveAlts.push(u);
+            }
+          } catch {}
+        }
 
-      for (const alt of liveAlts) {
-        // Stop once a source fully parses AND we've gathered a healthy total — each probe takes a Gemini call.
-        const mergedCount = results.reduce((s, r) => s + (r.courseCount || 0), 0);
-        const anySuccess = results.some((r) => r.parse_status === 'success');
-        if (anySuccess && mergedCount >= 25) break;
-        triedAlts.push(alt);
-        try {
-          const r = await parseOneUrl({ base44, university, faculty, degree_program, specialization, trackType, sourceUrl: alt, tokenUsageRef });
-          results.push(r);
-        } catch { /* ignore, keep going */ }
-      }
+        for (const alt of liveAlts) {
+          // Stop once a source fully parses AND we've gathered a healthy total — each probe takes a Gemini call.
+          const mergedCount = results.reduce((s, r) => s + (r.courseCount || 0), 0);
+          const anySuccess = results.some((r) => r.parse_status === 'success');
+          if (anySuccess && mergedCount >= 25) break;
+          triedAlts.push(alt);
+          try {
+            const r = await parseOneUrl({ base44, university, faculty, degree_program, specialization, trackType, sourceUrl: alt, tokenUsageRef });
+            results.push(r);
+          } catch { /* ignore, keep going */ }
+        }
 
-      // If the confirmed/picked primary was dead but a live alternate parsed,
-      // report the live URL as the effective source so the user sees a real link.
-      if (primary.parse_status === 'failed' && results.length > 1) {
-        const liveBest = results.slice(1)
-          .filter((r) => r.parse_status !== 'failed')
-          .sort((a, b) => (b.courseCount || 0) - (a.courseCount || 0))[0];
-        if (liveBest) sourceUrl = liveBest.sourceUrl;
+        // If the confirmed/picked primary was dead but a live alternate parsed,
+        // report the live URL as the effective source so the user sees a real link.
+        if (primary.parse_status === 'failed' && results.length > 1) {
+          const liveBest = results.slice(1)
+            .filter((r) => r.parse_status !== 'failed')
+            .sort((a, b) => (b.courseCount || 0) - (a.courseCount || 0))[0];
+          if (liveBest) sourceUrl = liveBest.sourceUrl;
+        }
+
+        // Still empty / very low after raw self-heal → AI web-search extraction
+        // as the last resort (covers non-SPA sites with no scrapeable course
+        // table, and any alternates that were themselves JS shells).
+        const gathered = results.reduce((s, r) => s + (r.courseCount || 0), 0);
+        if (gathered < MIN_ACCEPTABLE_COURSES) {
+          const ws = await aiWebSearchExtract({ base44, university, faculty, degree_program, specialization, trackType, tokenUsageRef });
+          results.push(ws);
+          if (ws.parse_status !== 'failed' && gathered === 0) sourceUrl = ws.sourceUrl;
+        }
       }
     }
     tokenUsage = tokenUsageRef.value;
@@ -833,7 +998,7 @@ export default async function (req) {
     // Build the parse notes — always cite the self-heal trail so the user can
     // see which sources contributed to the merged cache.
     let parse_notes = parse_notes_stage1 || '';
-    const primaryNote = `Primary ${sourceUrl}: ${primary.parse_status} (${primary.courseCount} courses).`;
+    const primaryNote = `Primary ${primary.sourceUrl}: ${primary.parse_status} (${primary.courseCount} courses).`;
     parse_notes = (parse_notes ? parse_notes + ' ' : '') + primaryNote;
     if (triedAlts.length) {
       const altNotes = triedAlts.map((u, i) => {

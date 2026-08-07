@@ -22,6 +22,7 @@ import ProfileWizard from "@/components/edu/ProfileWizard";
 import EduDangerZone from "@/components/edu/EduDangerZone";
 import { isProfileComplete } from "@/lib/eduProfile";
 import { refreshCatalogInBackground, catalogCacheKey } from "@/lib/courseAutofill";
+import CatalogParseNotice from "@/components/edu/CatalogParseNotice";
 
 export default function EduSettings() {
   const { settings, updateSettings, activeSemester, refresh, navItems, saveNavItems } = useEduSyncData();
@@ -515,28 +516,13 @@ function UniversitySection() {
           </div>
         )}
 
-        {sources.length > 0 && (
-          <div className="rounded border border-white/10 bg-white/[0.02] p-2 space-y-1">
-            <p className="text-[10px] uppercase tracking-widest text-white/40">Parsed sources — self-heal trail</p>
-            {sources.map((s, i) => (
-              <div key={i} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-white/5">
-                <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${s.parse_status === "success" ? "bg-emerald-400" : s.parse_status === "partial" ? "bg-amber-400" : "bg-rose-400"}`} />
-                <span className="text-[11px] text-zinc-100 truncate flex-1 min-w-0">{s.url}</span>
-                <span className="text-[10px] text-white/40 font-mono shrink-0">{s.course_count} · {s.parse_status}</span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {cache?.calendar_source_url && (
-          <p className="text-[10px] text-white/30 font-mono truncate">Source: {cache.calendar_source_url}</p>
-        )}
-        {cache?.parse_notes && (
-          <p className="text-[10px] text-white/30 break-words">{cache.parse_notes}</p>
-        )}
-        {parsing && (
-          <p className="text-[11px] text-emerald-300/80 flex items-center gap-1.5"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Parsing this page and storing the courses locally…</p>
-        )}
+        <CatalogParseNotice
+          universityName={uni.name || settings?.university_name}
+          program={program}
+          cache={cache}
+          sources={sources}
+          parsing={parsing}
+        />
         {!cache && (uni.name || settings?.university_name) && !parsing && !findLoading && (
           <p className="text-[10px] text-white/30">Press <span className="text-emerald-300/70">AI Find Calendar</span> to find the right page, review the URL, then <span className="text-emerald-300/70">Confirm &amp; Parse</span> to store it locally.</p>
         )}
