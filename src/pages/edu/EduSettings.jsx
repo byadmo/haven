@@ -316,6 +316,7 @@ function UniversitySection() {
   const [findLoading, setFindLoading] = React.useState(false);
   const [candidates, setCandidates] = React.useState([]);
   const [cache, setCache] = React.useState(null);
+  const [sources, setSources] = React.useState([]);
 
   React.useEffect(() => {
     setUni({ name: settings?.university_name || "", domain: settings?.university_domain || "", catalogUrl: settings?.university_course_catalog_url || "" });
@@ -324,6 +325,7 @@ function UniversitySection() {
     setFaculty(settings?.faculty || "");
     setCatalogUrl(settings?.university_course_catalog_url || "");
     setCandidates([]);
+    setSources([]);
   }, [settings]);
 
   // Read the locally cached catalog (if any) so the user sees what's stored.
@@ -378,7 +380,7 @@ function UniversitySection() {
   async function runAiFind() {
     const name = uni.name || settings?.university_name;
     if (!name) { toast({ title: "Add a university first" }); return; }
-    setFindLoading(true); setCandidates([]);
+    setFindLoading(true); setCandidates([]); setSources([]);
     try {
       const res = await base44.functions.invoke("findCourseCalendar", {
         university_name: name,
@@ -415,6 +417,7 @@ function UniversitySection() {
     if (!name) { toast({ title: "Add a university first" }); return; }
     if (!catalogUrl) { toast({ title: "Enter or find a calendar URL first" }); return; }
     setParsing(true);
+    setSources([]);
     try {
       const res = await base44.functions.invoke("refreshCourseCatalog", {
         university_name: name,
@@ -437,6 +440,7 @@ function UniversitySection() {
           parse_status: d.parse_status,
           parse_notes: d.parse_notes,
         });
+        setSources(Array.isArray(d?.sources) ? d.sources : []);
         toast({
           title: `Catalog parsed · ${d.course_count || 0} courses cached`,
           description: d.calendar_source_url ? `Source: ${d.calendar_source_url}` : undefined,
@@ -507,6 +511,19 @@ function UniversitySection() {
                 <span className="text-[11px] text-zinc-100 truncate flex-1 min-w-0">{c.title || c.url}</span>
                 <span className="text-[10px] text-white/40 font-mono truncate max-w-[50%]">{c.url}</span>
               </button>
+            ))}
+          </div>
+        )}
+
+        {sources.length > 0 && (
+          <div className="rounded border border-white/10 bg-white/[0.02] p-2 space-y-1">
+            <p className="text-[10px] uppercase tracking-widest text-white/40">Parsed sources — self-heal trail</p>
+            {sources.map((s, i) => (
+              <div key={i} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-white/5">
+                <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${s.parse_status === "success" ? "bg-emerald-400" : s.parse_status === "partial" ? "bg-amber-400" : "bg-rose-400"}`} />
+                <span className="text-[11px] text-zinc-100 truncate flex-1 min-w-0">{s.url}</span>
+                <span className="text-[10px] text-white/40 font-mono shrink-0">{s.course_count} · {s.parse_status}</span>
+              </div>
             ))}
           </div>
         )}

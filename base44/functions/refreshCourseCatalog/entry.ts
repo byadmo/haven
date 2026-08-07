@@ -740,6 +740,7 @@ export default async function (req) {
       parse_status,
       parse_notes,
       last_parsed_at: record.last_parsed_at,
+      sources: results.map((r) => ({ url: r.sourceUrl, parse_status: r.parse_status, course_count: r.courseCount || 0 })),
       sources_tried: [sourceUrl, ...triedAlts],
     });
   } catch (error) {
