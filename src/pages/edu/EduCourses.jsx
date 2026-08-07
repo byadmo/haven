@@ -18,6 +18,8 @@ export default function EduCourses() {
   const { toast } = useToast();
   const [addOpen, setAddOpen] = React.useState(false);
   const [detailCourse, setDetailCourse] = React.useState(null);
+  const [editOpen, setEditOpen] = React.useState(false);
+  const [editCourse, setEditCourse] = React.useState(null);
 
   const requiredMaterials = materials.filter((m) => m.required);
   const textbookTotal = requiredMaterials.reduce((s, m) => s + (m.estimated_cost || 0), 0);
@@ -92,7 +94,8 @@ export default function EduCourses() {
       <EduBottomNav />
 
       <CourseFormModal open={addOpen} onOpenChange={setAddOpen} semesterId={activeSemester?.id} semesterStart={activeSemester?.start_date} />
-      <CourseDetailDialog course={detailCourse} open={!!detailCourse} onOpenChange={(o) => !o && setDetailCourse(null)} />
+      <CourseFormModal open={editOpen} onOpenChange={(o) => { setEditOpen(o); if (!o) setEditCourse(null); }} course={editCourse} semesterId={editCourse?.semester_id || activeSemester?.id} semesterStart={activeSemester?.start_date} />
+      <CourseDetailDialog course={detailCourse} open={!!detailCourse} onOpenChange={(o) => !o && setDetailCourse(null)} onEditCourse={(c) => { setDetailCourse(null); setEditCourse(c); setEditOpen(true); }} />
     </>
   );
 }

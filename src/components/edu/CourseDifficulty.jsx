@@ -11,9 +11,11 @@ import { useToast } from "@/components/ui/use-toast";
 import { generateDifficultyDetails } from "@/lib/courseAutofill";
 
 const RANK = {
-  Easy: { dot: "bg-emerald-400", text: "text-emerald-300", ring: "border-emerald-400/30 bg-emerald-500/10", emoji: "🟢", blurb: "Straightforward concepts, manageable workload. Most students handle this well." },
-  Moderate: { dot: "bg-amber-400", text: "text-amber-300", ring: "border-amber-400/30 bg-amber-500/10", emoji: "🟡", blurb: "Requires consistent effort. Some topics may need extra study time." },
-  Hard: { dot: "bg-rose-400", text: "text-rose-300", ring: "border-rose-400/30 bg-rose-500/10", emoji: "🔴", blurb: "Known as a challenging course. Heavy workload and complex concepts. Plan your schedule accordingly." },
+  Easy: { dot: "bg-emerald-400", text: "text-emerald-300", ring: "border-emerald-400/30 bg-emerald-500/10", label: "See what students say", blurb: "Straightforward concepts, manageable workload. Most students handle this well." },
+  Moderate: { dot: "bg-lime-400", text: "text-lime-300", ring: "border-lime-400/30 bg-lime-500/10", label: "See what students say", blurb: "Requires consistent effort. Some topics may need extra study time." },
+  Hard: { dot: "bg-amber-400", text: "text-amber-300", ring: "border-amber-400/30 bg-amber-500/10", label: "Why is this hard? Learn more", blurb: "Known as a challenging course. Heavy workload and complex concepts. Plan your schedule accordingly." },
+  "Very Hard": { dot: "bg-orange-400", text: "text-orange-300", ring: "border-orange-400/30 bg-orange-500/10", label: "Why is this so demanding? Learn more", blurb: "Notoriously demanding. Heavy lab/design load, deep prerequisites, high fail/drop rate." },
+  Brutal: { dot: "bg-rose-500", text: "text-rose-300", ring: "border-rose-500/30 bg-rose-500/10", label: "Why is this brutal? Learn more", blurb: "One of the hardest courses in the program. Very high workload and high fail rate — plan everything around it." },
 };
 
 export default function CourseDifficulty({ course }) {
@@ -77,7 +79,7 @@ export default function CourseDifficulty({ course }) {
         className="inline-flex items-center gap-1 text-[10px] text-emerald-300/80 hover:text-emerald-200 disabled:opacity-50"
       >
         {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
-        {loading ? "Generating…" : cached ? (open ? "Hide details" : "Why is this hard? Learn more") : "Why is this hard? Learn more"}
+        {loading ? "Generating…" : cached ? (open ? "Hide details" : r.label) : r.label}
         {cached && !loading && <ChevronDown className={`h-3 w-3 transition-transform ${open ? "rotate-180" : ""}`} />}
       </button>
 

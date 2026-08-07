@@ -114,8 +114,8 @@ export async function autofillCourse({ code, university, profile }) {
     "- degree_program: a degree program this course typically belongs to (e.g. 'Electrical Engineering')",
     "- specialization: a specialization within that program, if applicable",
     "- prerequisites: a short string listing prerequisites, or 'None' if none",
-    "- difficulty_ranking: one of 'Easy', 'Moderate', 'Hard' based on course content, workload, credit weight and reputation",
-    "- difficulty_reason: ONE short sentence (max ~20 words) explaining the ranking",
+    "- difficulty_ranking: one of 'Easy','Moderate','Hard','Very Hard','Brutal'. Be HONEST AND BRUTAL. Do NOT default to Moderate unless you genuinely cannot find any signal; upper-year engineering/math/CS courses are usually Hard or higher. Cross-reference RateMyProfessors, Reddit, course outlines, GPA, fail rate, credit weight, and reputation. Tier criteria: Easy = gentle intro/light 'bird course'; Moderate = standard mid-program, not notorious; Hard = known challenging, heavy workload, below-average GPA; Very Hard = notoriously demanding, heavy lab/design, high fail/drop, deep prereqs, serious weeder; Brutal = legendary 'killer'/'weeder' course, one of the hardest in the program, very high dropout, exceptional time required.",
+    "- difficulty_reason: ONE short sentence (~20 words) explaining the ranking, citing the strongest evidence found online",
     "- estimated_weekly_hours: a number — recommended total study hours per week (lectures + labs + tutorials + independent study), based on credit weight, difficulty, and any lab/tutorial time mentioned in the description",
     "If you cannot find the exact course, infer the department from the course code prefix and still give your best-guess fields. Never leave title blank — use the course code as the title if nothing else fits.",
   ].join(" ");
@@ -142,7 +142,7 @@ export async function autofillCourse({ code, university, profile }) {
                 degree_program: { type: "string" },
                 specialization: { type: "string" },
                 prerequisites: { type: "string" },
-                difficulty_ranking: { type: "string", enum: ["Easy", "Moderate", "Hard"] },
+                difficulty_ranking: { type: "string", enum: ["Easy", "Moderate", "Hard", "Very Hard", "Brutal"] },
                 difficulty_reason: { type: "string" },
                 estimated_weekly_hours: { type: "number" },
               },
@@ -225,8 +225,8 @@ export async function autocompleteCourses({ query, university, profile }) {
     "- degree_program: a degree program this course belongs to (if applicable)",
     "- specialization: a specialization within that program (if applicable)",
     "- prerequisites: short string of prerequisites, or 'None'",
-    "- difficulty_ranking: one of 'Easy', 'Moderate', 'Hard'",
-    "- difficulty_reason: ONE short sentence (~20 words) explaining the ranking",
+    "- difficulty_ranking: one of 'Easy','Moderate','Hard','Very Hard','Brutal'. Be HONEST AND BRUTAL based on real student-perceived difficulty (RateMyProfessors, Reddit, course outlines), workload, GPA, fail rate, credit weight, and reputation. Do NOT default to Moderate unless you genuinely cannot find any signal; upper-year engineering/math/CS courses are usually Hard or higher.",
+    "- difficulty_reason: ONE short sentence (~20 words) explaining the ranking, citing the strongest evidence found online",
     "- estimated_weekly_hours: a number — recommended total study hours per week (lectures + labs + tutorials + independent study)",
     "Only include REAL courses from this university's catalog. If you cannot find any starting with this prefix, return an empty courses array.",
   ].join(" ");
@@ -252,7 +252,7 @@ export async function autocompleteCourses({ query, university, profile }) {
                 degree_program: { type: "string" },
                 specialization: { type: "string" },
                 prerequisites: { type: "string" },
-                difficulty_ranking: { type: "string", enum: ["Easy", "Moderate", "Hard"] },
+                difficulty_ranking: { type: "string", enum: ["Easy", "Moderate", "Hard", "Very Hard", "Brutal"] },
                 difficulty_reason: { type: "string" },
                 estimated_weekly_hours: { type: "number" },
               },
@@ -326,6 +326,67 @@ export async function generateDifficultyDetails({ code, title, course_descriptio
   }
 }
 
+// On-demand: research THIS course (code + title) at the user's university via
+// web search. Returns the official course description AND an honest/brutal
+// difficulty ranking grounded in real student-perceived signals (RateMyProfs,
+// Reddit, course outlines, university forums). Used by the "Generate" button
+// next to the description in the Add/Edit Course form — one AI call fills both
+// the description and a researched difficulty ranking.
+export async function researchCourse({ code, title, university, profile }) {
+  const uniName = university?.university_name || university?.name || "";
+  const uniDomain = university?.university_domain || university?.domain || "";
+  const catalogUrl = university?.university_course_catalog_url || university?.catalogUrl || "";
+  const program = profile?.degree_program || "";
+  const spec = profile?.specialization || "";
+  const prompt = [
+    `Research the university course "${code}"${title ? ` — "${title}"` : ""}${uniName ? ` at ${uniName}` : " (Canadian university)"}.`,
+    program ? `It is part of the ${program}${spec ? ` (${spec})` : ""} program.` : "",
+    catalogUrl
+      ? `Primary source: ${catalogUrl}; also browse the broader ${uniDomain} site.`
+      : (uniDomain ? `Search ${uniDomain} and its official academic calendar.` : "Search the web for this course at a Canadian university."),
+    "Look up (a) the OFFICIAL catalog course description — topics, what students learn, prerequisites, lecture/lab/tutorial format, workload — and (b) REAL student-perceived difficulty from RateMyProfessors, Reddit (r/<university>), course-outline PDFs, and university forums. Cross-reference workload, GPA, fail rate, and reputation.",
+    "Be HONEST AND BRUTAL about difficulty. Do NOT default to Moderate unless you genuinely cannot find any signal. Most upper-year engineering / math / CS courses are Hard or above, not Moderate.",
+    "Tier criteria — pick the truest for THIS course:",
+    "  Easy — gentle intro, broad concepts, light workload, common 'bird course'.",
+    "  Moderate — standard mid-program course; needs consistent effort; not notorious.",
+    "  Hard — known as challenging; heavy workload; math/proof/project-intensive; below-average GPA.",
+    "  Very Hard — notoriously demanding; heavy lab/design; deep prereqs; high fail/drop rate; serious weeder.",
+    "  Brutal — legendary 'killer'/'weeder' course; one of the hardest in the program; very high dropout; exceptional time commitment required.",
+    "Return a JSON object with:",
+    "- description: the official catalog description (1-4 sentences; condensed verbatim if long). Empty string ONLY if genuinely not found.",
+    "- difficulty_ranking: one of 'Easy','Moderate','Hard','Very Hard','Brutal'. When no reliable signal exists, default to 'Hard' for 200+ level engineering/math/science courses, else 'Moderate'.",
+    "- difficulty_reason: ONE short sentence (~20 words) explaining the ranking, citing the strongest evidence you found.",
+    "- source_url: the page you pulled the description from, if any.",
+  ].filter(Boolean).join(" ");
+
+  try {
+    const res = await base44.integrations.Core.InvokeLLM({
+      prompt,
+      add_context_from_internet: true,
+      model: "gemini_3_flash",
+      response_json_schema: {
+        type: "object",
+        properties: {
+          description: { type: "string" },
+          difficulty_ranking: { type: "string", enum: ["Easy", "Moderate", "Hard", "Very Hard", "Brutal"] },
+          difficulty_reason: { type: "string" },
+          source_url: { type: "string" },
+        },
+        required: ["description", "difficulty_ranking"],
+      },
+    });
+    const d = res?.data ?? res;
+    return {
+      description: (d?.description || "").trim(),
+      difficulty_ranking: d?.difficulty_ranking || "",
+      difficulty_reason: d?.difficulty_reason || "",
+      source_url: d?.source_url || "",
+    };
+  } catch (e) {
+    return { description: "", difficulty_ranking: "", difficulty_reason: "", source_url: "" };
+  }
+}
+
 // ===========================================================================
 // Cached course catalog (pre-fetched per university + faculty + degree program)
 // ===========================================================================
@@ -342,19 +403,21 @@ export function normalizeCode(code) {
   return String(code || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
 }
 
-function difficultyFromHints(hints) {
-  const h = (hints || "").toLowerCase();
-  if (!h) return { ranking: "Moderate", reason: "" };
-  if (/(weeder|very hard|difficult|intensive|rigorous|heavy workload|notoriously|challenging)/.test(h))
-    return { ranking: "Hard", reason: hints };
-  if (/(easy|light|introductory|beginner|accessible)/.test(h))
-    return { ranking: "Easy", reason: hints };
-  return { ranking: "Moderate", reason: hints };
+function difficultyFromHints(hints, title, description) {
+  const h = `${hints || ""} ${title || ""} ${description || ""}`.toLowerCase();
+  if (!h.trim()) return { ranking: "Moderate", reason: "" };
+  if (/(notoriously|brutal|legendary|killer|extremely difficult|very hard|high fail|dropout|one of the hardest|rigorous|heavy workload|intensive|capstone|thesis|challenging|weeder)/.test(h))
+    return { ranking: "Brutal", reason: hints || "Catalog + reputation signal this as a demanding course." };
+  if (/(advanced|hard|difficult|complex|proof|proofs|design|project-based|honours)/.test(h))
+    return { ranking: "Hard", reason: hints || "Topics and workload point to a hard course." };
+  if (/(introductory|intro|beginner|easy|light|accessible|overview|fundamentals|survey)/.test(h))
+    return { ranking: "Easy", reason: hints || "Introductory / low-workload content." };
+  return { ranking: "Moderate", reason: hints || "" };
 }
 
 // Map a cached parsed_course to the candidate shape used by autocompleteCourses.
 function cachedToCandidate(c, profile) {
-  const { ranking, reason } = difficultyFromHints(c.difficulty_hints);
+  const { ranking, reason } = difficultyFromHints(c.difficulty_hints, c.course_title, c.course_description);
   const credits = typeof c.credits === "number" && c.credits > 0 ? c.credits : 3;
   return {
     code: c.course_code || "",

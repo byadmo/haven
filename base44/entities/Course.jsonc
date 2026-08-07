@@ -77,9 +77,11 @@
       "enum": [
         "Easy",
         "Moderate",
-        "Hard"
+        "Hard",
+        "Very Hard",
+        "Brutal"
       ],
-      "description": "AI-assessed difficulty ranking for the course."
+      "description": "AI-assessed difficulty ranking for the course (Easy \u2192 Moderate \u2192 Hard \u2192 Very Hard \u2192 Brutal)."
     },
     "difficulty_reason": {
       "type": "string",

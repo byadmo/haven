@@ -5,7 +5,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Trash2, Check } from "lucide-react";
+import { Plus, Trash2, Check, Pencil } from "lucide-react";
 import { useEduSync } from "@/lib/eduSyncContext";
 import { currentGrade, percentToLetter } from "@/lib/eduGrading";
 import ProfessorContact from "@/components/edu/ProfessorContact";
@@ -14,7 +14,7 @@ import SessionNotesList from "@/components/edu/SessionNotesList";
 
 const TYPES = ["assignment", "exam", "quiz", "project", "midterm", "final", "lab", "other"];
 
-export default function CourseDetailDialog({ course, open, onOpenChange }) {
+export default function CourseDetailDialog({ course, open, onOpenChange, onEditCourse }) {
   const { deliverablesByCourse, materialsByCourse, createDeliverable, updateDeliverable, deleteDeliverable, createMaterial, deleteMaterial, deleteCourse } = useEduSync();
   const [dlv, setDlv] = React.useState({ title: "", due_date: "", weight: 0, type: "assignment", is_exam: false });
   const [mat, setMat] = React.useState({ title: "", estimated_cost: 0, required: true });
@@ -48,13 +48,26 @@ export default function CourseDetailDialog({ course, open, onOpenChange }) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="bg-black border-white/10 text-zinc-100 max-w-2xl">
         <DialogHeader>
-          <DialogTitle className="text-zinc-100">{course.code} — {course.title}</DialogTitle>
-          <DialogDescription className="text-white/50">
-            {course.professor_name || "No professor"}{course.schedule_time ? ` · ${course.schedule_time}` : ""}{course.location ? ` · ${course.location}` : ""}
-          </DialogDescription>
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <DialogTitle className="text-zinc-100 truncate">{course.code} — {course.title}</DialogTitle>
+              <DialogDescription className="text-white/50">
+                {course.professor_name || "No professor"}{course.schedule_time ? ` · ${course.schedule_time}` : ""}{course.location ? ` · ${course.location}` : ""}
+              </DialogDescription>
+            </div>
+            <Button variant="outline" size="sm" className="border-emerald-400/30 text-emerald-300 hover:bg-emerald-500/10 shrink-0" onClick={() => { onOpenChange(false); onEditCourse?.(course); }}>
+              <Pencil className="h-3.5 w-3.5" /> Edit
+            </Button>
+          </div>
         </DialogHeader>
 
         <div className="space-y-5 max-h-[65vh] overflow-y-auto pr-1">
+          {course.course_description && (
+            <div className="rounded-lg border border-white/10 p-4">
+              <p className="text-[10px] uppercase tracking-widest text-white/50 mb-1.5">Course description</p>
+              <p className="text-xs text-white/70 leading-relaxed whitespace-normal break-words">{course.course_description}</p>
+            </div>
+          )}
           <ProfessorContact course={course} />
           {/* Grading breakdown */}
           <div className="rounded-lg border border-white/10 p-4">
