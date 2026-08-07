@@ -424,6 +424,7 @@ function UniversitySection() {
         university_domain: uni.domain || settings?.university_domain,
         university_course_catalog_url: catalogUrl,
         parse_only: true,
+        alternate_urls: candidates.filter((c) => c.url && c.url !== catalogUrl).map((c) => c.url).slice(0, 3),
       });
       const d = res?.data ?? res;
       if (d?.error) {

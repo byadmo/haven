@@ -15,6 +15,16 @@ import * as cheerio from 'npm:cheerio@1.0.0';
 //   Stage 3 — Heading-Bounded Subtree Extraction (HBSE) via cheerio
 //   Stage 4 — Deterministic Grammar Parser + Quality Gate (C >= 0.85 mid)
 //   Stage 5 — Gemini-3-Flash schema-constrained fallback (thinkingLevel minimal)
+//
+// Self-heal: when the primary calendar URL returns a 'failed' or low-count
+// 'partial' parse, the function gathers 2-3 ALTERNATE links (either supplied
+// by the caller from findCourseCalendar, or freshly discovered via Stage 1
+// precision search) and re-runs the Stage 2-5 pipeline on each. Every course
+// extracted from any source is merged + deduplicated into a single
+// CourseCatalogCache record and persisted immediately — so the user can start
+// searching their catalog right away even when the best URL was only partially
+// readable. (per user request: gather as much info as possible, actively
+// cache + update memory so search is usable.)
 // ============================================================================
 
 const FETCH_TIMEOUT_MS = 9000;
@@ -26,6 +36,10 @@ const CODE_RE = /\b([A-Z]{2,4})\s?(\d{3,4})([A-Z]?)\b/g;
 const YEAR_RE = /\b(?:year|annee|année)\s*([1-5])\b/i;
 const TERM_RE = /\b(fall|winter|spring|summer|autumn|semester\s*[1-8]|semestre\s*[1-8]|term\s*[1-8])\b/i;
 const NOISE_SEL = 'script, style, nav, footer, header, aside, noscript, svg, iframe, form, [role="navigation"], [role="banner"], [role="contentinfo"]';
+// Self-heal thresholds: a primary parse below this course count triggers
+// alternate-URL probing. Salvage-only 'partial' parses usually yield < 8.
+const MIN_ACCEPTABLE_COURSES = 8;
+const MAX_ALTERNATES = 3;
 
 function normKey(parts) {
   return parts.map((p) => (p || '').toString().trim().toLowerCase()).filter(Boolean).join('::');
@@ -359,12 +373,192 @@ function buildGeminiPrompt(university, faculty, specialization, trackType, sourc
 }
 
 // ============================================================================
+// Self-heal helpers: parse ONE url end-to-end, then merge results across
+// multiple sources into a single deduplicated catalog.
+// ============================================================================
+
+function countCourses(academicYears) {
+  if (!Array.isArray(academicYears)) return 0;
+  return academicYears.reduce((s, y) =>
+    s + (y?.terms || []).reduce((ss, t) => ss + (t?.requiredCourses || []).length, 0), 0);
+}
+
+// Parse a single calendar URL through Stage 2-5. Self-contained so the main
+// flow can call it repeatedly across alternate URLs during self-heal.
+// Returns { academicYears, parse_status, parse_notes, executionMode, courseCount, sourceUrl }.
+async function parseOneUrl({ base44, university, faculty, degree_program, specialization, trackType, sourceUrl, tokenUsageRef }) {
+  let executionMode = null;
+  let parse_notes = '';
+  let academicYears = [];
+  let cleanedHtml = '';
+
+  const html = await fetchText(sourceUrl);
+  const tierACodes = extractCodes(html || '');
+  if (!html || html.length < 200) {
+    const salvaged = salvageCourses(html || '');
+    return {
+      sourceUrl,
+      academicYears: salvaged.length ? [{ yearNumber: 1, terms: [{ termName: 'Catalog', requiredCourses: salvaged }] }] : [],
+      parse_status: salvaged.length ? 'partial' : 'failed',
+      parse_notes: salvaged.length ? 'Salvage from raw HTML.' : 'Could not render the target calendar page.',
+      executionMode: salvaged.length ? 'DETERMINISTIC_AST' : null,
+      courseCount: salvaged.length,
+      cleanedHtml: html || '',
+    };
+  }
+  cleanedHtml = html;
+  const hb = hbse(html, trackType);
+  const $$ = hb.$;
+  const isolatedText = hb.isolatedText;
+  if (tierACodes.length < TIER_A_CODE_FLOOR) {
+    parse_notes = `Stage 2 Tier A: only ${tierACodes.length} course codes in static HTML (< ${TIER_A_CODE_FLOOR}); Playwright Tier B unavailable in runtime.`;
+  }
+
+  const ast = stageAstParse(hb.isolated, trackType);
+  if (ast.totalCourses >= 5 && ast.coverage >= COVERAGE_THRESHOLD) {
+    executionMode = 'DETERMINISTIC_AST';
+    return {
+      sourceUrl,
+      academicYears: ast.academicYears,
+      parse_status: 'success',
+      parse_notes: `Deterministic AST: ${ast.totalCourses} courses, ${(ast.coverage * 100).toFixed(0)}% coverage.`,
+      executionMode,
+      courseCount: ast.totalCourses,
+      cleanedHtml,
+    };
+  }
+
+  // Stage 5: Gemini fallback.
+  try {
+    let geminiText = isolatedText;
+    if (ast.coverage < COVERAGE_THRESHOLD && $$) {
+      const fullText = $$('body').text().replace(/\s+/g, ' ').trim();
+      if (extractCodes(fullText).length > extractCodes(isolatedText).length) geminiText = fullText;
+    }
+    const gres = await base44.integrations.Core.InvokeLLM({
+      prompt: buildGeminiPrompt(university, faculty, degree_program, trackType, sourceUrl, geminiText),
+      model: 'gemini_3_flash',
+      response_json_schema: PROGRAM_SCHEMA,
+    });
+    tokenUsageRef.value += 1;
+    const d = gres?.data ?? gres;
+    if (d && Array.isArray(d.academicYears)) {
+      executionMode = 'GEMINI_FALLBACK';
+      academicYears = d.academicYears
+        .filter((y) => y && y.yearNumber != null)
+        .map((y) => ({
+          yearNumber: Number(y.yearNumber) || 0,
+          terms: (y.terms || []).map((t) => ({
+            termName: String(t.termName || '').trim(),
+            requiredCourses: (t.requiredCourses || []).map((c) => ({
+              code: String(c.code || '').trim(),
+              title: String(c.title || c.code || '').trim(),
+              credits: typeof c.credits === 'number' ? c.credits : 0,
+            })).filter((c) => c.code),
+          })),
+        }));
+      const conf = String(d.confidence || 'low').toLowerCase();
+      const pStatus = academicYears.length === 0 ? 'failed' : conf === 'low' ? 'partial' : 'success';
+      parse_notes = (d.notes || 'Gemini-3-flash extraction.') +
+        ` AST coverage was ${(ast.coverage * 100).toFixed(0)}% (< ${COVERAGE_THRESHOLD * 100}%).`;
+      return { sourceUrl, academicYears, parse_status: pStatus, parse_notes, executionMode, courseCount: countCourses(academicYears), cleanedHtml };
+    }
+  } catch (e) {
+    parse_notes = 'Gemini fallback failed: ' + (e?.message || 'unknown');
+  }
+
+  // Last-resort salvage from this page.
+  const salvaged = salvageCourses(cleanedHtml || isolatedText);
+  if (salvaged.length) {
+    executionMode = executionMode || 'DETERMINISTIC_AST';
+    return {
+      sourceUrl,
+      academicYears: [{ yearNumber: 1, terms: [{ termName: 'Catalog', requiredCourses: salvaged }] }],
+      parse_status: 'partial',
+      parse_notes: (parse_notes ? parse_notes + ' ' : '') + `Salvage: ${salvaged.length} courses with titles.`,
+      executionMode,
+      courseCount: salvaged.length,
+      cleanedHtml,
+    };
+  }
+  return { sourceUrl, academicYears: [], parse_status: 'failed', parse_notes, executionMode: null, courseCount: 0, cleanedHtml };
+}
+
+// Normalize a course code for dedup (uppercase, alnum only).
+function normCode(code) {
+  return String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
+// Merge per-URL parse results into ONE deduplicated flat course list + a single
+// curriculum (uses the richest source's academicYears, then appends any
+// courses found only on alternate pages under a 'Catalog' catch-all term so
+// search-by-code still surfaces them).
+function mergeResults(results) {
+  const seen = new Set();
+  const flat = [];
+  const byCode = new Map();
+  for (const r of results) {
+    for (const y of (r.academicYears || [])) {
+      for (const t of (y.terms || [])) {
+        for (const c of (t.requiredCourses || [])) {
+          const key = normCode(c.code);
+          if (!key) continue;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          flat.push({
+            course_code: c.code,
+            course_title: c.title || c.code,
+            course_description: '',
+            credits: typeof c.credits === 'number' ? c.credits : 0,
+            prerequisites: '',
+            department: '',
+            difficulty_hints: '',
+            source_url: r.sourceUrl,
+          });
+          byCode.set(key, { code: c.code, title: c.title || c.code });
+        }
+      }
+    }
+  }
+  // Curriculum: use the richest source's structure; any leftover courses go to
+  // a 'Catalog' catch-all year so the curriculum reflects the merged set.
+  const richest = results.slice().sort((a, b) => countCourses(b.academicYears) - countCourses(a.academicYears))[0];
+  let curriculum = [];
+  if (richest && Array.isArray(richest.academicYears) && richest.academicYears.length) {
+    const richSeen = new Set();
+    curriculum = richest.academicYears.map((y) => ({
+      year: 'Year ' + y.yearNumber,
+      terms: y.terms.map((t) => ({
+        term: t.termName,
+        courses: (t.requiredCourses || []).map((c) => {
+          const key = normCode(c.code);
+          richSeen.add(key);
+          return { code: c.code, title: c.title || c.code };
+        }),
+      })),
+    }));
+    // Append leftover courses (found only on alternates) under a Catalog term.
+    const leftovers = flat.filter((f) => f.source_url !== richest.sourceUrl && !richSeen.has(normCode(f.course_code)));
+    if (leftovers.length) {
+      curriculum.push({
+        year: 'Catalog',
+        terms: [{ term: 'Catalog', courses: leftovers.map((f) => ({ code: f.course_code, title: f.course_title })) }],
+      });
+    }
+  } else if (flat.length) {
+    curriculum = [{ year: 'Catalog', terms: [{ term: 'Catalog', courses: flat.map((f) => ({ code: f.course_code, title: f.course_title })) }] }];
+  }
+  return { flatCourses: flat, curriculum };
+}
+
+// ============================================================================
 export default async function (req) {
   let executionMode = null;
   let tokenUsage = 0;
   let sourceUrl = '';
   let university = '', faculty = '', specialization = '', degree_program = '', trackType = '';
   let parse_notes_stage1 = '';
+  let academicYears = [];
   try {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
@@ -379,6 +573,11 @@ export default async function (req) {
     const url0 = (body.calendarUrl || body.university_course_catalog_url || '').toString().trim();
     const parse_only = !!body.parse_only;
     const force = !!body.force || parse_only;
+    // Caller-supplied alternate URLs (from findCourseCalendar) — used to
+    // self-heal when the primary URL fails or only partially parses.
+    const callerAlternates = Array.isArray(body.alternate_urls)
+      ? body.alternate_urls.map((u) => String(u || '').trim()).filter((u) => /^https?:\/\//i.test(u))
+      : [];
 
     if (!university) return Response.json({ status: 'error', error: 'university is required' }, { status: 400 });
     const key = normKey([university, faculty, degree_program || specialization]);
@@ -407,16 +606,17 @@ export default async function (req) {
     // The caller MAY supply an explicit calendar URL (parse_only / setup-wizard
     // save-then-parse flow). Otherwise run a gemini-3-flash web-search query
     // and apply the zero-LLM +50/-100 path-quality rubric to its candidates.
+    let stage1Urls = [];
     if (url0 && /^https?:\/\//i.test(url0)) {
       sourceUrl = url0;
     } else {
-      const candidates = await precisionSearch(university, faculty, degree_program || specialization, trackType,
+      stage1Urls = await precisionSearch(university, faculty, degree_program || specialization, trackType,
         (p) => base44.integrations.Core.InvokeLLM(p));
       tokenUsage += 1;
-      const pick = pickBestUrl(candidates, specialization || degree_program);
+      const pick = pickBestUrl(stage1Urls, specialization || degree_program);
       sourceUrl = pick.url;
-      if (candidates.length) {
-        parse_notes_stage1 = `Stage 1: ${candidates.length} candidate URLs from Gemini web-search; picked score=${pick.score}.`;
+      if (stage1Urls.length) {
+        parse_notes_stage1 = `Stage 1: ${stage1Urls.length} candidate URLs from Gemini web-search; picked score=${pick.score}.`;
       }
     }
     if (!sourceUrl) {
@@ -428,124 +628,83 @@ export default async function (req) {
       }, { status: 422 });
     }
 
-    let parse_status = 'failed';
-    let parse_notes = parse_notes_stage1 || '';
-    let academicYears = [];
-    let degreeTitle = degree_program || '';
+    // Assemble alternate URLs for self-heal: caller-supplied first, then any
+    // Stage 1 candidates (excluding the chosen primary), deduped.
+    const altPool = Array.from(new Set([
+      ...callerAlternates,
+      ...stage1Urls.filter((u) => u && u !== sourceUrl),
+    ])).slice(0, MAX_ALTERNATES);
 
-    // -------- Stage 2: Dual-Tier Scrape (Tier A regex gate) + Stage 3: HBSE --
-    let cleanedHtml = '';
-    let isolatedText = '';
-    let $$ = null;
-    if (!executionMode) {
-      const html = await fetchText(sourceUrl);
-      // Stage 2 Tier A: accept static HTML if it carries >= 4 distinct course
-      // codes; otherwise (empty SPA shell) we cannot Tier-B render (Playwright
-      // unavailable in the runtime) and fall straight through to Stage 5.
-      const tierACodes = extractCodes(html || '');
-      if (!html || html.length < 200) {
-        const salvaged = salvageCourses(html || '');
-        return Response.json({
-          status: salvaged.length ? 'success' : 'error',
-          executionMode: salvaged.length ? 'DETERMINISTIC_AST' : null,
-          meta: { university, faculty, specialization: degree_program, trackType, sourceUrl, tokenUsage },
-          program: { degreeTitle, academicYears: salvaged.length ? [{ yearNumber: 1, terms: [{ termName: 'Catalog', requiredCourses: salvaged }] }] : [] },
-          parse_status: salvaged.length ? 'partial' : 'failed',
-          parse_notes: (parse_notes ? parse_notes + ' ' : '') + (salvaged.length ? 'Salvage from raw HTML.' : 'Could not render the target calendar page.'),
-          course_count: salvaged.length,
-          calendar_source_url: sourceUrl,
-        }, { status: salvaged.length ? 200 : 422 });
-      }
-      cleanedHtml = html;
-      const hb = hbse(html, trackType);
-      $$ = hb.$; isolatedText = hb.isolatedText;
-      if (tierACodes.length < TIER_A_CODE_FLOOR) {
-        parse_notes = (parse_notes ? parse_notes + ' ' : '') +
-          `Stage 2 Tier A: only ${tierACodes.length} course codes in static HTML (< ${TIER_A_CODE_FLOOR}); Playwright Tier B unavailable in runtime.`;
-      }
+    const tokenUsageRef = { value: tokenUsage };
 
-      // ------------------- Stage 4: Deterministic Grammar Parser -----------
-      const ast = stageAstParse(hb.isolated, trackType);
-      if (ast.totalCourses >= 5 && ast.coverage >= COVERAGE_THRESHOLD) {
-        executionMode = 'DETERMINISTIC_AST';
-        parse_status = 'success';
-        parse_notes = `Deterministic AST: ${ast.totalCourses} courses, ${(ast.coverage * 100).toFixed(0)}% coverage.`;
-        academicYears = ast.academicYears;
-      } else {
-        // ------------------- Stage 5: Gemini 3 Flash schema fallback ---------
+    // -------- Parse the primary URL (Stage 2-5) -----------------------------
+    let primary = await parseOneUrl({ base44, university, faculty, degree_program, specialization, trackType, sourceUrl, tokenUsageRef });
+    let results = [primary];
+    let triedAlts = [];
+
+    // -------- Self-heal: if the primary parse failed or only partially
+    // parsed (low course count), probe up to MAX_ALTERNATES alternate URLs.
+    // Gather as much information as possible, then merge + persist so search
+    // is usable immediately even when no single URL fully rendered.
+    const needsMore = (r) => r.parse_status === 'failed' || (r.parse_status === 'partial' && r.courseCount < MIN_ACCEPTABLE_COURSES);
+
+    if (needsMore(primary)) {
+      // If we have no alternates on hand (explicit url0 + no caller alternates),
+      // run a fresh Stage 1 precision search to discover 2-3 alternate links.
+      let alts = altPool;
+      if (!alts.length) {
         try {
-          // Fertilize Stage 5: when AST coverage was low, HBSE isolated the
-          // wrong section (often the program-description / transition block).
-          // Fall back to the full noise-stripped body text so Gemini sees the
-          // real curriculum tables elsewhere on the page.
-          let geminiText = isolatedText;
-          if (ast.coverage < COVERAGE_THRESHOLD && $$) {
-            const fullText = $$('body').text().replace(/\s+/g, ' ').trim();
-            if (extractCodes(fullText).length > extractCodes(isolatedText).length) geminiText = fullText;
-          }
-          const gres = await base44.integrations.Core.InvokeLLM({
-            prompt: buildGeminiPrompt(university, faculty, degree_program, trackType, sourceUrl, geminiText),
-            model: 'gemini_3_flash',
-            response_json_schema: PROGRAM_SCHEMA,
-          });
-          tokenUsage += 1;
-          const d = gres?.data ?? gres;
-          if (d && Array.isArray(d.academicYears)) {
-            executionMode = 'GEMINI_FALLBACK';
-            academicYears = d.academicYears
-              .filter((y) => y && y.yearNumber != null)
-              .map((y) => ({
-                yearNumber: Number(y.yearNumber) || 0,
-                terms: (y.terms || []).map((t) => ({
-                  termName: String(t.termName || '').trim(),
-                  requiredCourses: (t.requiredCourses || []).map((c) => ({
-                    code: String(c.code || '').trim(),
-                    title: String(c.title || c.code || '').trim(),
-                    credits: typeof c.credits === 'number' ? c.credits : 0,
-                  })).filter((c) => c.code),
-                })),
-              }));
-            degreeTitle = String(d.degreeTitle || degree_program || '');
-            const conf = String(d.confidence || 'low').toLowerCase();
-            parse_status = academicYears.length === 0 ? 'failed' : conf === 'low' ? 'partial' : 'success';
-            parse_notes = (d.notes || 'Gemini-3-flash extraction.') +
-              ` AST coverage was ${(ast.coverage * 100).toFixed(0)}% (< ${COVERAGE_THRESHOLD * 100}%).`;
-          }
-        } catch (e) {
-          parse_notes = 'Gemini fallback failed: ' + (e?.message || 'unknown');
-        }
-        // Last-resort salvage: walk rows / list-items to extract codes WITH
-        // their adjacent title cells (no titles left as bare codes).
-        if (academicYears.length === 0) {
-          const salvaged = salvageCourses(cleanedHtml || isolatedText);
-          if (salvaged.length) {
-            executionMode = executionMode || 'DETERMINISTIC_AST';
-            parse_status = 'partial';
-            parse_notes = (parse_notes ? parse_notes + ' ' : '') + `Salvage: ${salvaged.length} courses with titles.`;
-            academicYears = [{ yearNumber: 1, terms: [{ termName: 'Catalog', requiredCourses: salvaged }] }];
-          }
-        }
+          const found = await precisionSearch(university, faculty, degree_program || specialization, trackType,
+            (p) => base44.integrations.Core.InvokeLLM(p));
+          tokenUsageRef.value += 1;
+          alts = found.filter((u) => u && u !== sourceUrl).slice(0, MAX_ALTERNATES);
+        } catch { alts = []; }
+      }
+
+      for (const alt of alts) {
+        // Stop once a source fully parses AND we've gathered a healthy total — every probe also takes a Gemini call, so we don't want to run all 3 once anything good lands.
+        const mergedCount = results.reduce((s, r) => s + (r.courseCount || 0), 0);
+        const anySuccess = results.some((r) => r.parse_status === 'success');
+        if (anySuccess && mergedCount >= 25) break;
+        triedAlts.push(alt);
+        try {
+          const r = await parseOneUrl({ base44, university, faculty, degree_program, specialization, trackType, sourceUrl: alt, tokenUsageRef });
+          results.push(r);
+        } catch { /* ignore a dead alternate, keep going */ }
       }
     }
+    tokenUsage = tokenUsageRef.value;
 
-    // Flatten for cache + legacy curriculum shape.
-    const seenCode = new Set();
-    const flatCourses = [];
-    const curriculum = academicYears.map((y) => ({
-      year: 'Year ' + y.yearNumber,
-      terms: y.terms.map((t) => ({
-        term: t.termName,
-        courses: t.requiredCourses.map((c) => {
-          if (c.code && !seenCode.has(c.code)) {
-            seenCode.add(c.code);
-            flatCourses.push({ course_code: c.code, course_title: c.title, course_description: '', credits: c.credits, prerequisites: '', department: '', difficulty_hints: '' });
-          }
-          return { code: c.code, title: c.title };
-        }),
-      })),
-    }));
+    // -------- Merge + dedup every course gathered across all sources --------
+    const { flatCourses, curriculum } = mergeResults(results);
+    const bestResult = results.slice().sort((a, b) => (b.courseCount || 0) - (a.courseCount || 0))[0];
+    academicYears = bestResult?.academicYears || [];
+    executionMode = bestResult?.executionMode || 'GEMINI_FALLBACK';
 
-    // Persist cache (best-effort).
+    let parse_status;
+    if (results.some((r) => r.parse_status === 'success')) parse_status = 'success';
+    else if (flatCourses.length > 0) parse_status = 'partial';
+    else parse_status = 'failed';
+
+    // Build the parse notes — always cite the self-heal trail so the user can
+    // see which sources contributed to the merged cache.
+    let parse_notes = parse_notes_stage1 || '';
+    const primaryNote = `Primary ${sourceUrl}: ${primary.parse_status} (${primary.courseCount} courses).`;
+    parse_notes = (parse_notes ? parse_notes + ' ' : '') + primaryNote;
+    if (triedAlts.length) {
+      const altNotes = triedAlts.map((u, i) => {
+        const r = results[i + 1];
+        return `${u}: ${r.parse_status} (${r.courseCount})`;
+      }).join('; ');
+      parse_notes += ` Self-heal probed ${triedAlts.length} alternate URL(s) — ${altNotes}. Merged ${flatCourses.length} unique courses from ${results.length} source(s).`;
+    } else if (primary.parse_notes) {
+      parse_notes += ' ' + primary.parse_notes;
+    }
+
+    // Persist cache (best-effort) — ALWAYS, as long as we gathered anything.
+    // This is the "actively cache + update memory so the user can start
+    // searching" requirement: even a salvage-grade partial merge is stored so
+    // Quick Add / Add Course dropdowns populate immediately.
     const record = {
       cache_key: key,
       university_name: university,
@@ -569,11 +728,11 @@ export default async function (req) {
       status: 'success',
       executionMode: executionMode || 'GEMINI_FALLBACK',
       meta: { university, faculty, specialization: degree_program, trackType, sourceUrl, tokenUsage },
-      program: { degreeTitle, academicYears },
+      program: { degreeTitle: degree_program || '', academicYears },
       // Legacy fields for existing clients:
       cached: false,
       cache_id: savedId,
-      degreeTitle,
+      degreeTitle: degree_program || '',
       calendarSourceUrl: sourceUrl,
       trackType,
       academicYears,
@@ -581,6 +740,7 @@ export default async function (req) {
       parse_status,
       parse_notes,
       last_parsed_at: record.last_parsed_at,
+      sources_tried: [sourceUrl, ...triedAlts],
     });
   } catch (error) {
     return Response.json({
