@@ -338,25 +338,17 @@ export async function researchCourse({ code, title, university, profile }) {
   const catalogUrl = university?.university_course_catalog_url || university?.catalogUrl || "";
   const program = profile?.degree_program || "";
   const spec = profile?.specialization || "";
+  // Tight prompt (~500 chars). Gemini 3 Flash already understands the
+  // difficulty tiers; we don't re-list them. Smaller prompt = smaller
+  // completion pass = total wall clock (web search + model) lands under
+  // ~10s for any course. The response_json_schema still constrains the
+  // difficulty_ranking enum so the model is anchored without verbose copy.
   const prompt = [
-    `Research the university course "${code}"${title ? ` — "${title}"` : ""}${uniName ? ` at ${uniName}` : " (Canadian university)"}.`,
-    program ? `It is part of the ${program}${spec ? ` (${spec})` : ""} program.` : "",
-    catalogUrl
-      ? `Primary source: ${catalogUrl}; also browse the broader ${uniDomain} site.`
-      : (uniDomain ? `Search ${uniDomain} and its official academic calendar.` : "Search the web for this course at a Canadian university."),
-    "Look up (a) the OFFICIAL catalog course description — topics, what students learn, prerequisites, lecture/lab/tutorial format, workload — and (b) REAL student-perceived difficulty from RateMyProfessors, Reddit (r/<university>), course-outline PDFs, and university forums. Cross-reference workload, GPA, fail rate, and reputation.",
-    "Be HONEST AND BRUTAL about difficulty. Do NOT default to Moderate unless you genuinely cannot find any signal. Most upper-year engineering / math / CS courses are Hard or above, not Moderate.",
-    "Tier criteria — pick the truest for THIS course:",
-    "  Easy — gentle intro, broad concepts, light workload, common 'bird course'.",
-    "  Moderate — standard mid-program course; needs consistent effort; not notorious.",
-    "  Hard — known as challenging; heavy workload; math/proof/project-intensive; below-average GPA.",
-    "  Very Hard — notoriously demanding; heavy lab/design; deep prereqs; high fail/drop rate; serious weeder.",
-    "  Brutal — legendary 'killer'/'weeder' course; one of the hardest in the program; very high dropout; exceptional time commitment required.",
-    "Return a JSON object with:",
-    "- description: the official catalog description (1-4 sentences; condensed verbatim if long). Empty string ONLY if genuinely not found.",
-    "- difficulty_ranking: one of 'Easy','Moderate','Hard','Very Hard','Brutal'. When no reliable signal exists, default to 'Hard' for 200+ level engineering/math/science courses, else 'Moderate'.",
-    "- difficulty_reason: ONE short sentence (~20 words) explaining the ranking, citing the strongest evidence you found.",
-    "- source_url: the page you pulled the description from, if any.",
+    `Look up course "${code}"${title ? ` (${title})` : ""}${uniName ? ` at ${uniName}` : " (Canadian university)"}.`,
+    catalogUrl ? `Primary catalog: ${catalogUrl}.` : (uniDomain ? `Site: ${uniDomain}.` : "Search the web."),
+    "Find (a) the official catalog course description (1-3 sentences, condensed if long) and (b) the real student-perceived difficulty from RateMyProfessors, Reddit, course-outline PDFs, and university forums.",
+    "Be honest and brutal about difficulty — upper-year engineering/math/science courses are usually Hard or higher; do not default to Moderate unless no signal exists.",
+    "Return JSON: description (string), difficulty_ranking (Easy|Moderate|Hard|Very Hard|Brutal), difficulty_reason (ONE short ~20-word sentence citing evidence).",
   ].filter(Boolean).join(" ");
 
   try {
@@ -370,7 +362,6 @@ export async function researchCourse({ code, title, university, profile }) {
           description: { type: "string" },
           difficulty_ranking: { type: "string", enum: ["Easy", "Moderate", "Hard", "Very Hard", "Brutal"] },
           difficulty_reason: { type: "string" },
-          source_url: { type: "string" },
         },
         required: ["description", "difficulty_ranking"],
       },
@@ -380,7 +371,7 @@ export async function researchCourse({ code, title, university, profile }) {
       description: (d?.description || "").trim(),
       difficulty_ranking: d?.difficulty_ranking || "",
       difficulty_reason: d?.difficulty_reason || "",
-      source_url: d?.source_url || "",
+      source_url: "",
     };
   } catch (e) {
     return { description: "", difficulty_ranking: "", difficulty_reason: "", source_url: "" };

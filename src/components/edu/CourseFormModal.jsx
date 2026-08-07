@@ -158,28 +158,9 @@ export default function CourseFormModal({ open, onOpenChange, semesterId, semest
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.code, step, settings, uniObj, profileObj]);
 
-  // When the user TYPES a full, complete-looking course code (letters + 2-4
-  // digits), auto-trigger the web research — it pulls real student-perceived
-  // difficulty signals from RateMyProfessors, Reddit, course-outline PDFs,
-  // and the university's own course page — rather than relying on the rough
-  // cached heuristic. Debounced 700ms so typing in real time doesn't fire a
-  // request per keystroke, and guarded by lastAutoResearchedRef so a single
-  // completed code only researches once.
-  React.useEffect(() => {
-    if (step !== "manual") return;
-    if (selectedRef.current) return;
-    const q = (form.code || "").trim();
-    if (!q || !settings?.university_name) return;
-    const norm = q.toUpperCase().replace(/\s+/g, "").replace(/[^\w]/g, "");
-    if (!/^[A-Z]{2,5}\d{2,4}[A-Z]?$/.test(norm)) return;
-    if (lastAutoResearchedRef.current === norm) return;
-    const t = setTimeout(() => {
-      lastAutoResearchedRef.current = norm;
-      runResearch({ overrideCode: q, auto: true });
-    }, 700);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.code, step, settings?.university_name]);
+  // Per user request: difficulty research fires ONLY when the user explicitly
+  // selects a course from the cached-catalog dropdown (see pickSuggestion).
+  // Typing a course code alone no longer triggers web research.
 
   // On-demand web research for THIS course (code + title) at the user's
   // university. Returns the official course description AND an honest/brutal
