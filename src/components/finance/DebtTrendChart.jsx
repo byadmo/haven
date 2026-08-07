@@ -40,14 +40,14 @@ export default function DebtTrendChart({ debts }) {
         <AreaChart data={history} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
           <defs>
             <linearGradient id="debtGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#ef4444" stopOpacity={0.35} />
-              <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
+              <stop offset="5%" stopColor="var(--th-danger, #ef4444)" stopOpacity={0.35} />
+              <stop offset="95%" stopColor="var(--th-danger, #ef4444)" stopOpacity={0} />
             </linearGradient>
           </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-          <XAxis dataKey="label" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--th-border, hsl(var(--border)))" vertical={false} />
+          <XAxis dataKey="label" stroke="var(--th-muted, hsl(var(--muted-foreground)))" fontSize={12} tickLine={false} axisLine={false} />
           <YAxis
-            stroke="hsl(var(--muted-foreground))"
+            stroke="var(--th-muted, hsl(var(--muted-foreground)))"
             fontSize={12}
             tickLine={false}
             axisLine={false}
@@ -62,7 +62,7 @@ export default function DebtTrendChart({ debts }) {
             }}
             formatter={(v) => [`$${v.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`, "Total Debt"]}
           />
-          <Area type="monotone" dataKey="total" stroke="#ef4444" strokeWidth={2.5} fill="url(#debtGrad)" />
+          <Area type="monotone" dataKey="total" stroke="var(--th-danger, #ef4444)" strokeWidth={2.5} fill="url(#debtGrad)" />
         </AreaChart>
       </ResponsiveContainer>
     </div>

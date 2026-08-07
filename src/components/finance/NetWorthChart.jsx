@@ -33,8 +33,8 @@ const RANGES = [
 function ChartTooltip({ active, payload, label, fmt }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="backdrop-blur-md bg-zinc-900/80 border border-zinc-700/80 rounded-xl px-3 py-2 shadow-2xl">
-      <p className="text-[11px] text-zinc-400 mb-1.5 font-medium">{label}</p>
+    <div className="backdrop-blur-md bg-zinc-900/80 border border-zinc-700/80 rounded-xl px-3 py-2 shadow-2xl" style={{ background: "var(--th-surface, #18181b)", borderColor: "var(--th-border, #3f3f46)" }}>
+      <p className="text-[11px] mb-1.5 font-medium" style={{ color: "var(--th-muted, #a1a1aa)" }}>{label}</p>
       {payload.map((p) => (
         <div key={p.dataKey} className="flex items-center gap-2 text-xs">
           <span className="h-2 w-2 rounded-full" style={{ background: p.color }} />
@@ -150,30 +150,30 @@ export default function NetWorthChart({ transactions, accounts, debts }) {
           <AreaChart data={data} margin={{ top: 6, right: 6, left: -10, bottom: 0 }}>
             <defs>
               <linearGradient id="nwFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset={0} stopColor="#34d399" stopOpacity={0.55} />
-                <stop offset={o} stopColor="#34d399" stopOpacity={0.45} />
-                <stop offset={o} stopColor="#f43f5e" stopOpacity={0.45} />
-                <stop offset={1} stopColor="#f43f5e" stopOpacity={0.55} />
+                <stop offset={0} stopColor="var(--th-success, #34d399)" stopOpacity={0.55} />
+                <stop offset={o} stopColor="var(--th-success, #34d399)" stopOpacity={0.45} />
+                <stop offset={o} stopColor="var(--th-danger, #f43f5e)" stopOpacity={0.45} />
+                <stop offset={1} stopColor="var(--th-danger, #f43f5e)" stopOpacity={0.55} />
               </linearGradient>
               <linearGradient id="nwStroke" x1="0" y1="0" x2="0" y2="1">
-                <stop offset={0} stopColor="#34d399" />
-                <stop offset={o} stopColor="#34d399" />
-                <stop offset={o} stopColor="#f43f5e" />
-                <stop offset={1} stopColor="#f43f5e" />
+                <stop offset={0} stopColor="var(--th-success, #34d399)" />
+                <stop offset={o} stopColor="var(--th-success, #34d399)" />
+                <stop offset={o} stopColor="var(--th-danger, #f43f5e)" />
+                <stop offset={1} stopColor="var(--th-danger, #f43f5e)" />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
-            <XAxis dataKey="label" stroke="#52525b" fontSize={11} tickLine={false} axisLine={false} minTickGap={16} />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--th-border, #27272a)" vertical={false} />
+            <XAxis dataKey="label" stroke="var(--th-muted, #52525b)" fontSize={11} tickLine={false} axisLine={false} minTickGap={16} />
             <YAxis
               domain={[dMin, dMax]}
-              stroke="#52525b"
+              stroke="var(--th-muted, #52525b)"
               fontSize={11}
               tickLine={false}
               axisLine={false}
               tickFormatter={(v) => fmtAxis(v)}
             />
-            <ReferenceLine y={0} stroke="#52525b" strokeDasharray="3 3" />
-            <Tooltip content={<ChartTooltip fmt={fmt} />} cursor={{ stroke: "#3f3f46", strokeWidth: 1 }} />
+            <ReferenceLine y={0} stroke="var(--th-muted, #52525b)" strokeDasharray="3 3" />
+            <Tooltip content={<ChartTooltip fmt={fmt} />} cursor={{ stroke: "var(--th-muted, #3f3f46)", strokeWidth: 1 }} />
             <Area type="monotone" dataKey="netWorth" stroke="url(#nwStroke)" strokeWidth={2.5} fill="url(#nwFill)" />
           </AreaChart>
         </ResponsiveContainer>

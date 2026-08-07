@@ -125,6 +125,31 @@ function hexToChannels(hex) {
   return `${r} ${g} ${b}`;
 }
 
+// Convert #rrggbb -> "H S% L%" channel string for the shadcn hsl(var(--token))
+// tokens (primary, destructive, ring) so Button CTAs follow the theme accent.
+function hexToHSL(hex) {
+  const h = hex.replace("#", "");
+  let r = parseInt(h.slice(0, 2), 16) / 255;
+  let g = parseInt(h.slice(2, 4), 16) / 255;
+  let b = parseInt(h.slice(4, 6), 16) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  let hue = 0;
+  let sat = 0;
+  const light = (max + min) / 2;
+  if (max !== min) {
+    const d = max - min;
+    sat = light > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case r: hue = (g - b) / d + (g < b ? 6 : 0); break;
+      case g: hue = (b - r) / d + 2; break;
+      case b: hue = (r - g) / d + 4; break;
+    }
+    hue *= 60;
+  }
+  return `${Math.round(hue)} ${Math.round(sat * 100)}% ${Math.round(light * 100)}%`;
+}
+
 // Apply a theme's CSS variables to a root element (scoped to its subtree).
 // Setting vars on the element scopes them to descendants, so each sub-app can
 // carry its own theme independently.
@@ -156,6 +181,16 @@ export function applyTheme(el, key) {
     s.setProperty("--e-400", prim);
     s.setProperty("--e-500", prim);
     s.setProperty("--e-600", prim);
+    // Shadcn button tokens: primary/destructive CTAs and focus rings follow
+    // the theme accent so buttons integrate with the chosen palette. The
+    // "original" theme skips this to keep its native white-on-black buttons.
+    const ph = hexToHSL(t.primary);
+    s.setProperty("--primary", ph);
+    s.setProperty("--primary-foreground", "0 0% 100%");
+    s.setProperty("--ring", ph);
+    const dh = hexToHSL(t.danger);
+    s.setProperty("--destructive", dh);
+    s.setProperty("--destructive-foreground", "0 0% 100%");
   }
   el.setAttribute("data-theme", t.key);
   el.setAttribute("data-tint", t.tint);

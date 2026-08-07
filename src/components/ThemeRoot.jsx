@@ -23,6 +23,7 @@ export default function ThemeRoot({ theme, app, className, style, children }) {
         "--th-chart-1", "--th-chart-2", "--th-chart-3", "--th-chart-4",
       ].forEach((v) => e.style.removeProperty(v));
       ["--e-200", "--e-300", "--e-400", "--e-500", "--e-600"].forEach((v) => e.style.removeProperty(v));
+      ["--primary", "--primary-foreground", "--ring", "--destructive", "--destructive-foreground"].forEach((v) => e.style.removeProperty(v));
       e.removeAttribute("data-theme");
       e.removeAttribute("data-tint");
     };

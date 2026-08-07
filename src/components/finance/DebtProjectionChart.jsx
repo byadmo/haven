@@ -17,8 +17,8 @@ function ChartTooltip({ active, payload, label }) {
   const { fmtMoney: fmt } = useCurrency();
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-lg border border-zinc-700 bg-zinc-900/95 backdrop-blur px-3 py-2 shadow-xl">
-      <p className="text-[11px] text-zinc-400 mb-1.5">Month {label}</p>
+    <div className="rounded-lg border backdrop-blur px-3 py-2 shadow-xl" style={{ background: "var(--th-surface, #18181b)", borderColor: "var(--th-border, #3f3f46)" }}>
+      <p className="text-[11px] mb-1.5" style={{ color: "var(--th-muted, #a1a1aa)" }}>Month {label}</p>
       {payload.map((p) => (
         <p
           key={p.dataKey}
@@ -86,28 +86,28 @@ export default function DebtProjectionChart({ debts, surplus }) {
           <ComposedChart data={data} margin={{ top: 8, right: 12, bottom: 4, left: 8 }}>
             <defs>
               <linearGradient id="currentFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.35} />
-                <stop offset="95%" stopColor="#f43f5e" stopOpacity={0} />
+                <stop offset="5%" stopColor="var(--th-danger, #f43f5e)" stopOpacity={0.35} />
+                <stop offset="95%" stopColor="var(--th-danger, #f43f5e)" stopOpacity={0} />
               </linearGradient>
               <linearGradient id="optFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#34d399" stopOpacity={0.25} />
-                <stop offset="95%" stopColor="#34d399" stopOpacity={0} />
+                <stop offset="5%" stopColor="var(--th-success, #34d399)" stopOpacity={0.25} />
+                <stop offset="95%" stopColor="var(--th-success, #34d399)" stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--th-border, #27272a)" vertical={false} />
             <XAxis
               dataKey="month"
               type="number"
               domain={[0, maxMonths]}
               allowDecimals={false}
-              stroke="#52525b"
+              stroke="var(--th-muted, #52525b)"
               fontSize={11}
               tickFormatter={(m) => `${m}mo`}
               tickLine={false}
               axisLine={false}
             />
             <YAxis
-              stroke="#52525b"
+              stroke="var(--th-muted, #52525b)"
               fontSize={11}
               tickFormatter={(v) => fmtAxis(v)}
               tickLine={false}
@@ -118,7 +118,7 @@ export default function DebtProjectionChart({ debts, surplus }) {
             <Area
               type="monotone"
               dataKey="current"
-              stroke="#f43f5e"
+              stroke="var(--th-danger, #f43f5e)"
               strokeWidth={2}
               fill="url(#currentFill)"
               name="Current path"

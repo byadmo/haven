@@ -20,9 +20,12 @@ const fmt = (v) =>
     maximumFractionDigits: 2,
   });
 
+// Series colors follow the active theme's chart palette (--th-chart-1..4),
+// cycling for additional series. Fallbacks keep the original look on the
+// "original" theme / unthemed routes.
 const PALETTE = [
-  "#f43f5e", "#6366f1", "#f59e0b", "#10b981",
-  "#3b82f6", "#a855f7", "#ec4899", "#22d3ee",
+  "var(--th-chart-1, #f43f5e)", "var(--th-chart-2, #6366f1)", "var(--th-chart-3, #f59e0b)", "var(--th-chart-4, #10b981)",
+  "var(--th-chart-1, #3b82f6)", "var(--th-chart-2, #a855f7)", "var(--th-chart-3, #ec4899)", "var(--th-chart-4, #22d3ee)",
 ];
 
 export default function DebtRepaymentGraph({ debts }) {
@@ -98,14 +101,14 @@ export default function DebtRepaymentGraph({ debts }) {
               domain={["dataMin", "dataMax"]}
               allowDecimals={false}
               tickFormatter={(t) => format(new Date(t), "MMM yy")}
-              stroke="rgba(255,255,255,0.3)"
+              stroke="var(--th-muted, rgba(255,255,255,0.3))"
               tick={{ fontSize: 10 }}
               tickLine={false}
-              axisLine={{ stroke: "rgba(255,255,255,0.1)" }}
+              axisLine={{ stroke: "var(--th-border, rgba(255,255,255,0.1))" }}
             />
             <YAxis
               tickFormatter={(v) => fmt(v)}
-              stroke="rgba(255,255,255,0.3)"
+              stroke="var(--th-muted, rgba(255,255,255,0.3))"
               tick={{ fontSize: 10 }}
               tickLine={false}
               axisLine={false}
@@ -113,12 +116,12 @@ export default function DebtRepaymentGraph({ debts }) {
             />
             <Tooltip
               contentStyle={{
-                background: "#000",
-                border: "1px solid rgba(255,255,255,0.1)",
+                background: "var(--th-surface, #000)",
+                border: "1px solid var(--th-border, rgba(255,255,255,0.1))",
                 borderRadius: 8,
                 fontSize: 12,
               }}
-              labelStyle={{ color: "rgba(255,255,255,0.5)" }}
+              labelStyle={{ color: "var(--th-muted, rgba(255,255,255,0.5))" }}
               labelFormatter={(t) => format(new Date(t), "MMM d, yyyy")}
               formatter={(v) => fmt(v)}
             />

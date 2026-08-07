@@ -231,6 +231,18 @@
   html[data-theme][data-tint="light"] input[type="date"]::-webkit-calendar-picker-indicator,
   html[data-theme][data-tint="light"] input[type="time"]::-webkit-calendar-picker-indicator { filter: none; opacity: 0.55; }
 
+  /* Light tint: solid accent buttons (emerald/rose CTAs that retint to the
+     theme primary/danger) must keep white text — the broad .text-white → dark
+     override above would otherwise drop dark text on a saturated accent. */
+  html[data-theme][data-tint="light"] .bg-emerald-500,
+  html[data-theme][data-tint="light"] .bg-emerald-600,
+  html[data-theme][data-tint="light"] .bg-rose-500,
+  html[data-theme][data-tint="light"] .bg-rose-600,
+  html[data-theme][data-tint="light"] .bg-emerald-500 *,
+  html[data-theme][data-tint="light"] .bg-emerald-600 *,
+  html[data-theme][data-tint="light"] .bg-rose-500 *,
+  html[data-theme][data-tint="light"] .bg-rose-600 * { color: #ffffff !important; -webkit-text-fill-color: #ffffff !important; }
+
   /* mono + tabular nums for numerals */
   .tnum { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
   /* Hide scrollbars for horizontally-scrollable nav rows while keeping scroll. */

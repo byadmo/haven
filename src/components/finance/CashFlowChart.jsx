@@ -41,10 +41,10 @@ export default function CashFlowChart({ transactions = [] }) {
     <div className="w-full h-[280px]">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }} barGap={6}>
-          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-          <XAxis dataKey="label" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--th-border, hsl(var(--border)))" vertical={false} />
+          <XAxis dataKey="label" stroke="var(--th-muted, hsl(var(--muted-foreground)))" fontSize={12} tickLine={false} axisLine={false} />
           <YAxis
-            stroke="hsl(var(--muted-foreground))"
+            stroke="var(--th-muted, hsl(var(--muted-foreground)))"
             fontSize={12}
             tickLine={false}
             axisLine={false}
@@ -60,8 +60,8 @@ export default function CashFlowChart({ transactions = [] }) {
             formatter={(v) => `$${v.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`}
           />
           <Legend wrapperStyle={{ fontSize: "13px" }} />
-          <Bar dataKey="inflow" name="Inflow" fill="#22c55e" radius={[6, 6, 0, 0]} />
-          <Bar dataKey="outflow" name="Outflow" fill="#f97316" radius={[6, 6, 0, 0]} />
+          <Bar dataKey="inflow" name="Inflow" fill="var(--th-success, #22c55e)" radius={[6, 6, 0, 0]} />
+          <Bar dataKey="outflow" name="Outflow" fill="var(--th-danger, #f97316)" radius={[6, 6, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </div>

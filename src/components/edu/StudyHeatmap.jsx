@@ -16,8 +16,8 @@ function localKey(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 function intensity(minutes, scale) {
-  if (!minutes) return "rgba(255,255,255,0.04)";
-  return `rgba(52,211,153,${Math.min(1, 0.18 + minutes / scale)})`;
+  if (!minutes) return "color-mix(in srgb, var(--th-text, #fff) 4%, transparent)";
+  return `color-mix(in srgb, var(--th-success, #10b981) ${Math.min(1, 0.18 + minutes / scale) * 100}%, transparent)`;
 }
 
 export default function StudyHeatmap() {
@@ -179,7 +179,7 @@ export default function StudyHeatmap() {
                     style={{
                       height: 28,
                       background: cell.inMonth ? intensity(cell.minutes > 0 ? cell.minutes : 0, view.scale) : "transparent",
-                      border: cell.inMonth ? "1px solid rgba(255,255,255,0.06)" : "none",
+                      border: cell.inMonth ? "1px solid var(--th-border, rgba(255,255,255,0.06))" : "none",
                       color: cell.minutes > 0 ? "rgba(255,255,255,0.8)" : "rgba(255,255,255,0.25)",
                     }}
                     title={cell.inMonth ? `${cell.key}: ${cell.minutes}m` : ""}
@@ -209,7 +209,7 @@ export default function StudyHeatmap() {
       <div className="flex items-center justify-between mt-4 flex-wrap gap-2">
         <div className="flex items-center gap-1.5 text-[9px] text-white/30">
           Less
-          {[0.05, 0.3, 0.5, 0.75, 1].map((o) => <span key={o} className="h-3 w-3 rounded-sm" style={{ background: `rgba(52,211,153,${o})` }} />)}
+          {[0.05, 0.3, 0.5, 0.75, 1].map((o) => <span key={o} className="h-3 w-3 rounded-sm" style={{ background: `color-mix(in srgb, var(--th-success, #10b981) ${o * 100}%, transparent)` }} />)}
           More
         </div>
         <p className="text-[11px] text-zinc-200 font-mono tabular-nums">Total: <span className="text-emerald-300">{Math.round(view.total)}m</span> · {(view.total / 60).toFixed(1)}h</p>
