@@ -70,6 +70,35 @@ async function fetchText(url, opts = {}) {
   finally { clearTimeout(t); }
 }
 
+// Liveness check: confirm a candidate URL actually serves a real calendar page
+// (HTTP 200, HTML body, not a 404/"page not found" shell) before we spend a
+// Gemini call on it. University calendars frequently 404 when the academic
+// year path moves (e.g. /2024-2025/ → /2026-2027/), so AI-surfaced links can be
+// stale even though a live page exists elsewhere.
+async function verifyLive(url, timeoutMs = 7000) {
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), timeoutMs);
+    const res = await fetch(url, {
+      signal: ctrl.signal, redirect: 'follow',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,*/*;q=0.8',
+      },
+    });
+    clearTimeout(t);
+    if (!res.ok) return false;
+    const ct = (res.headers.get('content-type') || '').toLowerCase();
+    if (!ct.includes('html') && !ct.includes('xhtml') && !ct.includes('text/plain')) return false;
+    const html = await res.text();
+    if (!html || html.length < 1200) return false;
+    const head = html.slice(0, 4000).toLowerCase();
+    if (/requested page could not be found|page not found|404\s*-?\s*not found|page cannot be found|doesn.t exist|no longer available/.test(head)) return false;
+    const codes = extractCodes(html);
+    return codes.length >= 2 || html.length > 8000;
+  } catch { return false; }
+}
+
 // ---------------------------- Stage 1: Precision Search + URL Weight Scoring
 // Issues the spec's exact SERP-style query via gemini-3-flash web-search (the
 // only Base44 InvokeLLM model that supports add_context_from_internet), then
@@ -457,11 +486,18 @@ async function parseOneUrl({ base44, university, faculty, degree_program, specia
             })).filter((c) => c.code),
           })),
         }));
-      const conf = String(d.confidence || 'low').toLowerCase();
-      const pStatus = academicYears.length === 0 ? 'failed' : conf === 'low' ? 'partial' : 'success';
-      parse_notes = (d.notes || 'Gemini-3-flash extraction.') +
-        ` AST coverage was ${(ast.coverage * 100).toFixed(0)}% (< ${COVERAGE_THRESHOLD * 100}%).`;
-      return { sourceUrl, academicYears, parse_status: pStatus, parse_notes, executionMode, courseCount: countCourses(academicYears), cleanedHtml };
+      if (academicYears.length > 0) {
+        const conf = String(d.confidence || 'low').toLowerCase();
+        const pStatus = conf === 'low' ? 'partial' : 'success';
+        parse_notes = (d.notes || 'Gemini-3-flash extraction.') +
+          ` AST coverage was ${(ast.coverage * 100).toFixed(0)}% (< ${COVERAGE_THRESHOLD * 100}%).`;
+        return { sourceUrl, academicYears, parse_status: pStatus, parse_notes, executionMode, courseCount: countCourses(academicYears), cleanedHtml };
+      }
+      // Gemini returned an empty-but-valid schema (no courses extracted) —
+      // record the note and fall through to code salvage so the page's course
+      // codes still make it into the cache instead of returning 0.
+      parse_notes = (d.notes || 'Gemini-3-flash returned no courses.') +
+        ` AST coverage was ${(ast.coverage * 100).toFixed(0)}% (< ${COVERAGE_THRESHOLD * 100}%); falling back to salvage.`;
     }
   } catch (e) {
     parse_notes = 'Gemini fallback failed: ' + (e?.message || 'unknown');
@@ -645,10 +681,16 @@ export default async function (req) {
       stage1Urls = await precisionSearch(university, faculty, degree_program || specialization, trackType,
         (p) => base44.integrations.Core.InvokeLLM(p));
       tokenUsage += 1;
-      const pick = pickBestUrl(stage1Urls, specialization || degree_program);
+      // Verify each candidate is LIVE before trusting it — stale year-specific
+      // paths (e.g. /2024-2025/...) 404 once the calendar rolls to a new year.
+      const liveUrls = [];
+      for (const u of stage1Urls.slice(0, 8)) {
+        if (await verifyLive(u)) liveUrls.push(u);
+      }
+      const pick = pickBestUrl(liveUrls.length ? liveUrls : stage1Urls, specialization || degree_program);
       sourceUrl = pick.url;
       if (stage1Urls.length) {
-        parse_notes_stage1 = `Stage 1: ${stage1Urls.length} candidate URLs from Gemini web-search; picked score=${pick.score}.`;
+        parse_notes_stage1 = `Stage 1: ${stage1Urls.length} candidate URLs; ${liveUrls.length} live; picked score=${pick.score}.`;
       }
     }
     if (!sourceUrl) {
@@ -660,13 +702,6 @@ export default async function (req) {
       }, { status: 422 });
     }
 
-    // Assemble alternate URLs for self-heal: caller-supplied first, then any
-    // Stage 1 candidates (excluding the chosen primary), deduped.
-    const altPool = Array.from(new Set([
-      ...callerAlternates,
-      ...stage1Urls.filter((u) => u && u !== sourceUrl),
-    ])).slice(0, MAX_ALTERNATES);
-
     const tokenUsageRef = { value: tokenUsage };
 
     // -------- Parse the primary URL (Stage 2-5) -----------------------------
@@ -675,26 +710,36 @@ export default async function (req) {
     let triedAlts = [];
 
     // -------- Self-heal: if the primary parse failed or only partially
-    // parsed (low course count), probe up to MAX_ALTERNATES alternate URLs.
-    // Gather as much information as possible, then merge + persist so search
-    // is usable immediately even when no single URL fully rendered.
+    // parsed, discover LIVE alternate pages and merge their courses. The
+    // caller's alternates (from "AI Find Calendar") can be stale — last year's
+    // calendar path that now 404s — so we combine them with a fresh precision
+    // search and keep ONLY URLs that return HTTP 200 with real content, never
+    // spending a Gemini call on a dead page.
     const needsMore = (r) => r.parse_status === 'failed' || (r.parse_status === 'partial' && r.courseCount < MIN_ACCEPTABLE_COURSES);
 
     if (needsMore(primary)) {
-      // If we have no alternates on hand (explicit url0 + no caller alternates),
-      // run a fresh Stage 1 precision search to discover 2-3 alternate links.
-      let alts = altPool;
-      if (!alts.length) {
+      let liveAlts = [];
+      const seen = new Set([sourceUrl]);
+      for (const u of [...callerAlternates, ...stage1Urls]) {
+        if (seen.has(u) || liveAlts.length >= MAX_ALTERNATES) continue;
+        seen.add(u);
+        if (await verifyLive(u)) liveAlts.push(u);
+      }
+      if (liveAlts.length < MAX_ALTERNATES) {
         try {
           const found = await precisionSearch(university, faculty, degree_program || specialization, trackType,
             (p) => base44.integrations.Core.InvokeLLM(p));
           tokenUsageRef.value += 1;
-          alts = found.filter((u) => u && u !== sourceUrl).slice(0, MAX_ALTERNATES);
-        } catch { alts = []; }
+          for (const u of found) {
+            if (seen.has(u) || liveAlts.length >= MAX_ALTERNATES) continue;
+            seen.add(u);
+            if (await verifyLive(u)) liveAlts.push(u);
+          }
+        } catch {}
       }
 
-      for (const alt of alts) {
-        // Stop once a source fully parses AND we've gathered a healthy total — every probe also takes a Gemini call, so we don't want to run all 3 once anything good lands.
+      for (const alt of liveAlts) {
+        // Stop once a source fully parses AND we've gathered a healthy total — each probe takes a Gemini call.
         const mergedCount = results.reduce((s, r) => s + (r.courseCount || 0), 0);
         const anySuccess = results.some((r) => r.parse_status === 'success');
         if (anySuccess && mergedCount >= 25) break;
@@ -702,7 +747,16 @@ export default async function (req) {
         try {
           const r = await parseOneUrl({ base44, university, faculty, degree_program, specialization, trackType, sourceUrl: alt, tokenUsageRef });
           results.push(r);
-        } catch { /* ignore a dead alternate, keep going */ }
+        } catch { /* ignore, keep going */ }
+      }
+
+      // If the confirmed/picked primary was dead but a live alternate parsed,
+      // report the live URL as the effective source so the user sees a real link.
+      if (primary.parse_status === 'failed' && results.length > 1) {
+        const liveBest = results.slice(1)
+          .filter((r) => r.parse_status !== 'failed')
+          .sort((a, b) => (b.courseCount || 0) - (a.courseCount || 0))[0];
+        if (liveBest) sourceUrl = liveBest.sourceUrl;
       }
     }
     tokenUsage = tokenUsageRef.value;
