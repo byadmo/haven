@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { ListPlus, Loader2, X } from "lucide-react";
 import { useEduSync } from "@/lib/eduSyncContext";
 import { useToast } from "@/components/ui/use-toast";
-import { autocompleteCourses, researchCourse } from "@/lib/courseAutofill";
+import { lookupCachedCourses, researchCourse } from "@/lib/courseAutofill";
 import { useDebounce } from "@/hooks/useDebounce";
 
 const DIFF_DOT = {
@@ -110,8 +110,8 @@ function Row({ settings, semesterId, onCommit }) {
     const q = (debouncedRaw || "").trim();
     if (q.length < 2) { setSuggestions([]); setSugLoading(false); return; }
     setSugLoading(true);
-    autocompleteCourses({ query: q, university: uniObj, profile: profileObj })
-      .then((out) => { if (!cancelled) setSuggestions(Array.isArray(out) ? out : []); })
+    lookupCachedCourses({ query: q, university: uniObj, profile: profileObj })
+      .then((out) => { if (!cancelled) setSuggestions(Array.isArray(out?.courses) ? out.courses : []); })
       .catch(() => { if (!cancelled) setSuggestions([]); })
       .finally(() => { if (!cancelled) setSugLoading(false); });
     return () => { cancelled = true; };
