@@ -190,6 +190,102 @@ export async function autofillCourse({ code, university, profile }) {
   return { candidates, weekly_hours: candidates[0]?.estimated_weekly_hours ?? fallbackHours(3, "Moderate") };
 }
 
+// Live autocomplete: given a (partial) course code / prefix typed by the user,
+// return up to 12 catalog courses at their university whose code begins with
+// the query. Prioritizes the user's declared program. Used for the inline
+// dropdown shown while typing the course code in the Add Course form.
+export async function autocompleteCourses({ query, university, profile }) {
+  const q = (query || "").trim();
+  if (!q) return [];
+  const prefix = q.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (!prefix) return [];
+  const uniName = university?.university_name || university?.name || "";
+  const uniDomain = university?.university_domain || university?.domain || "";
+  const catalogUrl = university?.university_course_catalog_url || university?.catalogUrl || "";
+  const program = profile?.degree_program || "";
+  const spec = profile?.specialization || "";
+
+  const prompt = [
+    "You are an expert on Canadian university course catalogs.",
+    `A student${uniName ? ` at ${uniName}` : ""} is searching for courses whose code starts with "${prefix}".`,
+    program
+      ? `Their declared program is "${program}"${spec ? ` (specialization: "${spec}")` : ""}. Prioritize courses in that program's course list, but also include other real courses at the university whose code begins with "${prefix}".`
+      : `List real courses at the university whose code begins with "${prefix}".`,
+    catalogUrl
+      ? `Search the course catalog at ${catalogUrl} (and the broader ${uniDomain} site).`
+      : uniDomain
+        ? `Search the ${uniDomain} website and public academic calendar.`
+        : "Search the web for courses at a Canadian university with this code prefix.",
+    "Return a JSON object with a 'courses' array of up to 12 REAL matching course objects, most relevant first. Each has:",
+    "- code: the full course code (string)",
+    "- title: the official course title (string)",
+    "- description: the catalog course description (string, 1-3 sentences; empty if unknown)",
+    "- credits: credit weight as a number (default 3)",
+    "- faculty: the faculty offering it (e.g. 'Faculty of Engineering')",
+    "- degree_program: a degree program this course belongs to (if applicable)",
+    "- specialization: a specialization within that program (if applicable)",
+    "- prerequisites: short string of prerequisites, or 'None'",
+    "- difficulty_ranking: one of 'Easy', 'Moderate', 'Hard'",
+    "- difficulty_reason: ONE short sentence (~20 words) explaining the ranking",
+    "- estimated_weekly_hours: a number — recommended total study hours per week (lectures + labs + tutorials + independent study)",
+    "Only include REAL courses from this university's catalog. If you cannot find any starting with this prefix, return an empty courses array.",
+  ].join(" ");
+
+  try {
+    const res = await base44.integrations.Core.InvokeLLM({
+      prompt,
+      add_context_from_internet: true,
+      model: "gemini_3_flash",
+      response_json_schema: {
+        type: "object",
+        properties: {
+          courses: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                code: { type: "string" },
+                title: { type: "string" },
+                description: { type: "string" },
+                credits: { type: "number" },
+                faculty: { type: "string" },
+                degree_program: { type: "string" },
+                specialization: { type: "string" },
+                prerequisites: { type: "string" },
+                difficulty_ranking: { type: "string", enum: ["Easy", "Moderate", "Hard"] },
+                difficulty_reason: { type: "string" },
+                estimated_weekly_hours: { type: "number" },
+              },
+              required: ["code", "title", "difficulty_ranking"],
+            },
+          },
+        },
+        required: ["courses"],
+      },
+    });
+    const d = res?.data ?? res;
+    const list = Array.isArray(d?.courses) ? d.courses : [];
+    const guess = guessFromCode(prefix);
+    return list.slice(0, 12).map((c) => ({
+      code: c?.code || prefix,
+      title: c?.title || prefix,
+      description: c?.description || "",
+      credits: typeof c?.credits === "number" && c.credits > 0 ? c.credits : 3,
+      faculty: c?.faculty || guess?.faculty || "",
+      degree_program: c?.degree_program || "",
+      specialization: c?.specialization || "",
+      prerequisites: c?.prerequisites || "",
+      difficulty_ranking: c?.difficulty_ranking || "Moderate",
+      difficulty_reason: c?.difficulty_reason || "",
+      estimated_weekly_hours: typeof c?.estimated_weekly_hours === "number" && c.estimated_weekly_hours > 0
+        ? c.estimated_weekly_hours
+        : fallbackHours(typeof c?.credits === "number" ? c.credits : 3, c?.difficulty_ranking || "Moderate"),
+    }));
+  } catch (e) {
+    return [];
+  }
+}
+
 // Generate (or regenerate) a detailed difficulty explanation for a course.
 // Returns { details, weekly_hours }. details is multi-paragraph text to show
 // in the Learn More expansion.

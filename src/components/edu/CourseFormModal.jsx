@@ -7,12 +7,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CalendarClock, UploadCloud, Keyboard, ArrowLeft, Sparkles, Loader2, Pencil, Check, Info } from "lucide-react";
+import { CalendarClock, UploadCloud, Keyboard, ArrowLeft, Sparkles, Loader2, Pencil, Check, Search, X } from "lucide-react";
 import SyllabusUpload from "@/components/edu/SyllabusUpload";
 import CalendarImport from "@/components/edu/CalendarImport";
 import { useEduSync } from "@/lib/eduSyncContext";
 import { useToast } from "@/components/ui/use-toast";
-import { autofillCourse, matchesProfileBranch } from "@/lib/courseAutofill";
+import { autocompleteCourses } from "@/lib/courseAutofill";
 
 const DAYS = ["M", "T", "W", "Th", "F", "S", "Su"];
 const DIFF_OPTIONS = ["Easy", "Moderate", "Hard"];
@@ -22,18 +22,20 @@ export default function CourseFormModal({ open, onOpenChange, semesterId, semest
   const { toast } = useToast();
   const [step, setStep] = React.useState("choose"); // choose | calendar | manual | upload
   const [saving, setSaving] = React.useState(false);
-  const [autofilling, setAutofilling] = React.useState(false);
   const [form, setForm] = React.useState(emptyForm());
-  const [candidates, setCandidates] = React.useState([]);
-  const [selectedCandidate, setSelectedCandidate] = React.useState(0);
   const [editingHours, setEditingHours] = React.useState(false);
-  const lastAutoCodeRef = React.useRef("");
+  const [suggestions, setSuggestions] = React.useState([]);
+  const [suggLoading, setSuggLoading] = React.useState(false);
+  const [suggOpen, setSuggOpen] = React.useState(false);
+  const reqIdRef = React.useRef(0);
+  const selectedRef = React.useRef(false);
 
   React.useEffect(() => {
     if (open) {
       const f = emptyForm();
-      // Inherit the user's university + program/faculty so the saved course
-      // defaults to the right context and the faculty/degree fields pre-fill.
+      // Inherit the user's university + faculty/program/specialization so the
+      // saved course defaults to the right context and the catalog fields
+      // pre-fill instantly from the profile (no AI call needed).
       if (settings?.university_name) f.university_name = settings.university_name;
       if (settings?.faculty) f.faculty = settings.faculty;
       if (settings?.degree_program) f.degree_program = settings.degree_program;
@@ -41,11 +43,12 @@ export default function CourseFormModal({ open, onOpenChange, semesterId, semest
       setForm(f);
       setStep("choose");
       setSaving(false);
-      setAutofilling(false);
-      setCandidates([]);
-      setSelectedCandidate(0);
+      setSuggestions([]);
+      setSuggLoading(false);
+      setSuggOpen(false);
       setEditingHours(false);
-      lastAutoCodeRef.current = "";
+      reqIdRef.current = 0;
+      selectedRef.current = false;
     }
   }, [open, settings]);
 
@@ -62,8 +65,9 @@ export default function CourseFormModal({ open, onOpenChange, semesterId, semest
   }
   function set(k, v) { setForm((p) => ({ ...p, [k]: v })); }
 
+  // Apply a chosen catalog course to the form. Faculty/degree/specialization
+  // fall back to the profile values already in the form when the AI omits them.
   function applyCandidate(c) {
-    setCandidates((prev) => prev);
     setForm((p) => ({
       ...p,
       code: c.code || p.code,
@@ -80,67 +84,59 @@ export default function CourseFormModal({ open, onOpenChange, semesterId, semest
     }));
   }
 
-  async function runAutofill() {
-    if (!form.code) {
-      toast({ title: "Enter a course code first", variant: "destructive" });
-      return;
+  const uniObj = React.useMemo(() => ({
+    university_name: settings?.university_name,
+    university_domain: settings?.university_domain,
+    university_course_catalog_url: settings?.university_course_catalog_url,
+    name: settings?.university_name,
+    domain: settings?.university_domain,
+    catalogUrl: settings?.university_course_catalog_url,
+  }), [settings]);
+  const profileObj = React.useMemo(() => ({
+    degree_program: settings?.degree_program,
+    specialization: settings?.specialization,
+    faculty: settings?.faculty,
+  }), [settings]);
+
+  // Live, debounced catalog search as the user types the course code.
+  React.useEffect(() => {
+    if (step !== "manual") return;
+    if (selectedRef.current) { selectedRef.current = false; return; }
+    const q = (form.code || "").trim();
+    if (q.length < 2 || !settings?.university_name) {
+      setSuggestions([]); setSuggOpen(false); setSuggLoading(false); return;
     }
-    setAutofilling(true);
-    try {
-      const uni = {
-        university_name: form.university_name || settings?.university_name,
-        university_domain: settings?.university_domain,
-        university_course_catalog_url: settings?.university_course_catalog_url,
-        name: settings?.university_name,
-        domain: settings?.university_domain,
-        catalogUrl: settings?.university_course_catalog_url,
-      };
-      const profile = {
-        degree_program: settings?.degree_program,
-        specialization: settings?.specialization,
-        faculty: settings?.faculty,
-      };
-      const out = await autofillCourse({ code: form.code, university: uni, profile });
-      const list = out.candidates || [];
-      setCandidates(list);
-      setSelectedCandidate(0);
-      if (list.length === 1) {
-        applyCandidate(list[0]);
-      } else if (list.length > 1) {
-        applyCandidate(list[0]);
-      }
-      if (!list[0]?.description) {
-        toast({ title: "Best-guess filled", description: "Couldn't find that exact course — fields pre-filled from the code prefix; edit as needed." });
-      } else if (list.length > 1) {
-        toast({ title: `${list.length} matches found`, description: "Pick the right course from the dropdown." });
-      }
-    } catch (e) {
-      toast({ title: "Autofill failed", variant: "destructive" });
-    } finally {
-      setAutofilling(false);
-    }
+    const id = ++reqIdRef.current;
+    const t = setTimeout(async () => {
+      setSuggLoading(true); setSuggOpen(true);
+      const list = await autocompleteCourses({ query: q, university: uniObj, profile: profileObj });
+      if (id !== reqIdRef.current) return;
+      setSuggestions(list);
+      setSuggLoading(false);
+      setSuggOpen(list.length > 0);
+    }, 600);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.code, step, settings, uniObj, profileObj]);
+
+  async function manualSearch() {
+    if (!form.code) { toast({ title: "Enter a course code first", variant: "destructive" }); return; }
+    if (!settings?.university_name) { toast({ title: "Add a university in Settings to unlock AI autofill" }); return; }
+    const id = ++reqIdRef.current;
+    setSuggLoading(true); setSuggOpen(true);
+    const list = await autocompleteCourses({ query: form.code, university: uniObj, profile: profileObj });
+    if (id !== reqIdRef.current) return;
+    setSuggestions(list);
+    setSuggLoading(false);
+    setSuggOpen(list.length > 0);
+    if (!list.length) toast({ title: "No matches found", description: "Enter the details manually." });
   }
 
-  // Auto-run the catalog lookup when the typed code belongs to the user's
-  // declared program branch (in-program course). For codes outside the branch
-  // (electives), don't auto-run — the user can press the AI Autofill button.
-  function maybeAutoAutofill() {
-    const code = (form.code || "").trim();
-    if (!code) return;
-    if (!settings?.degree_program) return;
-    if (code === lastAutoCodeRef.current) return;
-    lastAutoCodeRef.current = code;
-    const profile = {
-      degree_program: settings.degree_program,
-      specialization: settings.specialization,
-      faculty: settings.faculty,
-    };
-    if (matchesProfileBranch(code, profile)) runAutofill();
-  }
-
-  function selectCandidate(idx) {
-    setSelectedCandidate(idx);
-    if (candidates[idx]) applyCandidate(candidates[idx]);
+  function pickSuggestion(c) {
+    selectedRef.current = true;
+    applyCandidate(c);
+    set("code", c.code);
+    setSuggOpen(false);
   }
 
   async function saveManual(e) {
@@ -229,38 +225,61 @@ export default function CourseFormModal({ open, onOpenChange, semesterId, semest
 
         {step === "manual" && (
           <form onSubmit={saveManual} className="space-y-3">
-            {/* Course code + AI autofill */}
-            <div>
+            {/* Course code + live catalog dropdown */}
+            <div className="relative">
               <Label className="text-white/50">Course Code</Label>
               <div className="flex gap-2 mt-1">
-                <Input value={form.code} onChange={(e) => set("code", e.target.value)} onBlur={maybeAutoAutofill} className="bg-black border-white/10" placeholder="e.g. ECE 105" required />
-                <Button type="button" onClick={runAutofill} disabled={autofilling || !form.code} className="bg-emerald-500/15 border border-emerald-400/30 text-emerald-300 hover:bg-emerald-500/25 shrink-0" title="AI autofill from your university's course catalog">
-                  {autofilling ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Sparkles className="h-4 w-4 mr-1" />}
+                <div className="relative flex-1">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30 pointer-events-none" />
+                  <Input
+                    value={form.code}
+                    onChange={(e) => set("code", e.target.value)}
+                    onFocus={() => { if (suggestions.length) setSuggOpen(true); }}
+                    className="bg-black border-white/10 pl-8"
+                    placeholder="e.g. ECE 105"
+                    required
+                  />
+                  {suggLoading && <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-emerald-300/70" />}
+                </div>
+                <Button type="button" onClick={manualSearch} disabled={suggLoading || !form.code} className="bg-emerald-500/15 border border-emerald-400/30 text-emerald-300 hover:bg-emerald-500/25 shrink-0" title="AI autofill from your university's course catalog">
+                  {!suggLoading && <Sparkles className="h-4 w-4 mr-1" />}
                   <span className="whitespace-nowrap">AI Autofill</span>
                 </Button>
               </div>
-              {settings?.degree_program && (
-                <p className="text-[10px] text-white/30 mt-1 flex items-center gap-1">
-                  <Info className="h-3 w-3" />
-                  Codes in your program ({settings.degree_program}) auto-fill; other codes use the button.
-                </p>
+              {settings?.university_name && (
+                <p className="text-[10px] text-white/30 mt-1">Type a code to see matching courses from {settings.university_name}'s catalog.</p>
+              )}
+
+              {suggOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setSuggOpen(false)} />
+                  <div className="absolute left-0 right-0 z-50 mt-1 max-h-72 overflow-y-auto rounded-md border border-white/10 bg-black shadow-lg">
+                    {suggLoading ? (
+                      <div className="px-3 py-4 text-xs text-white/50 flex items-center gap-2"><Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-300" /> Searching the catalog…</div>
+                    ) : suggestions.length ? (
+                      suggestions.map((c, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => pickSuggestion(c)}
+                          className="flex items-center gap-2 w-full text-left px-3 py-2 border-b border-white/5 last:border-0 hover:bg-emerald-500/10 transition-colors"
+                        >
+                          <span className="text-xs font-mono text-emerald-300 w-20 shrink-0">{c.code}</span>
+                          <span className="text-xs text-zinc-100 truncate flex-1 min-w-0">{c.title}</span>
+                          {c.credits != null && <span className="text-[10px] text-white/40 font-mono shrink-0">{c.credits}cr</span>}
+                          <span className={`h-2 w-2 rounded-full shrink-0 ${c.difficulty_ranking === "Easy" ? "bg-emerald-400" : c.difficulty_ranking === "Hard" ? "bg-rose-400" : "bg-amber-400"}`} title={c.difficulty_ranking} />
+                        </button>
+                      ))
+                    ) : (
+                      <div className="px-3 py-4 text-xs text-white/40 flex items-center justify-between gap-2">
+                        <span>No matches found.</span>
+                        <button type="button" onClick={() => setSuggOpen(false)} className="text-white/30 hover:text-white/60"><X className="h-3.5 w-3.5" /></button>
+                      </div>
+                    )}
+                  </div>
+                </>
               )}
             </div>
-
-            {candidates.length > 1 && (
-              <div>
-                <Label className="text-white/50">Matched Courses</Label>
-                <Select value={String(selectedCandidate)} onValueChange={(v) => selectCandidate(Number(v))}>
-                  <SelectTrigger className="bg-black border-white/10 mt-1"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {candidates.map((c, i) => (
-                      <SelectItem key={i} value={String(i)}>{c.code}: {c.title}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-[10px] text-white/35 mt-1">Multiple matches found — pick the right one.</p>
-              </div>
-            )}
 
             <div><Label className="text-white/50">Title</Label>
               <Input value={form.title} onChange={(e) => set("title", e.target.value)} className="bg-black border-white/10 mt-1" required />
