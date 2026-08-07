@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Settings as SettingsIcon, CalendarCheck, CheckCircle2, Link2, ShieldCheck, RefreshCw, Loader2, GraduationCap, BadgeCheck, Pencil, Building2, Globe, Sparkles, Database } from "lucide-react";
+import { Settings as SettingsIcon, CalendarCheck, CheckCircle2, Link2, ShieldCheck, RefreshCw, Loader2, GraduationCap, BadgeCheck, Pencil, Building2, Globe, Sparkles, Database, Check } from "lucide-react";
 import CustomizeNavModal from "@/components/nav/CustomizeNavModal";
 import { EDU_PAGES, EDU_DEFAULT_NAV, EDU_LOCKED } from "@/lib/navConfig";
 import { base44 } from "@/api/base44Client";
@@ -313,6 +313,8 @@ function UniversitySection() {
   const [faculty, setFaculty] = React.useState(settings?.faculty || "");
   const [catalogUrl, setCatalogUrl] = React.useState(settings?.university_course_catalog_url || "");
   const [parsing, setParsing] = React.useState(false);
+  const [findLoading, setFindLoading] = React.useState(false);
+  const [candidates, setCandidates] = React.useState([]);
   const [cache, setCache] = React.useState(null);
 
   React.useEffect(() => {
@@ -321,6 +323,7 @@ function UniversitySection() {
     setSpec(settings?.specialization || "");
     setFaculty(settings?.faculty || "");
     setCatalogUrl(settings?.university_course_catalog_url || "");
+    setCandidates([]);
   }, [settings]);
 
   // Read the locally cached catalog (if any) so the user sees what's stored.
@@ -368,21 +371,59 @@ function UniversitySection() {
     catch { toast({ title: "Couldn't save URL", variant: "destructive" }); }
   }
 
-  // AI finds + parses the university's undergraduate calendar for this program
-  // and stores the parsed courses locally (CourseCatalogCache). force:true
-  // bypasses the freshness check so the user can re-parse the corrected URL.
+  // Stage A: FAST AI web-search that finds the official undergraduate calendar /
+  // course-listing URL for the user's specific faculty + degree + specialization.
+  // Auto-fills the URL field (and persists it) so the user can confirm BEFORE the
+  // heavier parse runs — no parsing happens here.
+  async function runAiFind() {
+    const name = uni.name || settings?.university_name;
+    if (!name) { toast({ title: "Add a university first" }); return; }
+    setFindLoading(true); setCandidates([]);
+    try {
+      const res = await base44.functions.invoke("findCourseCalendar", {
+        university_name: name,
+        faculty,
+        degree_program: program,
+        specialization: spec,
+        university_domain: uni.domain || settings?.university_domain,
+      });
+      const d = res?.data ?? res;
+      if (d?.error) { toast({ title: "Couldn't find calendar", description: d.error, variant: "destructive" }); return; }
+      const cands = Array.isArray(d?.candidates) ? d.candidates : [];
+      const best = d?.best_url || cands[0]?.url || "";
+      setCandidates(cands);
+      if (best) {
+        setCatalogUrl(best);
+        await updateSettings({ university_course_catalog_url: best });
+        toast({ title: "Found a calendar URL", description: "Review it above, then press Confirm & Parse." });
+      } else {
+        toast({ title: "No calendar URL found", description: "Try entering the URL manually.", variant: "destructive" });
+      }
+    } catch (e) {
+      toast({ title: "Couldn't find calendar", description: e?.message, variant: "destructive" });
+    } finally { setFindLoading(false); }
+  }
+
+  async function saveCatalogUrlDirect(url) {
+    try { await updateSettings({ university_course_catalog_url: url }); } catch {}
+  }
+
+  // Stage B: parse the CONFIRMED URL only (parse_only) and store every course on
+  // it locally in CourseCatalogCache. Runs only when the user presses Confirm.
   async function runAiParse() {
     const name = uni.name || settings?.university_name;
     if (!name) { toast({ title: "Add a university first" }); return; }
+    if (!catalogUrl) { toast({ title: "Enter or find a calendar URL first" }); return; }
     setParsing(true);
     try {
       const res = await base44.functions.invoke("refreshCourseCatalog", {
         university_name: name,
         faculty,
         degree_program: program,
+        specialization: spec,
         university_domain: uni.domain || settings?.university_domain,
         university_course_catalog_url: catalogUrl,
-        force: true,
+        parse_only: true,
       });
       const d = res?.data ?? res;
       if (d?.error) {
@@ -437,8 +478,11 @@ function UniversitySection() {
         <p className="text-[10px] text-white/30 leading-snug">If the auto-detected URL is wrong, paste the correct undergraduate academic calendar / course-listing URL here — we'll use it when parsing your catalog.</p>
 
         <div className="flex items-center gap-2 flex-wrap">
-          <Button type="button" onClick={runAiParse} disabled={parsing || !(uni.name || settings?.university_name)} className="bg-emerald-500/15 border border-emerald-400/30 text-emerald-300 hover:bg-emerald-500/25">
-            {parsing ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Sparkles className="h-4 w-4 mr-1.5" />} AI Find &amp; Parse
+          <Button type="button" onClick={runAiFind} disabled={findLoading || !(uni.name || settings?.university_name)} className="bg-emerald-500/15 border border-emerald-400/30 text-emerald-300 hover:bg-emerald-500/25">
+            {findLoading ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Sparkles className="h-4 w-4 mr-1.5" />} AI Find Calendar
+          </Button>
+          <Button type="button" onClick={runAiParse} disabled={parsing || !catalogUrl || !(uni.name || settings?.university_name)} className="bg-emerald-600/20 border border-emerald-400/40 text-emerald-100 hover:bg-emerald-600/30">
+            {parsing ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Check className="h-4 w-4 mr-1.5" />} Confirm &amp; Parse
           </Button>
 
           {cache && (
@@ -452,14 +496,31 @@ function UniversitySection() {
           )}
         </div>
 
+        {/* Candidate pages the AI found — click to use a different one */}
+        {candidates.length > 1 && (
+          <div className="rounded border border-white/10 bg-white/[0.02] p-2 space-y-1">
+            <p className="text-[10px] uppercase tracking-widest text-white/40">AI candidate pages — pick the right one</p>
+            {candidates.map((c, i) => (
+              <button key={i} type="button" onClick={() => { setCatalogUrl(c.url); saveCatalogUrlDirect(c.url); }} className={`flex items-center gap-2 w-full text-left px-2 py-1 rounded ${c.url === catalogUrl ? "bg-emerald-500/15" : "hover:bg-white/5"}`}>
+                <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${c.confidence === "high" ? "bg-emerald-400" : c.confidence === "low" ? "bg-rose-400" : "bg-amber-400"}`} />
+                <span className="text-[11px] text-zinc-100 truncate flex-1 min-w-0">{c.title || c.url}</span>
+                <span className="text-[10px] text-white/40 font-mono truncate max-w-[50%]">{c.url}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
         {cache?.calendar_source_url && (
           <p className="text-[10px] text-white/30 font-mono truncate">Source: {cache.calendar_source_url}</p>
         )}
         {cache?.parse_notes && (
           <p className="text-[10px] text-white/30 break-words">{cache.parse_notes}</p>
         )}
-        {!cache && (uni.name || settings?.university_name) && !parsing && (
-          <p className="text-[10px] text-white/30">No cached catalog yet — press <span className="text-emerald-300/70">AI Find &amp; Parse</span> to fetch and store it locally.</p>
+        {parsing && (
+          <p className="text-[11px] text-emerald-300/80 flex items-center gap-1.5"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Parsing this page and storing the courses locally…</p>
+        )}
+        {!cache && (uni.name || settings?.university_name) && !parsing && !findLoading && (
+          <p className="text-[10px] text-white/30">Press <span className="text-emerald-300/70">AI Find Calendar</span> to find the right page, review the URL, then <span className="text-emerald-300/70">Confirm &amp; Parse</span> to store it locally.</p>
         )}
       </div>
     </div>

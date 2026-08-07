@@ -29,9 +29,11 @@ export default async function(req) {
     let university_name = body.university_name;
     let faculty = body.faculty;
     let degree_program = body.degree_program;
+    let specialization = body.specialization;
     let university_domain = body.university_domain;
     let university_course_catalog_url = body.university_course_catalog_url;
-    const force = !!body.force;
+    const force = !!body.force || !!body.parse_only;
+    const parse_only = !!body.parse_only;
 
     // Fallback: pull from the caller's EduSettings if params weren't supplied.
     if (!university_name || faculty === undefined || degree_program === undefined) {
@@ -41,6 +43,7 @@ export default async function(req) {
         university_name = university_name || s.university_name;
         faculty = faculty === undefined ? s.faculty : faculty;
         degree_program = degree_program === undefined ? s.degree_program : degree_program;
+        specialization = specialization === undefined ? s.specialization : specialization;
         university_domain = university_domain || s.university_domain;
         university_course_catalog_url = university_course_catalog_url || s.university_course_catalog_url;
       }
@@ -99,22 +102,42 @@ export default async function(req) {
       ? ` The university's catalog URL is ${university_course_catalog_url}.`
       : (university_domain ? ` The university domain is ${university_domain}.` : '');
 
-    const prompt = [
-      "You are an expert on Canadian university undergraduate academic calendars / course catalogs.",
-      `For ${university_name}, find the official undergraduate academic calendar / course listing page${programStr ? ` for the ${programStr}` : ''}.${catalogHint}`,
-      `Search the web — e.g. "${university_name} undergraduate calendar${degree_program ? ` ${degree_program}` : ''} courses" — and parse the calendar page.`,
-      "List ALL the courses offered under that faculty and degree program. For each course extract:",
-      "- course_code: the official course code (e.g. 'ECE 105')",
-      "- course_title: the full official title",
-      "- course_description: the catalog description (1-3 sentences)",
-      "- credits: credit weight as a number (default 0 if unknown)",
-      "- prerequisites: a short string of prerequisites, or 'None'",
-      "- department: the department/school offering it",
-      "- difficulty_hints: an OPTIONAL short note if determinable from the description (e.g. 'lab-heavy', 'math-heavy', 'known weeder course', 'project-based'); empty string if not determinable",
-      "Return a JSON object with: source_url (the exact URL you parsed), confidence ('high'|'medium'|'low'), notes (any issues), and courses (an array of the course objects above — include every real course you can find, up to 150).",
-      "Only include REAL courses from this university's official catalog. If you cannot find the official calendar page, set confidence to 'low' and return whatever courses you can reliably infer, explaining in notes.",
-      "If you genuinely cannot find any courses, return an empty courses array with confidence 'low' and a short notes explanation.",
-    ].join(" ");
+    let prompt;
+    if (parse_only && university_course_catalog_url) {
+      // Stage B: the user CONFIRMED this URL — fetch THAT page only and extract
+      // every course on it. Faster + more accurate than the combined find+parse.
+      prompt = [
+        `A user has CONFIRMED this URL is the correct undergraduate course-listing / academic-calendar page for their program: ${university_course_catalog_url}`,
+        `University: ${university_name}. Faculty: ${faculty}. Degree program: ${degree_program}. Specialization: ${specialization || "(none)"}.`,
+        "Fetch THAT page only and extract EVERY real course listed on it. For each course extract:",
+        "- course_code: the official course code (e.g. 'ECE 105')",
+        "- course_title: the full official title",
+        "- course_description: the catalog description (1-3 sentences)",
+        "- credits: credit weight as a number (default 0 if unknown)",
+        "- prerequisites: a short string of prerequisites, or 'None'",
+        "- department: the department/school offering it",
+        "- difficulty_hints: an OPTIONAL short note if determinable from the description (e.g. 'lab-heavy', 'math-heavy', 'known weeder course', 'project-based'); empty string if not determinable",
+        "Return a JSON object with: source_url (the URL you actually parsed), confidence ('high'|'medium'|'low'), notes (any issues), and courses (an array of the course objects — include EVERY real course on that page, up to 150).",
+        "Only include courses actually present on the page. If the page is not a course listing, return confidence 'low' and an empty courses array with an explanation in notes.",
+      ].join(" ");
+    } else {
+      prompt = [
+        "You are an expert on Canadian university undergraduate academic calendars / course catalogs.",
+        `For ${university_name}, find the official undergraduate academic calendar / course listing page${programStr ? ` for the ${programStr}` : ''}.${catalogHint}`,
+        `Search the web — e.g. "${university_name} undergraduate calendar${degree_program ? ` ${degree_program}` : ''} courses" — and parse the calendar page.`,
+        "List ALL the courses offered under that faculty and degree program. For each course extract:",
+        "- course_code: the official course code (e.g. 'ECE 105')",
+        "- course_title: the full official title",
+        "- course_description: the catalog description (1-3 sentences)",
+        "- credits: credit weight as a number (default 0 if unknown)",
+        "- prerequisites: a short string of prerequisites, or 'None'",
+        "- department: the department/school offering it",
+        "- difficulty_hints: an OPTIONAL short note if determinable from the description (e.g. 'lab-heavy', 'math-heavy', 'known weeder course', 'project-based'); empty string if not determinable",
+        "Return a JSON object with: source_url (the exact URL you parsed), confidence ('high'|'medium'|'low'), notes (any issues), and courses (an array of the course objects above — include every real course you can find, up to 150).",
+        "Only include REAL courses from this university's official catalog. If you cannot find the official calendar page, set confidence to 'low' and return whatever courses you can reliably infer, explaining in notes.",
+        "If you genuinely cannot find any courses, return an empty courses array with confidence 'low' and a short notes explanation.",
+      ].join(" ");
+    }
 
     let parse_status = 'success';
     let parse_notes = '';
