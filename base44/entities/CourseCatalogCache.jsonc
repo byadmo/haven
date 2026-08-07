@@ -18,6 +18,10 @@
       "type": "string",
       "description": "Degree program the cached courses belong to, e.g. 'Electrical Engineering'."
     },
+    "track_type": {
+      "type": "string",
+      "description": "Program track these requirements belong to, e.g. 'Full-Time, Four-Year Program'."
+    },
     "calendar_source_url": {
       "type": "string",
       "description": "The exact undergraduate academic calendar / course listing URL that was parsed to build this cache."
@@ -53,6 +57,52 @@
         "required": [
           "course_code",
           "course_title"
+        ]
+      }
+    },
+    "curriculum": {
+      "type": "array",
+      "description": "Degree requirements extracted for the track_type: course codes mapped by year and term.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "year": {
+            "type": "string"
+          },
+          "terms": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "term": {
+                  "type": "string"
+                },
+                "courses": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "code": {
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "code"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "term"
+              ]
+            }
+          }
+        },
+        "required": [
+          "year"
         ]
       }
     },
