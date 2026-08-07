@@ -7,7 +7,7 @@ import { AlertTriangle, RefreshCw, Trash2, Loader2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useEduSyncData } from "@/lib/eduSyncContext";
 import { useToast } from "@/components/ui/use-toast";
-import { clearEduData, clearEduProfile } from "@/lib/eduProfile";
+import { clearEduProfile } from "@/lib/eduProfile";
 
 // Education data entities. Reset keeps EduSettings; Delete Account wipes it too.
 const EDU_DATA_ENTITIES = ["Semester", "Course", "Deliverable", "StudySession", "Material", "Focus"];
@@ -41,15 +41,15 @@ export default function EduDangerZone() {
     setBusy(true);
     try {
       await deleteEduRecords(false);
-      clearEduData();
-      await refresh?.();
-      toast({ title: "All education data has been reset." });
-      setModal(null);
-      setConfirmText("");
+      // Wipe the edu localStorage flags so EduLayout re-evaluates
+      // isProfileAddressed() = false on next mount; then hard-navigate to
+      // /education so the layout remounts and the startup boxes (splash +
+      // profile wizard) resurface over the freshly-cleared Education app.
+      clearEduProfile();
+      window.location.assign("/education");
     } catch (e) {
-      toast({ title: "Reset failed", description: e?.message, variant: "destructive" });
-    } finally {
       setBusy(false);
+      toast({ title: "Reset failed", description: e?.message, variant: "destructive" });
     }
   }
 
