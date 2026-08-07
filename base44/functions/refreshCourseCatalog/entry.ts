@@ -1,417 +1,568 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
+import * as cheerio from 'npm:cheerio@1.0.0';
 
-// Normalize a (university, faculty, degree_program) combo into a stable lookup
-// key. MUST match the client-side catalogCacheKey() in src/lib/courseAutofill.js.
-function cacheKey(university_name, faculty, degree_program) {
-  const norm = (s) => (s || "").toString().toLowerCase().trim();
-  return [norm(university_name), norm(faculty), norm(degree_program)].join("::");
+// ============================================================================
+// 4-Stage Vendor-Aware Hybrid AST parser for undergraduate degree-track course
+// requirements. Invoked by the Haven Education setup wizard pipeline
+// (findCourseCalendar -> save URL -> parse_only) and the Settings "Confirm &
+// Parse" button.
+//
+//   Stage 1 — Vendor API Fast-Path (Coursedog / Kuali public JSON)
+//   Stage 2 — Heading-Bounded Subtree Extraction (HBSE) via cheerio
+//   Stage 3 — Deterministic table/list AST parser (regex course codes)
+//   Stage 4 — Gemini-3-Flash schema-constrained fallback
+//
+// Playwright is unavailable in the Base44 function runtime; direct fetch +
+// cheerio suffices for the typical Canadian university server-rendered
+// academic calendars, and vendor pages expose public JSON APIs that don't
+// need a headless browser either.
+// ============================================================================
+
+const FETCH_TIMEOUT_MS = 9000;
+const FRESH_MS = 7 * 24 * 60 * 60 * 1000;
+const COVERAGE_THRESHOLD = 0.85; // Stage 3 emits JSON only at >= 85% coverage
+const MAX_GEMINI_CHARS = 9000;
+const CODE_RE = /\b([A-Z]{2,4})\s?(\d{3,4})([A-Z]?)\b/g;
+const YEAR_RE = /\b(?:year|annee|année)\s*([1-5])\b/i;
+const TERM_RE = /\b(fall|winter|spring|summer|autumn|semester\s*[1-8]|semestre\s*[1-8]|term\s*[1-8])\b/i;
+const NOISE_SEL = 'script, style, nav, footer, header, aside, noscript, svg, iframe, form, [role="navigation"], [role="banner"], [role="contentinfo"]';
+
+function normKey(parts) {
+  return parts.map((p) => (p || '').toString().trim().toLowerCase()).filter(Boolean).join('::');
 }
 
-// ============================================================================
-// Fast pipeline helpers (Zero-LLM page fetch + clean + track isolation).
-// We fetch + clean the program page OURSELVES so only a small (~2k-token)
-// excerpt reaches the model — no add_context_from_internet web search needed.
-// ============================================================================
-
-function fetchHtml(url, ms) {
+async function fetchText(url, opts = {}) {
+  const { asJson = false, timeoutMs = FETCH_TIMEOUT_MS } = opts;
   const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), ms);
-  return fetch(url, {
-    signal: ctrl.signal,
-    redirect: 'follow',
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36',
-      'Accept': 'text/html,*/*',
-    },
-  }).then(async (r) => (r.ok ? await r.text() : null)).catch(() => null).finally(() => clearTimeout(t));
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, {
+      signal: ctrl.signal,
+      redirect: 'follow',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36',
+        'Accept': asJson ? 'application/json,text/plain;q=0.8' : 'text/html,application/xhtml+xml,*/*;q=0.8',
+      },
+    });
+    if (!res.ok) return null;
+    const ct = (res.headers.get('content-type') || '').toLowerCase();
+    if (asJson) {
+      if (!ct.includes('json') && !ct.includes('text/plain')) return null;
+      try { return await res.json(); } catch { return null; }
+    }
+    if (!ct.includes('html') && !ct.includes('xhtml') && !ct.includes('text/plain') && !ct.includes('xml')) return null;
+    return await res.text();
+  } catch { return null; }
+  finally { clearTimeout(t); }
 }
 
-function stripTags(s) { return s.replace(/<[^>]+>/g, ' '); }
+// ---------------------------- Stage 1: Vendor --------------------------------
+function detectVendor(url, html = '') {
+  const u = (url || '').toLowerCase();
+  if (u.includes('coursedog.com') || /coursedog\.com|next\.coursedog/i.test(html)) return 'coursedog';
+  if (u.includes('kuali.co') || /kuali\.co/i.test(html)) return 'kuali';
+  return null;
+}
 
-// Remove whole blocks of junk tags (script/style/nav/footer/header/aside/...).
-function stripBlocks(html, tags) {
-  const re = new RegExp(`<(${tags})\\b[^>]*>[\\s\\S]*?</\\1\\s*>`, 'gi');
-  let out = html.replace(re, ' ');
-  out = out.replace(new RegExp(`<(${tags})\\b[^>]*\\/?>`, 'gi'), ' ');
+// Deep walk an object graph and return the first array that looks like a
+// course list (entries carry a course-code-like identifier / title).
+function findCoursesDeep(obj, maxDepth = 6, depth = 0) {
+  if (!obj || depth > maxDepth) return null;
+  if (Array.isArray(obj)) {
+    if (obj.length && typeof obj[0] === 'object' &&
+        (obj[0].code || obj[0].course_code || obj[0].courseCode || obj[0].subjectCode ||
+         obj[0].title || obj[0].name || obj[0].courseTitle)) {
+      return obj;
+    }
+    for (const v of obj) {
+      const r = findCoursesDeep(v, maxDepth, depth + 1);
+      if (r && r.length) return r;
+    }
+    return null;
+  }
+  if (typeof obj === 'object') {
+    for (const v of Object.values(obj)) {
+      const r = findCoursesDeep(v, maxDepth, depth + 1);
+      if (r && r.length) return r;
+    }
+  }
+  return null;
+}
+
+function vendorNormalize(list) {
+  const out = [];
+  const seen = new Set();
+  for (const c of list) {
+    if (!c || typeof c !== 'object') continue;
+    const code = (c.code || c.course_code || c.courseCode || c.subjectCode || '').toString().trim();
+    if (!code || seen.has(code)) continue;
+    seen.add(code);
+    out.push({
+      code,
+      title: (c.title || c.courseTitle || c.name || c.course_title || code).toString().trim(),
+      credits: Number(c.credits || c.creditHours || c.credit_hours || 0) || 0,
+    });
+  }
   return out;
 }
 
-// Convert HTML to clean plain text, preserving structure that matters for the
-// curriculum: headings → '# ' lines, table rows → pipe-delimited rows (degree
-// calendars put year/term/course lists in tables), lists → '-' bullets.
-function cleanHtmlToText(html) {
-  let h = html;
-  h = stripBlocks(h, 'script|style|nav|footer|header|aside|noscript|svg|form|iframe');
-  h = h.replace(/<h([1-6])\b[^>]*>([\s\S]*?)<\/h\1\s*>/gi, (_, n, inner) => `\n${'#'.repeat(+n)} ${stripTags(inner).trim()}\n`);
-  h = h.replace(/<tr\b[^>]*>([\s\S]*?)<\/tr\s*>/gi, (_, inner) => {
-    const cells = [...inner.matchAll(/<t[dh]\b[^>]*>([\s\S]*?)<\/t[dh]\s*>/gi)].map((m) => stripTags(m[1]).trim());
-    return cells.join(' | ') + '\n';
+async function vendorCoursedog(pageUrl) {
+  // 1) Next.js __NEXT_DATA__ embedded catalog JSON.
+  const html = await fetchText(pageUrl);
+  if (html) {
+    const m = html.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/i);
+    if (m) {
+      try {
+        const data = JSON.parse(m[1]);
+        const list = findCoursesDeep(data);
+        if (list && list.length) return vendorNormalize(list);
+      } catch {}
+    }
+  }
+  // 2) Documented public catalog endpoints.
+  try {
+    const u = new URL(pageUrl);
+    const base = `${u.protocol}//${u.host}`;
+    for (const path of ['/api/v1/catalogs', '/api/v1/courses']) {
+      const j = await fetchText(base + path, { asJson: true, timeoutMs: 6000 });
+      const list = findCoursesDeep(j);
+      if (list && list.length) return vendorNormalize(list);
+    }
+  } catch {}
+  return null;
+}
+
+async function vendorKuali(pageUrl) {
+  try {
+    const u = new URL(pageUrl);
+    const base = `${u.protocol}//${u.host}`;
+    const segs = u.pathname.split('/').filter(Boolean);
+    let catalogId = '';
+    for (let i = 0; i < segs.length; i++) {
+      if (segs[i].toLowerCase() === 'catalog' || segs[i].toLowerCase() === 'catalogs') {
+        if (segs[i + 1]) catalogId = segs[i + 1];
+        break;
+      }
+    }
+    if (!catalogId) return null;
+    const j = await fetchText(`${base}/api/cm/v1/catalogs/${catalogId}/courses`, { asJson: true, timeoutMs: 7000 });
+    let list = findCoursesDeep(j);
+    if (!list) {
+      const j2 = await fetchText(`${base}/api/cm/v1/catalogs/${catalogId}`, { asJson: true, timeoutMs: 7000 });
+      list = findCoursesDeep(j2);
+    }
+    if (list && list.length) return vendorNormalize(list);
+  } catch {}
+  return null;
+}
+
+// ---------------------------- Stage 2: HBSE ---------------------------------
+function trackTokens(s) {
+  const stop = new Set(['the', 'a', 'an', 'program', 'plan', 'of', 'stream', 'for', 'and', 'in', 'track']);
+  return (s || '').toLowerCase().split(/[^a-z0-9]+/).filter((t) => t && !stop.has(t));
+}
+
+function jaccard(a, b) {
+  const sa = new Set(a), sb = new Set(b);
+  if (!sa.size || !sb.size) return 0;
+  let inter = 0;
+  for (const t of sa) if (sb.has(t)) inter++;
+  return inter / (sa.size + sb.size - inter);
+}
+
+// Build a heading list from h1-h6, score each against the trackType (Jaccard
+// token overlap), pick the best match above a small floor, then collect the
+// inline DOM content from that heading up to the next heading at the same or
+// shallower depth (== the "isolated subtree"). Falls back to the full body
+// when no track heading matches.
+function hbse(html, trackType) {
+  const $ = cheerio.load(html || '');
+  $(NOISE_SEL).remove();
+  const headings = [];
+  $('h1, h2, h3, h4, h5, h6').each((_, el) => {
+    const $el = $(el);
+    const text = $el.text().replace(/\s+/g, ' ').trim();
+    if (text) headings.push({ $el, text, level: parseInt(el.tagName[1], 10) });
   });
-  h = h.replace(/<li\b[^>]*>([\s\S]*?)<\/li\s*>/gi, (_, inner) => `- ${stripTags(inner).trim()}\n`);
-  h = h.replace(/<\/p\s*>/gi, '\n').replace(/<br\s*\/?>/gi, '\n').replace(/<\/div\s*>/gi, '\n');
-  h = stripTags(h);
-  h = h.replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&[a-z#0-9]+;/g, ' ');
-  return h.replace(/[ \t\f]+/g, ' ').replace(/ *\n */g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+  const tt = trackTokens(trackType);
+  let best = null, bestScore = 0;
+  for (const h of headings) {
+    const score = jaccard(trackTokens(h.text), tt);
+    if (score > bestScore && score >= 0.34) { bestScore = score; best = h; }
+  }
+  let isolated = '';
+  if (best) {
+    let $cursor = best.$el;
+    const collected = [];
+    while ($cursor.length) {
+      collected.push($cursor);
+      const $next = $cursor.next();
+      if (!$next.length) break;
+      const tag = $next.get(0).tagName.toLowerCase();
+      if (/^h[1-6]$/.test(tag) && parseInt(tag[1], 10) <= best.level) break;
+      $cursor = $next;
+    }
+    isolated = $.html(collected);
+  }
+  if (!isolated) isolated = $('body').html() || $.html();
+  const isolatedText = cheerio.load(isolated)('body').text().replace(/\s+/g, ' ').trim();
+  return { $, isolated, isolatedText };
 }
 
-// Select the excerpt most likely to contain the degree curriculum. Program
-// pages lead with an admission/accreditation intro, so isolating by the track
-// heading alone grabs that intro. Instead we anchor on the course-code-dense
-// region (covers the full Year 1..4 plan) and include a little context before
-// the first code so Y1/Semester headings are retained. Falls back to the
-// track-heading slice when no course codes are present, then to whole text.
-function selectCurriculumPayload(text, trackType) {
-  if (!text) return '';
-  const codeRe = /\b([A-Z]{2,4})\s?(\d{3,4}[A-Z]?)\b/g;
-  let m, first = -1, last = -1;
-  while ((m = codeRe.exec(text))) {
-    if (m[1].length <= 1) continue;
-    first = first < 0 ? m.index : first;
-    last = m.index;
-  }
-  if (first >= 0) {
-    // Compact: keep only lines that carry a course code or a year/semester/track
-    // heading. This concentrates the curriculum into ~2k tokens (fast LLM) while
-    // dropping admission/accreditation narrative, instead of sending a wide
-    // first..last window.
-    const headRe = /\b(year\s*\d|semester|term|full[\s-]?time|part[\s-]?time|co[\s-]?op|program (format|map|outline|requirements))\b/i;
-    const filtered = text.split('\n').filter((l) => {
-      const t = l.trim();
-      return t && (/\b[A-Z]{2,4}\s?\d{3,4}[A-Z]?\b/.test(t) || headRe.test(t));
-    }).join('\n');
-    if (filtered.length > 200) return filtered;
-    // Filtering removed everything (rare) — fall back to the code window.
-    const start = Math.max(0, first - 800);
-    const end = Math.min(text.length, last + 300);
-    return text.slice(start, end);
-  }
-  // No course codes — fall back to track-heading isolation.
-  const hasFullTime = /full[\s-]?time/i.test(trackType || '');
-  const head = hasFullTime
-    ? /full[\s-]?time[,\s]+(?:four|4)[\s-]?year/i
-    : /(?:four|4|five|3)[\s-]?year/i;
-  const idx = text.search(head);
-  if (idx < 0) return text;
-  let rest = text.slice(idx);
-  const next = rest.slice(1).search(/\n[ \t]*(part[\s-]?time|full[\s-]?time[,\s]+(?:five|3|two|2)[\s-]?year|co[\s-]?op[\s-]?stream|back to top|program overview|program outline|important dates|policies)/i);
-  if (next >= 0) rest = rest.slice(0, next + 1);
-  return rest.trim();
+// ---------------------------- Stage 3: Deterministic AST --------------------
+function addCourse(years, year, term, code, title, credits) {
+  if (!years[year]) years[year] = {};
+  if (!years[year][term]) years[year][term] = [];
+  if (years[year][term].some((c) => c.code === code)) return;
+  years[year][term].push({ code, title: title || code, credits: Number(credits) || 0 });
 }
 
-// Regex fallback: pull every course code (e.g. ECE 105, MTH 140, CPS 125) from
-// the text. Used if the LLM extraction returns nothing.
-function extractCourseCodesRegex(text) {
-  const set = new Set();
-  const re = /\b([A-Z]{2,4})\s?(\d{3,4}[A-Z]?)\b/g;
+function stageAstParse(isolatedHtml, trackType) {
+  const $root = cheerio.load(isolatedHtml || '');
+  $root(NOISE_SEL).remove();
+  const years = {};
+  let curYear = 1, curTerm = '';
+  let total = 0, codeRows = 0;
+  $root('h1, h2, h3, h4, h5, h6, tr, li').each((_, el) => {
+    const $el = $root(el);
+    const tag = el.tagName.toLowerCase();
+    if (tag.startsWith('h')) {
+      const text = $el.text().replace(/\s+/g, ' ').trim();
+      const ym = text.match(YEAR_RE);
+      const tm = text.match(TERM_RE);
+      if (ym) curYear = parseInt(ym[1], 10) || curYear;
+      if (tm) curTerm = tm[1].replace(/\s+/g, ' ').trim();
+      return;
+    }
+    if (tag === 'tr') {
+      const cells = [];
+      $el.children('td, th').each((__, c) => cells.push($root(c).text().replace(/\s+/g, ' ').trim()));
+      if (!cells.length) return;
+      total++;
+      CODE_RE.lastIndex = 0;
+      const m = CODE_RE.exec(cells.join(' | '));
+      if (m) {
+        codeRows++;
+        const code = (m[1] + m[2] + (m[3] || '')).toUpperCase();
+        const title = cells.find((c) => c && c !== code && !/^\d/.test(c)) || code;
+        const credits = Number(cells.find((c) => /^\d/.test(c) && c.length <= 4)) || 0;
+        addCourse(years, curYear, curTerm || 'Plan', code, title, credits);
+      }
+      return;
+    }
+    // list items + paragraphs that contain a single course code
+    const text = $el.text().replace(/\s+/g, ' ').trim();
+    if (!text) return;
+    total++;
+    CODE_RE.lastIndex = 0;
+    const m = CODE_RE.exec(text);
+    if (m) {
+      codeRows++;
+      const code = (m[1] + m[2] + (m[3] || '')).toUpperCase();
+      const title = text.replace(code, '').replace(/^[\s:–-]+/, '').trim() || code;
+      addCourse(years, curYear, curTerm || 'Plan', code, title, 0);
+    }
+  });
+  const coverage = total ? codeRows / total : 0;
+  const totalCourses = Object.values(years).reduce(
+    (s, terms) => s + Object.values(terms).reduce((ss, list) => ss + list.length, 0), 0);
+  const academicYears = Object.keys(years).sort((a, b) => +a - +b).map((yn) => ({
+    yearNumber: parseInt(yn, 10),
+    terms: Object.entries(years[yn]).map(([termName, list]) => ({ termName, requiredCourses: list })),
+  }));
+  return { academicYears, coverage, totalCourses, totalRows: total };
+}
+
+function extractCodes(text) {
+  if (!text) return [];
+  const out = []; const seen = new Set();
+  CODE_RE.lastIndex = 0;
   let m;
-  while ((m = re.exec(text))) {
-    if (m[1].length === 1) continue; // avoid false positives like "I 100"
-    set.add(`${m[1]} ${m[2]}`);
-    if (set.size > 250) break;
+  while ((m = CODE_RE.exec(text)) !== null) {
+    const code = (m[1] + m[2] + (m[3] || '')).toUpperCase();
+    if (!seen.has(code)) { seen.add(code); out.push(code); }
   }
-  return [...set];
+  return out;
+}
+
+// ---------------------------- Stage 4: Gemini -------------------------------
+const PROGRAM_SCHEMA = {
+  type: 'object',
+  properties: {
+    degreeTitle: { type: 'string' },
+    trackType: { type: 'string' },
+    confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
+    notes: { type: 'string' },
+    academicYears: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          yearNumber: { type: 'integer' },
+          terms: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                termName: { type: 'string' },
+                requiredCourses: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      code: { type: 'string' },
+                      title: { type: 'string' },
+                      credits: { type: 'number' },
+                    },
+                    required: ['code', 'title'],
+                  },
+                },
+              },
+              required: ['termName', 'requiredCourses'],
+            },
+          },
+        },
+        required: ['yearNumber', 'terms'],
+      },
+    },
+  },
+  required: ['academicYears'],
+};
+
+function buildGeminiPrompt(university, faculty, specialization, trackType, sourceUrl, text) {
+  return [
+    `You are parsing an undergraduate academic-calendar excerpt for ${university} (${faculty || 'faculty'}${specialization ? ' — ' + specialization : ''}).`,
+    `Source URL: ${sourceUrl}`,
+    `Extract the DEGREE REQUIREMENTS for the "${trackType}" track: courses mapped by year and term.`,
+    "Return JSON with: degreeTitle, trackType (the label you matched, or ''), confidence ('high'|'medium'|'low'), notes (short), academicYears (array of { yearNumber (int), terms: [ { termName, requiredCourses: [ { code, title, credits (number, 0 if unknown) } ] } ] }).",
+    "Only include courses actually present in the excerpt. Use term names exactly as on the page (Fall, Winter, Semester 1, ...). Omit transition/remedial lists and excluded-course lists.",
+    "If the excerpt isn't a course listing, confidence='low' and empty academicYears.",
+    "EXCERPT:\n" + (text || '').slice(0, MAX_GEMINI_CHARS),
+  ].join('\n');
 }
 
 // ============================================================================
-
-export default async function(req) {
+export default async function (req) {
+  let executionMode = null;
+  let tokenUsage = 0;
+  let sourceUrl = '';
+  let university = '', faculty = '', specialization = '', degree_program = '', trackType = '';
   try {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
-    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!user) return Response.json({ status: 'error', error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json().catch(() => ({})) || {};
-    let university_name = body.university_name;
-    let faculty = body.faculty;
-    let degree_program = body.degree_program;
-    let specialization = body.specialization;
-    let university_domain = body.university_domain;
-    let university_course_catalog_url = body.university_course_catalog_url;
-    let trackType = body.trackType || body.track_type || '';
-    const force = !!body.force || !!body.parse_only;
+    university = (body.university || body.university_name || '').toString().trim();
+    faculty = (body.faculty || '').toString().trim();
+    specialization = (body.specialization || '').toString().trim();
+    degree_program = (body.degree_program || specialization || '').toString().trim();
+    trackType = (body.trackType || body.track_type || 'Full-Time, Four-Year Program').toString().trim();
+    const url0 = (body.calendarUrl || body.university_course_catalog_url || '').toString().trim();
     const parse_only = !!body.parse_only;
+    const force = !!body.force || parse_only;
 
-    // Fallback: pull from the caller's EduSettings if params weren't supplied.
-    if (!university_name || faculty === undefined || degree_program === undefined) {
-      const settings = await base44.entities.EduSettings.list();
-      const s = Array.isArray(settings) ? settings[0] : null;
-      if (s) {
-        university_name = university_name || s.university_name;
-        faculty = faculty === undefined ? s.faculty : faculty;
-        degree_program = degree_program === undefined ? s.degree_program : degree_program;
-        specialization = specialization === undefined ? s.specialization : specialization;
-        university_domain = university_domain || s.university_domain;
-        university_course_catalog_url = university_course_catalog_url || s.university_course_catalog_url;
-      }
-    }
+    if (!university) return Response.json({ status: 'error', error: 'university is required' }, { status: 400 });
+    const key = normKey([university, faculty, degree_program || specialization]);
 
-    if (!university_name) return Response.json({ error: 'university_name is required' }, { status: 400 });
-    if (!trackType) trackType = 'Full-Time, Four-Year Program';
-    const key = cacheKey(university_name, faculty, degree_program);
-
-    // Find the shared cache record for this combo (service role bypasses RLS).
+    // Cache short-circuit (unless forced / parse_only).
     let rec = null;
     try {
-      const existing = await base44.asServiceRole.entities.CourseCatalogCache.filter({ cache_key: key });
-      rec = Array.isArray(existing) && existing.length ? existing[0] : null;
-    } catch (e) {
-      rec = null;
-    }
-
-    const FRESH_MS = 7 * 24 * 60 * 60 * 1000;
+      const hits = await base44.asServiceRole.entities.CourseCatalogCache.filter({ cache_key: key }, '-last_parsed_at', 1);
+      rec = Array.isArray(hits) && hits[0] ? hits[0] : null;
+    } catch {}
     const now = Date.now();
-    const freshHit = (r) => r && r.last_parsed_at && (r.parse_status === 'success' || r.parse_status === 'partial') &&
-      (now - +new Date(r.last_parsed_at) < FRESH_MS);
-    if (!force && (freshHit(rec))) {
-      try {
-        const age = now - new Date(rec.last_parsed_at).getTime();
-        if (age < FRESH_MS) {
-          return Response.json({
-            cached: true,
-            cache_id: rec.id,
-            parse_status: rec.parse_status,
-            course_count: (rec.parsed_courses || []).length,
-            last_parsed_at: rec.last_parsed_at,
-            calendar_source_url: rec.calendar_source_url,
-          });
-        }
-      } catch (e) { /* fall through to re-parse */ }
+    if (!force && rec && rec.last_parsed_at && (rec.parse_status === 'success' || rec.parse_status === 'partial') &&
+        (now - +new Date(rec.last_parsed_at) < FRESH_MS)) {
+      const m = (rec.parse_notes || '').match(/(VENDOR_API|DETERMINISTIC_AST|GEMINI_FALLBACK)/);
+      return Response.json({
+        status: 'success', executionMode: m ? m[1] : 'GEMINI_FALLBACK',
+        meta: { university, faculty, specialization: degree_program, trackType, sourceUrl: rec.calendar_source_url, tokenUsage: 0 },
+        program: { degreeTitle: '', academicYears: rec.curriculum || [] },
+        cached: true, cache_id: rec.id, parse_status: rec.parse_status,
+        course_count: (rec.parsed_courses || []).length, last_parsed_at: rec.last_parsed_at,
+        calendar_source_url: rec.calendar_source_url,
+      });
     }
 
-    // ---- Fast pipeline: fetch + clean + track-isolate + small-LLM extract ----
-    const sourceUrl = (university_course_catalog_url && /^https?:\/\//i.test(university_course_catalog_url)) ? university_course_catalog_url : '';
-    const MAX_CHARS = 12000; // ~3k tokens — the line-filtered payload concentrates the curriculum.
+    // URL discovery (Stage 0): reuse the existing AI-discovery function so no
+    // new Tavily/Serper secret is required.
+    sourceUrl = url0 && /^https?:\/\//i.test(url0) ? url0 : '';
+    if (!sourceUrl) {
+      try {
+        const disc = await base44.functions.invoke('findCourseCalendar', {
+          university_name: university, faculty, degree_program, specialization, trackType,
+        });
+        const d = disc?.data ?? disc;
+        sourceUrl = (d && (d.best_url || d.url)) || '';
+      } catch { sourceUrl = ''; }
+    }
+    if (!sourceUrl) {
+      return Response.json({
+        status: 'error', error: 'No calendar URL provided and discovery found none.',
+        meta: { university, faculty, specialization: degree_program, trackType, sourceUrl: '', tokenUsage: 0 },
+        program: { degreeTitle: '', academicYears: [] },
+        parse_status: 'failed', parse_notes: 'No calendar URL provided and discovery found none.',
+      }, { status: 422 });
+    }
 
-    let parse_status = 'success';
+    let parse_status = 'failed';
     let parse_notes = '';
-    let calendar_source_url = sourceUrl;
-    let parsed_courses = [];
-    let curriculum = [];
+    let academicYears = [];
+    let degreeTitle = degree_program || '';
 
-    let usedFastPipeline = false;
-    if (sourceUrl) {
-      const rawHtml = await fetchHtml(sourceUrl, 8000);
-      if (rawHtml) {
-        const cleaned = cleanHtmlToText(rawHtml);
-        const isolated = selectCurriculumPayload(cleaned, trackType);
-        const payload = (isolated || cleaned).slice(0, MAX_CHARS);
+    // ------------------- Stage 1: Vendor API Fast-Path -------------------
+    const vendor = detectVendor(sourceUrl);
+    let vendorCourses = null;
+    if (vendor === 'coursedog') vendorCourses = await vendorCoursedog(sourceUrl);
+    else if (vendor === 'kuali') vendorCourses = await vendorKuali(sourceUrl);
+    if (vendorCourses && vendorCourses.length) {
+      executionMode = 'VENDOR_API';
+      parse_status = 'success';
+      parse_notes = `Vendor API (${vendor}): ${vendorCourses.length} courses.`;
+      academicYears = [{ yearNumber: 1, terms: [{ termName: 'Catalog', requiredCourses: vendorCourses }] }];
+    }
 
-        if (payload && payload.length > 200) {
-          usedFastPipeline = true;
-          const prompt = [
-            `You are parsing an undergraduate academic-calendar excerpt for ${university_name} (${faculty || 'faculty'} — ${degree_program || 'program'}).`,
-            `Source URL: ${sourceUrl}`,
-            `Extract the DEGREE REQUIREMENTS for the "${trackType}" track as a curriculum: course codes mapped by year and term.`,
-            "Return JSON with: source_url, trackType (the label you matched, or ''), confidence ('high'|'medium'|'low'), notes (short), and curriculum (array of { year, terms: [ { term, courses: [ { code, title } ] } ] }).",
-            "Use 'Year 1', 'Semester 1'/'Fall', etc. exactly as on the page. Only include courses actually present in the excerpt. Omit transition/remedial lists and excluded courses.",
-            "If the excerpt isn't a course listing, confidence='low' and empty curriculum.",
-            "EXCERPT:",
-            payload,
-          ].join("\n");
+    // ------------------- Stage 2: HBSE -------------------
+    let cleanedHtml = '';
+    let isolatedText = '';
+    let $$ = null;
+    if (!executionMode) {
+      const html = await fetchText(sourceUrl);
+      if (!html || html.length < 200) {
+        const codes = extractCodes(html || '');
+        return Response.json({
+          status: codes.length ? 'success' : 'error',
+          executionMode: codes.length ? 'DETERMINISTIC_AST' : null,
+          meta: { university, faculty, specialization: degree_program, trackType, sourceUrl, tokenUsage: 0 },
+          program: { degreeTitle, academicYears: codes.length ? [{ yearNumber: 1, terms: [{ termName: 'Catalog', requiredCourses: codes.map((c) => ({ code: c, title: c, credits: 0 })) }] }] : [] },
+          parse_status: codes.length ? 'partial' : 'failed',
+          parse_notes: codes.length ? 'Regex salvage from raw HTML.' : 'Could not render the target calendar page.',
+          course_count: codes.length,
+          calendar_source_url: sourceUrl,
+        }, { status: codes.length ? 200 : 422 });
+      }
+      cleanedHtml = html;
+      const hb = hbse(html, trackType);
+      $$ = hb.$; isolatedText = hb.isolatedText;
 
-          try {
-            const res = await base44.integrations.Core.InvokeLLM({
-              prompt,
-              model: "gemini_3_flash", // fast text->JSON; no web search
-              response_json_schema: {
-                type: "object",
-                properties: {
-                  source_url: { type: "string" },
-                  trackType: { type: "string" },
-                  confidence: { type: "string", enum: ["high", "medium", "low"] },
-                  notes: { type: "string" },
-                  curriculum: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        year: { type: "string" },
-                        terms: {
-                          type: "array",
-                          items: {
-                            type: "object",
-                            properties: {
-                              term: { type: "string" },
-                              courses: {
-                                type: "array",
-                                items: {
-                                  type: "object",
-                                  properties: { code: { type: "string" }, title: { type: "string" } },
-                                  required: ["code"],
-                                },
-                              },
-                            },
-                            required: ["term"],
-                          },
-                        },
-                      },
-                      required: ["year"],
-                    },
-                  },
-                },
-                required: ["curriculum"],
-              },
-            });
-
-            const d = res?.data ?? res;
-            calendar_source_url = (d?.source_url && /^https?:\/\//i.test(d.source_url)) ? String(d.source_url) : sourceUrl;
-            if (d?.trackType) trackType = String(d.trackType);
-            parse_notes = d?.notes || '';
-            curriculum = Array.isArray(d?.curriculum) ? d.curriculum
-              .filter((y) => y && y.year)
+      // ------------------- Stage 3: Deterministic AST -------------------
+      const ast = stageAstParse(hb.isolated, trackType);
+      if (ast.totalCourses >= 5 && ast.coverage >= COVERAGE_THRESHOLD) {
+        executionMode = 'DETERMINISTIC_AST';
+        parse_status = 'success';
+        parse_notes = `Deterministic AST: ${ast.totalCourses} courses, ${(ast.coverage * 100).toFixed(0)}% coverage.`;
+        academicYears = ast.academicYears;
+      } else {
+        // ------------------- Stage 4: Gemini fallback -------------------
+        try {
+          const gres = await base44.integrations.Core.InvokeLLM({
+            prompt: buildGeminiPrompt(university, faculty, degree_program, trackType, sourceUrl, isolatedText),
+            model: 'gemini_3_flash',
+            response_json_schema: PROGRAM_SCHEMA,
+          });
+          tokenUsage += 1;
+          const d = gres?.data ?? gres;
+          if (d && Array.isArray(d.academicYears)) {
+            executionMode = 'GEMINI_FALLBACK';
+            academicYears = d.academicYears
+              .filter((y) => y && y.yearNumber != null)
               .map((y) => ({
-                year: String(y.year).trim(),
-                terms: Array.isArray(y.terms) ? y.terms.map((t) => ({
-                  term: String(t.term || '').trim(),
-                  courses: Array.isArray(t.courses) ? t.courses.map((c) => ({
+                yearNumber: Number(y.yearNumber) || 0,
+                terms: (y.terms || []).map((t) => ({
+                  termName: String(t.termName || '').trim(),
+                  requiredCourses: (t.requiredCourses || []).map((c) => ({
                     code: String(c.code || '').trim(),
                     title: String(c.title || c.code || '').trim(),
-                  })).filter((c) => c.code) : [],
-                })) : [],
-              })) : [];
-
-            // Derive the flat course list (for autocomplete) from the curriculum.
-            parsed_courses = [];
-            const seenCode = new Set();
-            for (const y of curriculum) for (const t of (y.terms || [])) for (const c of (t.courses || [])) {
-              if (c.code && !seenCode.has(c.code)) {
-                seenCode.add(c.code);
-                parsed_courses.push({ course_code: c.code, course_title: c.title || c.code, course_description: "", credits: 0, prerequisites: "", department: "", difficulty_hints: "" });
-              }
-            }
-
-            const conf = String(d?.confidence || "low").toLowerCase();
-            parse_status = parsed_courses.length === 0 ? "failed" : conf === "low" ? "partial" : "success";
-          } catch (e) {
-            parse_status = "failed";
-            parse_notes = "Fast LLM extraction failed: " + (e?.message || "unknown error");
+                    credits: typeof c.credits === 'number' ? c.credits : 0,
+                  })).filter((c) => c.code),
+                })),
+              }));
+            degreeTitle = String(d.degreeTitle || degree_program || '');
+            const conf = String(d.confidence || 'low').toLowerCase();
+            parse_status = academicYears.length === 0 ? 'failed' : conf === 'low' ? 'partial' : 'success';
+            parse_notes = (d.notes || 'Gemini-3-flash extraction.') +
+              ` AST coverage was ${(ast.coverage * 100).toFixed(0)}% (< ${COVERAGE_THRESHOLD * 100}%).`;
           }
-
-          // Regex fallback: if the LLM returned nothing, salvage course codes from the cleaned text.
-          if (parsed_courses.length === 0) {
-            const codes = extractCourseCodesRegex(cleaned);
-            if (codes.length) {
-              parsed_courses = codes.map((code) => ({ course_code: code, course_title: code, course_description: "", credits: 0, prerequisites: "", department: "", difficulty_hints: "" }));
-              parse_status = "partial";
-              parse_notes = (parse_notes ? parse_notes + " " : "") + "Salvaged via regex course-code fallback.";
-            }
+        } catch (e) {
+          parse_notes = 'Gemini fallback failed: ' + (e?.message || 'unknown');
+        }
+        // Last-resort regex salvage from the isolated text or the cleaned HTML.
+        if (academicYears.length === 0) {
+          const codes = extractCodes(isolatedText || cleanedHtml);
+          if (codes.length) {
+            executionMode = executionMode || 'DETERMINISTIC_AST';
+            parse_status = 'partial';
+            parse_notes = (parse_notes ? parse_notes + ' ' : '') + `Regex salvage: ${codes.length} course codes.`;
+            academicYears = [{ yearNumber: 1, terms: [{ termName: 'Catalog', requiredCourses: codes.map((c) => ({ code: c, title: c, credits: 0 })) }] }];
           }
         }
       }
     }
 
-    // ---- Fallback: AI web search (no confirmed URL or fetch failed) ----
-    if (!usedFastPipeline) {
-      const programStr = degree_program
-        ? `${degree_program}${faculty ? ` in the ${faculty}` : ''}`
-        : (faculty ? `in the ${faculty}` : '');
-      const catalogHint = university_course_catalog_url
-        ? ` The university's catalog URL is ${university_course_catalog_url}.`
-        : (university_domain ? ` The university domain is ${university_domain}.` : '');
-      const prompt = [
-        "You are an expert on Canadian university undergraduate academic calendars / course catalogs.",
-        `For ${university_name}, find the official undergraduate academic calendar / course listing page${programStr ? ` for the ${programStr}` : ''}.${catalogHint}`,
-        `Search the web — e.g. "${university_name} undergraduate calendar${degree_program ? ` ${degree_program}` : ''} courses" — and parse the calendar page.`,
-        "List ALL the courses offered under that faculty and degree program. For each course extract course_code, course_title, course_description (1-3 sentences), credits (number), prerequisites, department, difficulty_hints.",
-        "Return a JSON object with: source_url, confidence ('high'|'medium'|'low'), notes, and courses (array — every real course you can find, up to 150).",
-        "Only include REAL courses from this university's official catalog. If you cannot find it, set confidence to 'low' and explain in notes.",
-      ].join(" ");
-      try {
-        const res = await base44.integrations.Core.InvokeLLM({
-          prompt,
-          add_context_from_internet: true,
-          model: "gemini_3_flash",
-          response_json_schema: {
-            type: "object",
-            properties: {
-              source_url: { type: "string" },
-              confidence: { type: "string", enum: ["high", "medium", "low"] },
-              notes: { type: "string" },
-              courses: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    course_code: { type: "string" },
-                    course_title: { type: "string" },
-                    course_description: { type: "string" },
-                    credits: { type: "number" },
-                    prerequisites: { type: "string" },
-                    department: { type: "string" },
-                    difficulty_hints: { type: "string" },
-                  },
-                  required: ["course_code", "course_title"],
-                },
-              },
-            },
-            required: ["courses"],
-          },
-        });
-        const d = res?.data ?? res;
-        const raw = Array.isArray(d?.courses) ? d.courses : [];
-        parsed_courses = raw
-          .filter((c) => c && c.course_code)
-          .map((c) => ({
-            course_code: String(c.course_code).trim(),
-            course_title: String(c.course_title || c.course_code).trim(),
-            course_description: c.course_description || "",
-            credits: typeof c.credits === "number" ? c.credits : 0,
-            prerequisites: c.prerequisites || "",
-            department: c.department || "",
-            difficulty_hints: c.difficulty_hints || "",
-          }));
-        calendar_source_url = d?.source_url || calendar_source_url;
-        parse_notes = d?.notes || "";
-        const conf = String(d?.confidence || "low").toLowerCase();
-        parse_status = parsed_courses.length === 0 ? "failed" : conf === "low" ? "partial" : "success";
-        if (parsed_courses.length === 0) parse_notes = parse_notes || "No courses could be extracted from the catalog.";
-      } catch (e) {
-        parse_status = "failed";
-        parse_notes = "AI catalog parse failed: " + (e?.message || "unknown error");
-      }
-    }
+    // Flatten for cache + legacy curriculum shape.
+    const seenCode = new Set();
+    const flatCourses = [];
+    const curriculum = academicYears.map((y) => ({
+      year: 'Year ' + y.yearNumber,
+      terms: y.terms.map((t) => ({
+        term: t.termName,
+        courses: t.requiredCourses.map((c) => {
+          if (c.code && !seenCode.has(c.code)) {
+            seenCode.add(c.code);
+            flatCourses.push({ course_code: c.code, course_title: c.title, course_description: '', credits: c.credits, prerequisites: '', department: '', difficulty_hints: '' });
+          }
+          return { code: c.code, title: c.title };
+        }),
+      })),
+    }));
 
+    // Persist cache (best-effort).
     const record = {
       cache_key: key,
-      university_name,
-      faculty: faculty || "",
-      degree_program: degree_program || "",
+      university_name: university,
+      faculty,
+      degree_program: degree_program || specialization || '',
       track_type: trackType,
-      calendar_source_url,
-      parsed_courses,
+      calendar_source_url: sourceUrl,
+      parsed_courses: flatCourses,
       curriculum,
       last_parsed_at: new Date().toISOString(),
       parse_status,
-      parse_notes: usedFastPipeline ? `[fast-pipeline] ${parse_notes || ''}`.trim() : parse_notes,
+      parse_notes: `[${executionMode || 'FAILED'}] ${parse_notes}`.trim(),
     };
-
-    let saved;
+    let savedId = rec?.id;
     try {
-      if (rec) {
-        saved = await base44.asServiceRole.entities.CourseCatalogCache.update(rec.id, record);
-      } else {
-        saved = await base44.asServiceRole.entities.CourseCatalogCache.create(record);
-      }
-    } catch (e) {
-      return Response.json({
-        error: "Failed to persist catalog cache: " + (e?.message || "unknown"),
-        parse_status,
-        course_count: parsed_courses.length,
-      }, { status: 500 });
-    }
+      if (rec) savedId = (await base44.asServiceRole.entities.CourseCatalogCache.update(rec.id, record))?.id || rec.id;
+      else savedId = (await base44.asServiceRole.entities.CourseCatalogCache.create(record))?.id;
+    } catch {}
 
     return Response.json({
+      status: 'success',
+      executionMode: executionMode || 'GEMINI_FALLBACK',
+      meta: { university, faculty, specialization: degree_program, trackType, sourceUrl, tokenUsage },
+      program: { degreeTitle, academicYears },
+      // Legacy fields for existing clients:
       cached: false,
-      cache_id: saved?.id,
-      parse_status,
-      course_count: parsed_courses.length,
-      curriculum_count: curriculum.length,
+      cache_id: savedId,
+      degreeTitle,
+      calendarSourceUrl: sourceUrl,
       trackType,
-      calendar_source_url,
-      last_parsed_at: record.last_parsed_at,
+      academicYears,
+      course_count: flatCourses.length,
+      parse_status,
       parse_notes,
+      last_parsed_at: record.last_parsed_at,
     });
   } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    return Response.json({
+      status: 'error',
+      executionMode,
+      meta: { university, faculty, specialization: degree_program, trackType, sourceUrl, tokenUsage },
+      program: { degreeTitle: '', academicYears: [] },
+      error: error.message,
+      parse_status: 'failed',
+      parse_notes: error.message,
+    }, { status: 500 });
   }
 }
