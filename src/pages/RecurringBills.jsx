@@ -6,12 +6,14 @@ import { Receipt, Plus, Sparkles, CheckCircle2, XCircle } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/use-toast";
 import DashboardHeader from "@/components/finance/DashboardHeader";
 import PageTitle from "@/components/finance/PageTitle";
 import Reveal from "@/components/finance/Reveal";
 import RecurringBillForm from "@/components/recurring/RecurringBillForm";
 import BillRow from "@/components/recurring/BillRow";
+import PaychequeAllocator from "@/components/allocator/PaychequeAllocator";
 import { useFinanceData } from "@/lib/FinanceDataContext";
 import {
   detectBillCandidates, advanceDueDate, dayDiff, freqLabel,
@@ -26,6 +28,8 @@ export default function RecurringBills() {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [scannedOnce, setScannedOnce] = useState(false);
+  const [vaults, setVaults] = useState([]);
+  const [loadingVaults, setLoadingVaults] = useState(true);
 
   const loadBills = useCallback(async () => {
     try {
@@ -38,7 +42,18 @@ export default function RecurringBills() {
     }
   }, []);
 
-  useEffect(() => { loadBills(); }, [loadBills]);
+  const loadVaults = useCallback(async () => {
+    try {
+      const list = await base44.entities.AllocationVault.list("display_order", 200);
+      setVaults((list || []).sort((a, b) => (a.display_order || 0) - (b.display_order || 0)));
+    } catch {
+      setVaults([]);
+    } finally {
+      setLoadingVaults(false);
+    }
+  }, []);
+
+  useEffect(() => { loadBills(); loadVaults(); }, [loadBills, loadVaults]);
 
   // Auto-scan once on mount when AI detection is enabled.
   useEffect(() => {
@@ -76,6 +91,18 @@ export default function RecurringBills() {
     const next = advanceDueDate(b.next_due_date, b.frequency, b.custom_interval_days);
     try {
       await base44.entities.RecurringBill.update(b.id, { next_due_date: next, last_paid_date: today });
+      // Deduct from the linked AllocationVault's running balance.
+      if (b.vault_id) {
+        try {
+          const arr = await base44.entities.AllocationVault.filter({ id: b.vault_id });
+          const v = arr && arr[0];
+          if (v) {
+            const newBal = Math.max(0, (Number(v.current_balance) || 0) - (Number(b.amount) || 0));
+            await base44.entities.AllocationVault.update(v.id, { current_balance: newBal });
+            loadVaults();
+          }
+        } catch {}
+      }
       toast({ title: "Bill marked paid", description: `${b.name} — next due ${next}` });
       loadBills();
     } catch {
@@ -138,6 +165,13 @@ export default function RecurringBills() {
       <main className="relative max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-6">
         <Reveal><PageTitle title="Recurring Bills & Subscriptions" subtitle="Manage every recurring bill, subscription, and scheduled payment in one place" icon={Receipt} /></Reveal>
 
+        <Tabs defaultValue="bills" className="w-full">
+          <TabsList className="bg-black border border-white/10 h-9">
+            <TabsTrigger value="bills">Bills & Subscriptions</TabsTrigger>
+            <TabsTrigger value="allocator">Paycheque Allocator</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="bills" className="space-y-6 mt-4">
         {/* Section 4 — AI Auto-Detection toggle */}
         <Reveal>
           <div className="rounded-lg border border-white/10 bg-black p-4 flex items-center justify-between gap-4">
@@ -233,9 +267,24 @@ export default function RecurringBills() {
             )}
           </section>
         </Reveal>
+          </TabsContent>
+
+          <TabsContent value="allocator" className="space-y-6 mt-4">
+            <PaychequeAllocator
+              bills={bills}
+              vaults={vaults}
+              setVaults={setVaults}
+              loadingVaults={loadingVaults}
+              reloadVaults={loadVaults}
+              onAddBill={openAdd}
+              onEditBill={openEdit}
+              onDeleteBill={deleteBill}
+            />
+          </TabsContent>
+        </Tabs>
       </main>
 
-      <RecurringBillForm open={formOpen} onOpenChange={setFormOpen} bill={editing} accounts={accounts} onSaved={loadBills} />
+      <RecurringBillForm open={formOpen} onOpenChange={setFormOpen} bill={editing} accounts={accounts} vaults={vaults} onSaved={loadBills} />
     </div>
   );
 }

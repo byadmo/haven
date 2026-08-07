@@ -30,6 +30,10 @@
       "type": "string",
       "format": "date"
     },
+    "due_day_of_month": {
+      "type": "number",
+      "description": "Day of month this bill is due (1-31). Auto-derived from next_due_date when not set."
+    },
     "category": {
       "type": "string",
       "description": "Category: Subscription, Utility, Rent, Loan Payment, Insurance, Phone, Internet, Gym, Other"
@@ -37,6 +41,10 @@
     "payment_account_id": {
       "type": "string",
       "description": "Reference to the Account this bill is paid from"
+    },
+    "vault_id": {
+      "type": "string",
+      "description": "Reference to the AllocationVault this bill is paid from (optional)."
     },
     "is_auto_pay": {
       "type": "boolean",

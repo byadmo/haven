@@ -186,6 +186,27 @@ export function FinanceDataProvider({ children }) {
     }
   }
 
+  // Generic profile patcher — optimistically merges into local profile state,
+  // then persists (creating the profile row on first edit). Used by the
+  // Paycheque Allocator income-profile card.
+  async function updateProfile(patch) {
+    setData((prev) => ({
+      ...prev,
+      profile: prev.profile ? { ...prev.profile, ...patch } : { income_type: "fixed", ...patch },
+    }));
+    try {
+      if (data.profile?.id) {
+        await base44.entities.UserFinancialProfile.update(data.profile.id, patch);
+      } else {
+        const created = await base44.entities.UserFinancialProfile.create({ income_type: "fixed", ...patch });
+        setData((prev) => ({ ...prev, profile: created }));
+      }
+    } catch (e) {
+      refresh();
+      toast({ title: "Could not save profile", variant: "destructive" });
+    }
+  }
+
   const value = {
     ...data,
     // Aliases the rest of the app expects
@@ -201,6 +222,7 @@ export function FinanceDataProvider({ children }) {
     setTheme,
     aiAutoDetect,
     setAiAutoDetect,
+    updateProfile,
     ...analytics,
   };
 

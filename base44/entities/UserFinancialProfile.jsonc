@@ -59,6 +59,25 @@
       "type": "boolean",
       "default": true,
       "description": "Whether AI auto-detection scans transactions for recurring bills and subscriptions."
+    },
+    "base_income": {
+      "type": "number",
+      "default": 0,
+      "description": "User's gross/net pay per pay period (amount of one paycheque)."
+    },
+    "income_frequency": {
+      "type": "string",
+      "enum": [
+        "Weekly",
+        "Bi-Weekly",
+        "Monthly"
+      ],
+      "default": "Bi-Weekly",
+      "description": "How often the user is paid \u2014 drives per-paycheque bill requirements."
+    },
+    "pay_day": {
+      "type": "number",
+      "description": "Day the paycheque lands: 1-31 for Monthly, 1-7 (Mon-Sun) for Weekly/Bi-Weekly."
     }
   },
   "required": [

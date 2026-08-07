@@ -1,0 +1,62 @@
+{
+  "name": "AllocationVault",
+  "type": "object",
+  "properties": {
+    "vault_name": {
+      "type": "string",
+      "description": "Display name e.g. Bills Vault, Groceries, Transit, Investments, Discretionary Buffer"
+    },
+    "allocation_type": {
+      "type": "string",
+      "enum": [
+        "Fixed Bill",
+        "Variable Need",
+        "Savings/Investment",
+        "Unallocated"
+      ],
+      "default": "Variable Need",
+      "description": "How this vault's per-paycheque allocation behaves: Fixed Bill (locked to bill requirement), Variable Need (slider-editable), Savings/Investment (input-editable), Unallocated (auto-computed cushion)."
+    },
+    "target_allocation": {
+      "type": "number",
+      "default": 0,
+      "description": "Dollar amount allocated to this vault per paycheque."
+    },
+    "current_balance": {
+      "type": "number",
+      "default": 0,
+      "description": "Running balance currently held in the vault."
+    },
+    "color": {
+      "type": "string",
+      "description": "Hex color for chart visualization (auto-assigned from palette)."
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true
+    },
+    "display_order": {
+      "type": "number",
+      "default": 0,
+      "description": "Sort order for vaults in the UI."
+    }
+  },
+  "required": [
+    "vault_name",
+    "allocation_type"
+  ],
+  "rls": {
+    "read": {
+      "created_by_id": "{{user.id}}"
+    },
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}

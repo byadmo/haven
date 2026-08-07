@@ -15,12 +15,12 @@ function blank() {
   return {
     name: "", amount: "", frequency: "monthly", custom_interval_days: "",
     next_due_date: new Date().toISOString().slice(0, 10),
-    category: "Other", payment_account_id: "",
+    category: "Other", payment_account_id: "", vault_id: "",
     is_auto_pay: false, is_active: true, notes: "",
   };
 }
 
-export default function RecurringBillForm({ open, onOpenChange, bill, accounts, onSaved }) {
+export default function RecurringBillForm({ open, onOpenChange, bill, accounts, vaults, onSaved }) {
   const { toast } = useToast();
   const [form, setForm] = useState(blank());
   const [saving, setSaving] = useState(false);
@@ -48,6 +48,8 @@ export default function RecurringBillForm({ open, onOpenChange, bill, accounts, 
       is_auto_pay: !!form.is_auto_pay,
       is_active: form.is_active !== false,
       notes: form.notes || null,
+      vault_id: form.vault_id || null,
+      due_day_of_month: form.next_due_date ? Number(form.next_due_date.slice(8, 10)) : null,
       // preserve AI flags/notes when editing an AI-detected bill
       ...(bill ? { is_ai_detected: bill.is_ai_detected, ai_review_status: bill.ai_review_status } : {}),
     };
@@ -108,6 +110,15 @@ export default function RecurringBillForm({ open, onOpenChange, bill, accounts, 
               </Select>
             </Field>
           </div>
+          <Field label="Paid from vault (optional)">
+            <Select value={form.vault_id || "__none__"} onValueChange={(v) => set("vault_id", v === "__none__" ? "" : v)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">— Not linked —</SelectItem>
+                {(vaults || []).map((v) => <SelectItem key={v.id} value={v.id}>{v.vault_name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </Field>
           <div className="flex items-center justify-between rounded border border-white/10 px-3 py-2">
             <span className="text-xs text-white/70">Auto-pay</span>
             <Switch checked={!!form.is_auto_pay} onCheckedChange={(v) => set("is_auto_pay", v)} />
