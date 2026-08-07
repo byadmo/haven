@@ -38,7 +38,7 @@ export default function EduBottomNav() {
         aria-label="Haven Education"
       >
         <div
-          className="pointer-events-auto relative flex items-center justify-between rounded-full border border-white/10 bg-black/80 px-1.5"
+          className="pointer-events-auto relative flex items-center justify-between rounded-full border border-white/10 bg-black px-1.5"
           style={{
             height: 56,
             width: "min(96vw, 440px)",

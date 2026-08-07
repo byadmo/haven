@@ -4,6 +4,7 @@ import { safeReturnTo } from "@/lib/authReturnTo";
 import { ArrowLeft, ShieldCheck, Mail, Lock, User } from "lucide-react";
 import GoogleIcon from "@/components/GoogleIcon";
 import AppleIcon from "@/components/AppleIcon";
+import { applyTheme, getStoredTheme } from "@/lib/themes";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -14,6 +15,18 @@ export default function Splash() {
   const [leaving, setLeaving] = useState(false);
   const dest = useRef("/dashboard");
   const go = () => { setLeaving(true); setTimeout(() => { window.location.href = dest.current; }, 280); };
+
+  useEffect(() => {
+    // Sync the splash background to the user's saved theme so it matches the
+    // sub-app they are entering (re-applied by ThemeRoot once the app loads).
+    applyTheme(document.documentElement, getStoredTheme("finance"));
+    return () => {
+      const e = document.documentElement;
+      ["--th-bg","--th-surface","--th-primary","--th-secondary","--th-text","--th-muted","--th-border","--th-success","--th-danger","--th-chart-1","--th-chart-2","--th-chart-3","--th-chart-4","--e-200","--e-300","--e-400","--e-500","--e-600","--primary","--primary-foreground","--ring","--destructive","--destructive-foreground"].forEach((v) => e.style.removeProperty(v));
+      e.removeAttribute("data-theme");
+      e.removeAttribute("data-tint");
+    };
+  }, []);
 
   useEffect(() => {
     const r = safeReturnTo();
@@ -102,7 +115,7 @@ export default function Splash() {
   const shellStyle = { height: "100dvh", paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" };
 
   return (
-    <div className={`fixed inset-0 overflow-hidden bg-black transition-opacity duration-300 ${leaving ? "opacity-0" : "opacity-100"}`}       style={{ background: "radial-gradient(120% 120% at 50% 0%, #0c0c0e 0%, #000 55%)" }}>
+    <div className={`fixed inset-0 overflow-hidden bg-black transition-opacity duration-300 ${leaving ? "opacity-0" : "opacity-100"}`}       style={{ background: "radial-gradient(120% 120% at 50% 0%, var(--th-surface) 0%, var(--th-bg) 55%)" }}>
       {/* drifting ambient blobs */}
       <div className="pointer-events-none absolute -top-24 -left-16 h-72 w-72 rounded-full" style={{ background: "radial-gradient(circle, rgba(255,255,255,0.07), transparent 70%)", animation: "splash-float 9s ease-in-out infinite" }} />
       <div className="pointer-events-none absolute top-1/2 -right-20 h-80 w-80 rounded-full" style={{ background: "radial-gradient(circle, rgba(255,255,255,0.05), transparent 70%)", animation: "splash-float 12s ease-in-out infinite", animationDelay: "1.5s" }} />
@@ -270,7 +283,7 @@ function SubmitButton({ label, disabled }) {
       type="submit"
       disabled={disabled}
       className="w-full rounded-xl px-4 py-3.5 text-sm font-semibold text-white disabled:opacity-50"
-      style={{ background: "linear-gradient(180deg,#2a2a2e,#161618)", minHeight: 48 }}
+      style={{ background: "linear-gradient(180deg, var(--th-primary), color-mix(in srgb, var(--th-primary) 82%, black))", minHeight: 48 }}
     >
       {label}
     </button>

@@ -193,11 +193,16 @@
   html[data-theme] .border-white\/10,
   html[data-theme] .border-white\/15,
   html[data-theme] .border-white\/20,
+  html[data-theme] .border-white\/25,
   html[data-theme] .border-white\/30,
+  html[data-theme] .border-white\/40,
   html[data-theme] .border-zinc-700,
   html[data-theme] .border-zinc-800,
   html[data-theme] .border-zinc-800\/60,
   html[data-theme] .border-zinc-800\/70 { border-color: var(--th-border) !important; }
+  html[data-theme] .hover\:border-white\/20:hover,
+  html[data-theme] .hover\:border-white\/25:hover,
+  html[data-theme] .hover\:border-white\/30:hover { border-color: var(--th-border) !important; }
 
   html[data-theme] .text-white,
   html[data-theme] .text-zinc-50,
@@ -205,10 +210,15 @@
   html[data-theme] .text-zinc-200,
   html[data-theme] .text-zinc-300 { color: var(--th-text) !important; }
   html[data-theme] .text-white\/10,
+  html[data-theme] .text-white\/15,
   html[data-theme] .text-white\/20,
+  html[data-theme] .text-white\/25,
   html[data-theme] .text-white\/30,
+  html[data-theme] .text-white\/35,
   html[data-theme] .text-white\/40,
+  html[data-theme] .text-white\/45,
   html[data-theme] .text-white\/50,
+  html[data-theme] .text-white\/55,
   html[data-theme] .text-zinc-400,
   html[data-theme] .text-zinc-500,
   html[data-theme] .text-zinc-600 { color: var(--th-muted) !important; }
@@ -230,8 +240,10 @@
 
   /* Hover-state text that would otherwise stay white on a light surface. */
   html[data-theme] .hover\:text-white:hover,
+  html[data-theme] .hover\:text-white\/60:hover,
   html[data-theme] .hover\:text-white\/70:hover,
-  html[data-theme] .hover\:text-white\/80:hover { color: var(--th-text) !important; }
+  html[data-theme] .hover\:text-white\/80:hover,
+  html[data-theme] .hover\:text-white\/90:hover { color: var(--th-text) !important; }
 
   /* Subtle white-tint row/zebra backgrounds (bg-white/[0.02], /5, /10, /20 and
      their hover variants) become a subtle text-color overlay so they stay
@@ -239,7 +251,10 @@
   html[data-theme] .bg-white\/\[0\.02\] { background-color: color-mix(in srgb, var(--th-text) 3%, transparent) !important; }
   html[data-theme] .bg-white\/5 { background-color: color-mix(in srgb, var(--th-text) 6%, transparent) !important; }
   html[data-theme] .bg-white\/10 { background-color: color-mix(in srgb, var(--th-text) 12%, transparent) !important; }
+  html[data-theme] .bg-white\/15 { background-color: color-mix(in srgb, var(--th-text) 17%, transparent) !important; }
   html[data-theme] .bg-white\/20 { background-color: color-mix(in srgb, var(--th-text) 22%, transparent) !important; }
+  html[data-theme] .bg-white\/25 { background-color: color-mix(in srgb, var(--th-text) 27%, transparent) !important; }
+  html[data-theme] .bg-white\/30 { background-color: color-mix(in srgb, var(--th-text) 32%, transparent) !important; }
   html[data-theme] .hover\:bg-white\/\[0\.04\]:hover { background-color: color-mix(in srgb, var(--th-text) 5%, transparent) !important; }
   html[data-theme] .hover\:bg-white\/5:hover { background-color: color-mix(in srgb, var(--th-text) 7%, transparent) !important; }
   html[data-theme] .hover\:bg-white\/10:hover { background-color: color-mix(in srgb, var(--th-text) 14%, transparent) !important; }

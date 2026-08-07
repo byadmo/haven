@@ -100,7 +100,7 @@ export default function MobileNav() {
       >
         <div
           ref={containerRef}
-          className="pointer-events-auto relative flex items-center justify-between rounded-full border border-white/10 bg-black/75 px-2"
+          className="pointer-events-auto relative flex items-center justify-between rounded-full border border-white/10 bg-black px-2"
           style={{
             height: 56,
             width: "min(94vw, 392px)",

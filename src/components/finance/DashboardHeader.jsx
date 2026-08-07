@@ -45,7 +45,7 @@ export default function DashboardHeader({ actions }) {
   return (
     <>
       <header
-        className="sticky top-0 z-30 bg-black/90 backdrop-blur-md border-b border-white/10 select-none"
+        className="sticky top-0 z-30 bg-black border-b border-white/10 select-none"
         style={{ paddingTop: "env(safe-area-inset-top)" }}
       >
         <div className="max-w-6xl mx-auto px-6 sm:px-8 h-16 flex items-center gap-3">

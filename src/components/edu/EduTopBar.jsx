@@ -42,7 +42,7 @@ export default function EduTopBar() {
 
   return (
     <>
-      <header className="sticky top-0 z-30 bg-black/90 backdrop-blur-md border-b border-white/10" style={{ paddingTop: "env(safe-area-inset-top)" }}>
+      <header className="sticky top-0 z-30 bg-black border-b border-white/10" style={{ paddingTop: "env(safe-area-inset-top)" }}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-3">
           <HavenEduLogo />
 
