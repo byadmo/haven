@@ -21,7 +21,7 @@ const FETCH_TIMEOUT_MS = 9000;
 const FRESH_MS = 7 * 24 * 60 * 60 * 1000;
 const COVERAGE_THRESHOLD = 0.85; // Stage 4 emits JSON only at >= 85% coverage
 const TIER_A_CODE_FLOOR = 4;     // Stage 2: accept static HTML if >= 4 distinct course codes
-const MAX_GEMINI_CHARS = 9000;
+const MAX_GEMINI_CHARS = 30000;
 const CODE_RE = /\b([A-Z]{2,4})\s?(\d{3,4})([A-Z]?)\b/g;
 const YEAR_RE = /\b(?:year|annee|année)\s*([1-5])\b/i;
 const TERM_RE = /\b(fall|winter|spring|summer|autumn|semester\s*[1-8]|semestre\s*[1-8]|term\s*[1-8])\b/i;
@@ -263,6 +263,44 @@ function extractCodes(text) {
   return out;
 }
 
+// Walk rows / list-items / paragraphs in the HTML, find the first course code in
+// each, and use the ADJACENT non-code, non-numeric cell/text as the title — so
+// salvage never reduces course names to bare codes when Gemini fails.
+function salvageCourses(htmlOrText) {
+  if (!htmlOrText) return [];
+  let $ = null;
+  try { $ = cheerio.load(htmlOrText); } catch { return []; }
+  if (!$) return [];
+  const out = []; const seen = new Set();
+  const isCodeCell = (c, code, raw) => !c || c === code || c === raw ||
+    c.replace(/\s+/g, '') === code.replace(/\s+/g, '');
+  $('tr, li, p, dd, dt').each((_, el) => {
+    const $el = $(el);
+    const cells = $el.children('td, th').map((__, c) => $(c).text().replace(/\s+/g, ' ').trim()).get();
+    const haystack = (cells.length ? cells.join(' | ') : $el.text()).replace(/\s+/g, ' ').trim();
+    if (!haystack) return;
+    CODE_RE.lastIndex = 0;
+    const m = CODE_RE.exec(haystack);
+    if (!m) return;
+    const raw = m[0];
+    const code = (m[1] + m[2] + (m[3] || '')).toUpperCase();
+    if (seen.has(code)) return;
+    seen.add(code);
+    let title = '';
+    if (cells.length >= 2) {
+      title = cells.find((c) => !isCodeCell(c, code, raw) && !/^\s*\d/.test(c) && c.length > 2) || '';
+    }
+    if (!title) {
+      title = haystack.replace(raw, ' ').replace(/\|/g, ' ').replace(/\s+/g, ' ').trim();
+      title = title.replace(/^[\s:–\-]+/, '').replace(/[\s:–\-]+$/, '').trim();
+      title = title.replace(/\s*\(?\d+(?:\.\d+)?\s*(?:cr|credits?|hrs?|units?)?\)?\s*$/i, '').trim();
+    }
+    if (!title || isCodeCell(title, code, raw)) title = code;
+    out.push({ code, title, credits: 0 });
+  });
+  return out;
+}
+
 // ---------------------------- Stage 5: Gemini 3 Flash ------------------------
 const PROGRAM_SCHEMA = {
   type: 'object',
@@ -313,8 +351,9 @@ function buildGeminiPrompt(university, faculty, specialization, trackType, sourc
     `Source URL: ${sourceUrl}`,
     `Extract the DEGREE REQUIREMENTS for the "${trackType}" track: courses mapped by year and term.`,
     "Return JSON with: degreeTitle, trackType (the label you matched, or ''), confidence ('high'|'medium'|'low'), notes (short), academicYears (array of { yearNumber (int), terms: [ { termName, requiredCourses: [ { code, title, credits (number, 0 if unknown) } ] } ] }).",
-    "Only include courses actually present in the excerpt. Use term names exactly as on the page (Fall, Winter, Semester 1, ...). Omit transition/remedial lists and excluded-course lists.",
-    "If the excerpt isn't a course listing, confidence='low' and empty academicYears.",
+    "Only include courses actually present in the excerpt. For EVERY course, return the human-readable course title shown on the page next to its code — NEVER repeat the bare code as the title.",
+    "Search the WHOLE excerpt for the year-by-year curriculum table (look deeper down the page if only a program description appears at the top). Use term names exactly as on the page (Fall, Winter, Semester 1, ...). Omit transition / remedial / exclusion lists and pre-requisite mention rows.",
+    "If the excerpt isn't a course listing at all, confidence='low' and empty academicYears.",
     "EXCERPT:\n" + (text || '').slice(0, MAX_GEMINI_CHARS),
   ].join('\n');
 }
@@ -405,17 +444,17 @@ export default async function (req) {
       // unavailable in the runtime) and fall straight through to Stage 5.
       const tierACodes = extractCodes(html || '');
       if (!html || html.length < 200) {
-        const codes = extractCodes(html || '');
+        const salvaged = salvageCourses(html || '');
         return Response.json({
-          status: codes.length ? 'success' : 'error',
-          executionMode: codes.length ? 'DETERMINISTIC_AST' : null,
+          status: salvaged.length ? 'success' : 'error',
+          executionMode: salvaged.length ? 'DETERMINISTIC_AST' : null,
           meta: { university, faculty, specialization: degree_program, trackType, sourceUrl, tokenUsage },
-          program: { degreeTitle, academicYears: codes.length ? [{ yearNumber: 1, terms: [{ termName: 'Catalog', requiredCourses: codes.map((c) => ({ code: c, title: c, credits: 0 })) }] }] : [] },
-          parse_status: codes.length ? 'partial' : 'failed',
-          parse_notes: (parse_notes ? parse_notes + ' ' : '') + (codes.length ? 'Regex salvage from raw HTML.' : 'Could not render the target calendar page.'),
-          course_count: codes.length,
+          program: { degreeTitle, academicYears: salvaged.length ? [{ yearNumber: 1, terms: [{ termName: 'Catalog', requiredCourses: salvaged }] }] : [] },
+          parse_status: salvaged.length ? 'partial' : 'failed',
+          parse_notes: (parse_notes ? parse_notes + ' ' : '') + (salvaged.length ? 'Salvage from raw HTML.' : 'Could not render the target calendar page.'),
+          course_count: salvaged.length,
           calendar_source_url: sourceUrl,
-        }, { status: codes.length ? 200 : 422 });
+        }, { status: salvaged.length ? 200 : 422 });
       }
       cleanedHtml = html;
       const hb = hbse(html, trackType);
@@ -435,8 +474,17 @@ export default async function (req) {
       } else {
         // ------------------- Stage 5: Gemini 3 Flash schema fallback ---------
         try {
+          // Fertilize Stage 5: when AST coverage was low, HBSE isolated the
+          // wrong section (often the program-description / transition block).
+          // Fall back to the full noise-stripped body text so Gemini sees the
+          // real curriculum tables elsewhere on the page.
+          let geminiText = isolatedText;
+          if (ast.coverage < COVERAGE_THRESHOLD && $$) {
+            const fullText = $$('body').text().replace(/\s+/g, ' ').trim();
+            if (extractCodes(fullText).length > extractCodes(isolatedText).length) geminiText = fullText;
+          }
           const gres = await base44.integrations.Core.InvokeLLM({
-            prompt: buildGeminiPrompt(university, faculty, degree_program, trackType, sourceUrl, isolatedText),
+            prompt: buildGeminiPrompt(university, faculty, degree_program, trackType, sourceUrl, geminiText),
             model: 'gemini_3_flash',
             response_json_schema: PROGRAM_SCHEMA,
           });
@@ -466,14 +514,15 @@ export default async function (req) {
         } catch (e) {
           parse_notes = 'Gemini fallback failed: ' + (e?.message || 'unknown');
         }
-        // Last-resort regex salvage from the isolated text or the cleaned HTML.
+        // Last-resort salvage: walk rows / list-items to extract codes WITH
+        // their adjacent title cells (no titles left as bare codes).
         if (academicYears.length === 0) {
-          const codes = extractCodes(isolatedText || cleanedHtml);
-          if (codes.length) {
+          const salvaged = salvageCourses(cleanedHtml || isolatedText);
+          if (salvaged.length) {
             executionMode = executionMode || 'DETERMINISTIC_AST';
             parse_status = 'partial';
-            parse_notes = (parse_notes ? parse_notes + ' ' : '') + `Regex salvage: ${codes.length} course codes.`;
-            academicYears = [{ yearNumber: 1, terms: [{ termName: 'Catalog', requiredCourses: codes.map((c) => ({ code: c, title: c, credits: 0 })) }] }];
+            parse_notes = (parse_notes ? parse_notes + ' ' : '') + `Salvage: ${salvaged.length} courses with titles.`;
+            academicYears = [{ yearNumber: 1, terms: [{ termName: 'Catalog', requiredCourses: salvaged }] }];
           }
         }
       }
