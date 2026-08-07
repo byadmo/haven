@@ -206,7 +206,7 @@ function Row({ settings, semesterId, onCommit }) {
           aria-label="Course code"
         />
         {showSug && (sugLoading || suggestions.length > 0) && (
-          <div className="absolute z-20 mt-1 left-0 right-0 max-h-48 overflow-y-auto rounded-md border border-white/10 bg-black shadow-lg">
+          <div className="relative z-20 mt-1 max-h-40 overflow-y-auto rounded-md border border-white/10 bg-black shadow-lg">
             {sugLoading && (
               <div className="px-3 py-2 text-[10px] text-white/40 flex items-center gap-2">
                 <Loader2 className="h-3 w-3 animate-spin" /> Searching catalog…
