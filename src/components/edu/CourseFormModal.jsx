@@ -7,9 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CalendarClock, UploadCloud, Keyboard, ArrowLeft, Sparkles, Loader2, Pencil, Check, Search, X, Database } from "lucide-react";
+import { CalendarClock, UploadCloud, Keyboard, ArrowLeft, Sparkles, Loader2, Pencil, Check, Search, X, Database, ClipboardList } from "lucide-react";
 import SyllabusUpload from "@/components/edu/SyllabusUpload";
 import CalendarImport from "@/components/edu/CalendarImport";
+import ScheduleUpload from "@/components/edu/ScheduleUpload";
 import { useEduSync } from "@/lib/eduSyncContext";
 import { useToast } from "@/components/ui/use-toast";
 import { lookupCachedCourses, researchCourse, bestGuessTitle } from "@/lib/courseAutofill";
@@ -357,6 +358,7 @@ export default function CourseFormModal({ open, onOpenChange, semesterId, semest
 
   const options = [
     { id: "calendar", icon: CalendarClock, title: "Import from Calendar", desc: "AI detects recurring classes from your Google Calendar.", primary: true },
+    { id: "schedule", icon: ClipboardList, title: "Upload Schedule", desc: "Drop your class list or schedule photo — we'll read every class and add them all." },
     { id: "upload", icon: UploadCloud, title: "Upload Syllabus", desc: "AI extracts course, deliverables & materials." },
     { id: "manual", icon: Keyboard, title: "Enter Manually", desc: "Type a course code and let AI autofill from your university's catalog." },
   ];
@@ -368,12 +370,14 @@ export default function CourseFormModal({ open, onOpenChange, semesterId, semest
           <DialogTitle className="text-zinc-100">
             {step === "choose" && (isEdit ? "Edit Course" : "Add Course")}
             {step === "calendar" && "Import from Calendar"}
+            {step === "schedule" && "Upload Schedule"}
             {step === "manual" && (isEdit ? "Edit Course" : "Enter Manually")}
             {step === "upload" && "Upload Syllabus"}
           </DialogTitle>
           <DialogDescription className="text-white/50">
-            {step === "choose" && "Import courses from your calendar, enrich with a syllabus, or enter details manually."}
+            {step === "choose" && "Import your whole schedule, enrich with a syllabus, or enter details manually."}
             {step === "calendar" && "We scan one week of your calendar and detect recurring classes."}
+            {step === "schedule" && "Drop a class list or schedule photo and we'll add every course for you."}
             {step === "manual" && (settings?.university_name ? `AI autofills from ${settings.university_name}'s catalog.` : "Add a university in Settings to unlock AI autofill.")}
             {step === "upload" && "Drop a syllabus and we'll extract the details."}
           </DialogDescription>
@@ -399,6 +403,13 @@ export default function CourseFormModal({ open, onOpenChange, semesterId, semest
         {step === "calendar" && (
           <div className="space-y-3">
             <CalendarImport semesterId={semesterId} semesterStart={semesterStart} onDone={() => onOpenChange(false)} />
+            <Button type="button" variant="ghost" onClick={() => setStep("choose")} className="text-white/50"><ArrowLeft className="h-4 w-4 mr-1" /> Back</Button>
+          </div>
+        )}
+
+        {step === "schedule" && (
+          <div className="space-y-3">
+            <ScheduleUpload semesterId={semesterId} onDone={() => onOpenChange(false)} />
             <Button type="button" variant="ghost" onClick={() => setStep("choose")} className="text-white/50"><ArrowLeft className="h-4 w-4 mr-1" /> Back</Button>
           </div>
         )}
