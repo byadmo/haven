@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2, CheckCircle2, X, AlertTriangle } from "lucide-react";
 import FileDropzone from "@/components/edu/FileDropzone";
-import { bestGuessTitle } from "@/lib/courseAutofill";
+import { bestGuessTitle, researchCourse } from "@/lib/courseAutofill";
 import { useEduSync } from "@/lib/eduSyncContext";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -14,12 +14,26 @@ const DAY_VALID = new Set(["M", "T", "W", "Th", "F", "S", "Su"]);
 // and bulk-add every detected class to the active semester at once. Reuses the
 // same vision/file-URL extraction flow as the ProfileWizard schedule import.
 export default function ScheduleUpload({ semesterId, onDone }) {
-  const { createCourse, settings } = useEduSync();
+  const { createCourse, updateCourse, setAiResearching, settings } = useEduSync();
   const { toast } = useToast();
   const [status, setStatus] = React.useState("idle"); // idle | busy | review | error
   const [courses, setCourses] = React.useState([]);
   const [error, setError] = React.useState("");
   const [importing, setImporting] = React.useState(false);
+
+  const uniObj = React.useMemo(() => ({
+    university_name: settings?.university_name,
+    university_domain: settings?.university_domain,
+    university_course_catalog_url: settings?.university_course_catalog_url,
+    name: settings?.university_name,
+    domain: settings?.university_domain,
+    catalogUrl: settings?.university_course_catalog_url,
+  }), [settings]);
+  const profileObj = React.useMemo(() => ({
+    degree_program: settings?.degree_program,
+    specialization: settings?.specialization,
+    faculty: settings?.faculty,
+  }), [settings]);
 
   async function handleFiles(files) {
     const file = files?.[0];
@@ -81,9 +95,10 @@ export default function ScheduleUpload({ semesterId, onDone }) {
     if (!picks.length || !semesterId) return;
     setImporting(true);
     setError("");
+    const saved = [];
     try {
       for (const c of picks) {
-        await createCourse({
+        const created = await createCourse({
           course: {
             code: (c.code || (c.title || "COURSE").slice(0, 8).toUpperCase()),
             title: c.title || bestGuessTitle(c.code) || c.code || "Course",
@@ -94,13 +109,40 @@ export default function ScheduleUpload({ semesterId, onDone }) {
             target_weekly_hours: 6,
             semester_id: semesterId,
             university_name: settings?.university_name || null,
+            faculty: settings?.faculty || "",
+            degree_program: settings?.degree_program || "",
+            specialization: settings?.specialization || "",
           },
           deliverables: [],
           materials: [],
         });
+        if (created?.id) saved.push({ id: created.id, code: c.code, title: c.title || "" });
       }
-      toast({ title: `Imported ${picks.length} course${picks.length === 1 ? "" : "s"}` });
+      toast({ title: `Imported ${saved.length} course${saved.length === 1 ? "" : "s"}`, description: "AI researching descriptions & difficulty in the background." });
       onDone?.();
+      // After the user confirms the list, auto-parse each course's description +
+      // difficulty from the web (mirrors Quick Add's per-row research) so the
+      // course cards fill in after add. Fire-and-forget — survives modal close.
+      for (const s of saved) {
+        setAiResearching(s.id, true);
+        (async () => {
+          let out = null;
+          try { out = await researchCourse({ code: s.code, title: s.title, university: uniObj, profile: profileObj }); }
+          catch { out = null; }
+          try {
+            if (out) {
+              const patch = {};
+              if (out.description?.trim()) patch.course_description = out.description.trim();
+              if (out.prerequisites?.trim()) patch.prerequisites = out.prerequisites.trim();
+              if (out.difficulty_ranking) patch.difficulty_ranking = out.difficulty_ranking;
+              if (out.difficulty_reason) patch.difficulty_reason = out.difficulty_reason;
+              if (Object.keys(patch).length) await updateCourse(s.id, patch);
+            }
+          } finally {
+            setAiResearching(s.id, false);
+          }
+        })();
+      }
     } catch (e) {
       setError(e?.message || "Import failed");
       setImporting(false);
