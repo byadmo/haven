@@ -1,5 +1,5 @@
 import React from "react";
-import { BookOpen, Plus, DollarSign, ArrowRight, Briefcase } from "lucide-react";
+import { BookOpen, Plus, DollarSign, ArrowRight, Briefcase, ListPlus } from "lucide-react";
 import EduTopBar from "@/components/edu/EduTopBar";
 import EduBottomNav from "@/components/edu/EduBottomNav";
 import PageTitle from "@/components/finance/PageTitle";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import CourseCard from "@/components/edu/CourseCard";
 import CourseFormModal from "@/components/edu/CourseFormModal";
 import CourseDetailDialog from "@/components/edu/CourseDetailDialog";
+import QuickAddCourses from "@/components/edu/QuickAddCourses";
 import { useEduSync } from "@/lib/eduSyncContext";
 import WorkStudyBalance from "@/components/edu/WorkStudyBalance";
 import EduAssistant from "@/components/edu/EduAssistant";
@@ -17,6 +18,7 @@ export default function EduCourses() {
   const { activeSemester, courses, materials, updateSettings, settings } = useEduSync();
   const { toast } = useToast();
   const [addOpen, setAddOpen] = React.useState(false);
+  const [quickAddOpen, setQuickAddOpen] = React.useState(false);
   const [detailCourse, setDetailCourse] = React.useState(null);
   const [editOpen, setEditOpen] = React.useState(false);
   const [editCourse, setEditCourse] = React.useState(null);
@@ -37,9 +39,14 @@ export default function EduCourses() {
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-6">
         <div className="flex items-center justify-between gap-3">
           <PageTitle title="Courses" subtitle={activeSemester ? `${activeSemester.term_label}` : "No active semester"} icon={BookOpen} />
-          <Button onClick={() => setAddOpen(true)} className="bg-emerald-500 text-black hover:bg-emerald-400">
-            <Plus className="h-4 w-4" /> Add Course
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button onClick={() => setQuickAddOpen(true)} variant="outline" className="border-emerald-400/30 text-emerald-300 hover:bg-emerald-500/10">
+              <ListPlus className="h-4 w-4" /> Quick Add
+            </Button>
+            <Button onClick={() => setAddOpen(true)} className="bg-emerald-500 text-black hover:bg-emerald-400">
+              <Plus className="h-4 w-4" /> Add Course
+            </Button>
+          </div>
         </div>
 
         {/* Work-study balance (backend + AI health) */}
@@ -94,6 +101,7 @@ export default function EduCourses() {
       <EduBottomNav />
 
       <CourseFormModal open={addOpen} onOpenChange={setAddOpen} semesterId={activeSemester?.id} semesterStart={activeSemester?.start_date} />
+      <QuickAddCourses open={quickAddOpen} onOpenChange={setQuickAddOpen} semesterId={activeSemester?.id} />
       <CourseFormModal open={editOpen} onOpenChange={(o) => { setEditOpen(o); if (!o) setEditCourse(null); }} course={editCourse} semesterId={editCourse?.semester_id || activeSemester?.id} semesterStart={activeSemester?.start_date} />
       <CourseDetailDialog course={detailCourse} open={!!detailCourse} onOpenChange={(o) => !o && setDetailCourse(null)} onEditCourse={(c) => { setDetailCourse(null); setEditCourse(c); setEditOpen(true); }} />
     </>
