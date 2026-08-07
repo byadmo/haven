@@ -5,12 +5,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ListPlus, Loader2, Sparkles, X } from "lucide-react";
+import { ListPlus, Loader2, X } from "lucide-react";
 import { useEduSync } from "@/lib/eduSyncContext";
 import { useToast } from "@/components/ui/use-toast";
-import { researchCourse } from "@/lib/courseAutofill";
+import { autocompleteCourses, researchCourse } from "@/lib/courseAutofill";
+import { useDebounce } from "@/hooks/useDebounce";
 
-// Difficulty → dot color, shared with CourseFormModal's diffDot helper.
 const DIFF_DOT = {
   Easy: "bg-emerald-400",
   Moderate: "bg-lime-400",
@@ -19,29 +19,76 @@ const DIFF_DOT = {
   Brutal: "bg-rose-500",
 };
 
-function newRow() {
-  return { rid: Math.random().toString(36).slice(2), raw: "", status: "input", courseId: null, result: null };
-}
+// Each row owns a uniquely-incremented id so React re-renders stay stable
+// across spawn-on-commit.
+let _rid = 0;
+const nextRid = () => ++_rid;
 
-// Quick-Add Courses: a dynamic stack of input boxes — typing into the last
-// box spawns a new empty one underneath it. On "Add & Research", each filled
-// box is saved immediately; that box then morphs into a pill (loading spinner
-// while the AI research runs in the background, then a colored dot matching
-// the discovered difficulty). The box only becomes a pill once its course is
-// done; an empty box at the bottom stays open for the next entry.
+// Quick Add Courses. Each row is its own input box. As the user types, a
+// university-catalog autocomplete dropdown appears (autocompleteCourses).
+// Selecting a result — or pressing Enter on a typed code — commits that
+// row: the input morphs into an in-row pill, a fresh empty input appears
+// underneath for the next course, and the course is saved + AI-researched
+// (description + difficulty) in the background. As research lands, the pill
+// gains a colored dot matching the discovered difficulty.
 export default function QuickAddCourses({ open, onOpenChange, semesterId }) {
-  const { createCourse, updateCourse, setAiResearching, settings } = useEduSync();
-  const { toast } = useToast();
-
-  const [rows, setRows] = React.useState(() => [newRow()]);
-  const [saving, setSaving] = React.useState(false);
+  const { settings } = useEduSync();
+  const [rowIds, setRowIds] = React.useState(() => [nextRid()]);
 
   React.useEffect(() => {
-    if (!open) {
-      setRows([newRow()]);
-      setSaving(false);
-    }
+    if (!open) setRowIds([nextRid()]);
   }, [open]);
+
+  function spawnNext() {
+    setRowIds((ids) => [...ids, nextRid()]);
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="bg-black border-white/10 text-zinc-100 max-w-2xl w-[92vw]">
+        <DialogHeader>
+          <DialogTitle className="text-zinc-100 flex items-center gap-2">
+            <ListPlus className="h-4 w-4 text-emerald-400" /> Quick Add Courses
+          </DialogTitle>
+          <DialogDescription className="text-white/50">
+            Type a code — pick from the dropdown or press Enter. Each commit saves the course and AI-researches its description + difficulty in the background; a new empty box appears underneath for the next one.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-1.5 py-1">
+          <Label className="text-white/50">Course codes</Label>
+          <div className="mt-1 flex flex-col gap-1.5">
+            {rowIds.map((rid) => (
+              <Row key={rid} settings={settings} semesterId={semesterId} onCommit={spawnNext} />
+            ))}
+          </div>
+        </div>
+
+        <DialogFooter className="pt-2">
+          <DialogClose asChild>
+            <Button type="button" variant="outline" className="border-white/10 text-white/50 hover:bg-white/5">Done</Button>
+          </DialogClose>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function Row({ settings, semesterId, onCommit }) {
+  const { createCourse, updateCourse, deleteCourse, setAiResearching } = useEduSync();
+  const { toast } = useToast();
+
+  const [raw, setRaw] = React.useState("");
+  const debouncedRaw = useDebounce(raw, 300);
+  const [suggestions, setSuggestions] = React.useState([]);
+  const [sugLoading, setSugLoading] = React.useState(false);
+  const [showSug, setShowSug] = React.useState(false);
+
+  // phase: input | saving | researching | done | error
+  const [phase, setPhase] = React.useState("input");
+  const [committed, setCommitted] = React.useState({ code: "", title: "" });
+  const [courseId, setCourseId] = React.useState(null);
+  const [difficulty, setDifficulty] = React.useState("");
 
   const uniObj = React.useMemo(() => ({
     university_name: settings?.university_name,
@@ -57,184 +104,163 @@ export default function QuickAddCourses({ open, onOpenChange, semesterId }) {
     faculty: settings?.faculty,
   }), [settings]);
 
-  function patchRow(rid, patch) {
-    setRows((r) => r.map((row) => (row.rid === rid ? { ...row, ...patch } : row)));
-  }
+  React.useEffect(() => {
+    let cancelled = false;
+    if (phase !== "input") return;
+    const q = (debouncedRaw || "").trim();
+    if (q.length < 2) { setSuggestions([]); setSugLoading(false); return; }
+    setSugLoading(true);
+    autocompleteCourses({ query: q, university: uniObj, profile: profileObj })
+      .then((out) => { if (!cancelled) setSuggestions(Array.isArray(out) ? out : []); })
+      .catch(() => { if (!cancelled) setSuggestions([]); })
+      .finally(() => { if (!cancelled) setSugLoading(false); });
+    return () => { cancelled = true; };
+  }, [debouncedRaw, phase, uniObj, profileObj]);
 
-  function onType(rid, val) {
-    setRows((r) => {
-      const updated = r.map((row) => (row.rid === rid ? { ...row, raw: val, status: "input" } : row));
-      // Spawn a brand new box underneath as soon as something is typed in the
-      // last row. Each subsequent typed row gets its own trailing-empty row.
-      const last = updated[updated.length - 1];
-      if (last.rid === rid && val.trim().length > 0) {
-        return [...updated, newRow()];
-      }
-      return updated;
-    });
-  }
-
-  function removeRow(rid) {
-    setRows((r) => {
-      const out = r.filter((row) => row.rid !== rid);
-      if (out.length === 0) return [newRow()];
-      if (out[out.length - 1].raw.trim()) return [...out, newRow()];
-      return out;
-    });
-  }
-
-  function isValidCode(s) {
-    return s && s.length >= 2 && /^[A-Za-z]/.test(s);
-  }
-
-  async function handleAdd() {
+  async function commit(code, title) {
+    const c = (code || "").trim().toUpperCase();
+    if (c.length < 2 || phase !== "input") return;
     if (!semesterId) {
-      toast({ title: "No active semester", description: "Create a semester in the dashboard first.", variant: "destructive" });
+      toast({ title: "No active semester", description: "Create a semester first.", variant: "destructive" });
       return;
     }
-    // Preserve order; drop duplicate codes (first wins).
-    const seen = new Set();
-    const pending = rows
-      .filter((row) => row.status === "input" && isValidCode(row.raw.trim().toUpperCase()))
-      .filter((row) => {
-        const k = row.raw.trim().toUpperCase();
-        if (seen.has(k)) return false;
-        seen.add(k);
-        return true;
+    setCommitted({ code: c, title: title || c });
+    setShowSug(false);
+    setSuggestions([]);
+    setPhase("saving");
+    // Spawn a fresh input box underneath for the next course.
+    onCommit();
+    let savedId = null;
+    try {
+      const created = await createCourse({
+        course: {
+          code: c,
+          title: title || c,
+          semester_id: semesterId,
+          credits: 3,
+          target_weekly_hours: 6,
+          university_name: settings?.university_name || null,
+          faculty: settings?.faculty || "",
+          degree_program: settings?.degree_program || "",
+          specialization: settings?.specialization || "",
+        },
+        deliverables: [],
+        materials: [],
       });
-    if (!pending.length) {
-      toast({ title: "No course codes", description: "Type a code in each box first.", variant: "destructive" });
-      return;
-    }
-    setSaving(true);
-    let created = 0;
-    for (const row of pending) {
-      const code = row.raw.trim().toUpperCase();
-      const rid = row.rid;
-      try {
-        const c = await createCourse({
-          course: {
-            code,
-            title: code,
-            semester_id: semesterId,
-            credits: 3,
-            target_weekly_hours: 6,
-            university_name: settings?.university_name || null,
-            faculty: settings?.faculty || "",
-            degree_program: settings?.degree_program || "",
-            specialization: settings?.specialization || "",
-          },
-          deliverables: [],
-          materials: [],
-        });
-        created++;
-        // Morph the input box into a pill that shows research-in-progress.
-        patchRow(rid, { status: "researching", courseId: c?.id || null, raw: code });
-        if (c?.id) {
-          setAiResearching(c.id, true);
-          (async () => {
-            try {
-              const out = await researchCourse({ code, title: "", university: uniObj, profile: profileObj });
-              if (!out) return;
-              const patch = {};
-              if (out.description?.trim()) patch.course_description = out.description.trim();
-              if (out.prerequisites?.trim()) patch.prerequisites = out.prerequisites.trim();
-              if (out.difficulty_ranking) patch.difficulty_ranking = out.difficulty_ranking;
-              if (out.difficulty_reason) patch.difficulty_reason = out.difficulty_reason;
-              if (Object.keys(patch).length) await updateCourse(c.id, patch);
-              // Once AI is done, finalize the pill with the discovered difficulty.
-              patchRow(rid, { status: "done", result: out });
-            } catch (e) {
-              patchRow(rid, { status: "done", result: null });
-            } finally {
-              setAiResearching(c.id, false);
-            }
-          })();
-        }
-      } catch (e) {
-        // Leave the row as an input box so the user can retry this specific code.
-        patchRow(rid, { status: "input" });
+      savedId = created?.id;
+      if (!savedId) throw new Error("no course id");
+      setCourseId(savedId);
+      setAiResearching(savedId, true);
+      setPhase("researching");
+      let out = null;
+      try { out = await researchCourse({ code: c, title: title || "", university: uniObj, profile: profileObj }); }
+      catch { out = null; }
+      if (out) {
+        const patch = {};
+        if (out.description?.trim()) patch.course_description = out.description.trim();
+        if (out.prerequisites?.trim()) patch.prerequisites = out.prerequisites.trim();
+        if (out.difficulty_ranking) patch.difficulty_ranking = out.difficulty_ranking;
+        if (out.difficulty_reason) patch.difficulty_reason = out.difficulty_reason;
+        if (Object.keys(patch).length) await updateCourse(savedId, patch);
+        setDifficulty(out.difficulty_ranking || "");
       }
-    }
-    setSaving(false);
-    if (created > 0) {
-      toast({ title: `Added ${created} course${created === 1 ? "" : "s"}`, description: "AI is researching description & difficulty in the background." });
-    } else {
-      toast({ title: "Could not add courses", description: "Try again in a moment.", variant: "destructive" });
+      setPhase("done");
+    } catch (e) {
+      setPhase("error");
+      toast({ title: `Could not save ${c}`, description: "Try again in a moment.", variant: "destructive" });
+    } finally {
+      if (savedId) setAiResearching(savedId, false);
     }
   }
 
-  const enteredCount = rows.filter((r) => r.status === "input" && isValidCode(r.raw.trim().toUpperCase())).length;
+  function onKeyDown(e) {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    const first = suggestions[0];
+    const code = (first?.code || raw).trim().toUpperCase();
+    const title = first?.title || "";
+    if (code.length >= 2) commit(code, title);
+  }
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-black border-white/10 text-zinc-100 max-w-2xl w-full">
-        <DialogHeader>
-          <DialogTitle className="text-zinc-100 flex items-center gap-2">
-            <ListPlus className="h-4 w-4 text-emerald-400" /> Quick Add Courses
-          </DialogTitle>
-          <DialogDescription className="text-white/50">
-            Type a code in each box — a new box appears underneath as you fill them. Tap Add &amp; Research to save; each box becomes a pill as AI finishes it.
-          </DialogDescription>
-        </DialogHeader>
+  async function removePill() {
+    // Best-effort delete of the saved course, then revert the row to an editable input.
+    if (courseId) { try { await deleteCourse(courseId); } catch {} }
+    setPhase("input");
+    setCommitted({ code: "", title: "" });
+    setCourseId(null);
+    setDifficulty("");
+    setRaw("");
+  }
 
-        <div className="space-y-2 py-1">
-          <Label className="text-white/50">Course codes</Label>
-          <div className="space-y-1.5 mt-1">
-            {rows.map((row) => (
-              <Row key={row.rid} row={row} onType={onType} onRemove={removeRow} />
+  if (phase === "input") {
+    return (
+      <div className="relative">
+        <Input
+          value={raw}
+          onChange={(e) => { setRaw(e.target.value); setShowSug(true); }}
+          onKeyDown={onKeyDown}
+          onFocus={() => setShowSug(true)}
+          onBlur={() => setTimeout(() => setShowSug(false), 150)}
+          placeholder="e.g. CSC 110"
+          className="bg-black border-white/10 font-mono text-sm"
+          aria-label="Course code"
+        />
+        {showSug && (sugLoading || suggestions.length > 0) && (
+          <div className="absolute z-20 mt-1 left-0 right-0 max-h-48 overflow-y-auto rounded-md border border-white/10 bg-black shadow-lg">
+            {sugLoading && (
+              <div className="px-3 py-2 text-[10px] text-white/40 flex items-center gap-2">
+                <Loader2 className="h-3 w-3 animate-spin" /> Searching catalog…
+              </div>
+            )}
+            {suggestions.map((s, i) => (
+              <button
+                key={(s.code || "") + i}
+                type="button"
+                onMouseDown={(e) => { e.preventDefault(); commit(s.code, s.title); }}
+                className="w-full text-left px-3 py-2 hover:bg-emerald-500/10 flex flex-col gap-0.5 border-b border-white/5 last:border-0"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-mono text-zinc-100">{s.code}</span>
+                  {s.difficulty_ranking && (
+                    <span className={`h-2 w-2 rounded-full ${DIFF_DOT[s.difficulty_ranking] || "bg-white/30"}`} title={s.difficulty_ranking} />
+                  )}
+                </div>
+                <span className="text-[10px] text-white/50 line-clamp-1 pr-6">{s.title || "—"}</span>
+              </button>
             ))}
           </div>
-          {enteredCount > 0 && (
-            <p className="text-[10px] text-white/40 mt-1">
-              {enteredCount} code{enteredCount === 1 ? "" : "s"} ready to add
-            </p>
-          )}
-        </div>
-
-        <DialogFooter className="pt-2">
-          <DialogClose asChild><Button type="button" variant="outline" className="border-white/10 text-white/50 hover:bg-white/5">Cancel</Button></DialogClose>
-          <Button type="button" onClick={handleAdd} disabled={saving || enteredCount === 0} className="bg-emerald-500 text-black hover:bg-emerald-400">
-            {saving ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving…</> : <><Sparkles className="h-4 w-4" /> Add &amp; Research</>}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function Row({ row, onType, onRemove }) {
-  // Once the course is saved + AI starts running, the input box becomes a pill.
-  if (row.status === "researching" || row.status === "done") {
-    const dot = row.result?.difficulty_ranking ? DIFF_DOT[row.result.difficulty_ranking] : null;
-    return (
-      <div className="flex items-center">
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-mono text-zinc-100">
-          {row.status === "researching" && <Loader2 className="h-3 w-3 animate-spin text-emerald-300" />}
-          {row.status === "done" && (dot
-            ? <span className={`h-2 w-2 rounded-full ${dot}`} title={row.result.difficulty_ranking} />
-            : <span className="h-2 w-2 rounded-full bg-white/30" title="No difficulty found" />)}
-          {row.raw}
-        </span>
+        )}
       </div>
     );
   }
-  // Default input box — typing into it spawns the next one (handled upstream).
+
+  // phase: saving | researching | done | error → in-row pill.
+  const dot =
+    phase === "done" && difficulty ? DIFF_DOT[difficulty]
+    : phase === "error" ? "bg-rose-500"
+    : null;
+
   return (
-    <div className="flex items-center gap-2">
-      <Input
-        value={row.raw}
-        onChange={(e) => onType(row.rid, e.target.value)}
-        onKeyDown={(e) => { if (e.key === "Backspace" && row.raw === "") { e.preventDefault(); onRemove(row.rid); } }}
-        placeholder="e.g. CSC 110"
-        className="bg-black border-white/10 font-mono text-sm flex-1"
-        aria-label="Course code"
-      />
-      {row.raw.trim() && (
-        <button type="button" onClick={() => onRemove(row.rid)} className="text-white/40 hover:text-rose-300 p-1" title="Remove">
-          <X className="h-3.5 w-3.5" />
-        </button>
-      )}
+    <div className="flex items-center justify-between gap-2 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-mono text-zinc-100 max-w-full">
+      <span className="flex items-center gap-1.5 min-w-0">
+        {phase === "saving" && <Loader2 className="h-3 w-3 shrink-0 animate-spin text-emerald-300" />}
+        {phase === "researching" && <Loader2 className="h-3 w-3 shrink-0 animate-spin text-emerald-300" />}
+        {phase === "done" && (dot ? <span className={`h-2 w-2 shrink-0 rounded-full ${dot}`} title={difficulty} /> : <span className="h-2 w-2 shrink-0 rounded-full bg-white/30" />)}
+        {phase === "error" && <span className="h-2 w-2 shrink-0 rounded-full bg-rose-500" title="Save failed" />}
+        <span className="text-zinc-100 shrink-0">{committed.code}</span>
+        {committed.title && committed.title !== committed.code && (
+          <span className="text-white/50 font-sans text-[11px] truncate">— {committed.title}</span>
+        )}
+      </span>
+      <button
+        type="button"
+        onClick={removePill}
+        onTouchStart={(e) => { e.preventDefault(); removePill(); }}
+        className="text-white/40 hover:text-rose-300 p-0.5 -mr-1 shrink-0"
+        title={phase === "error" ? "Discard" : "Remove"}
+      >
+        <X className="h-3.5 w-3.5" />
+      </button>
     </div>
   );
 }
