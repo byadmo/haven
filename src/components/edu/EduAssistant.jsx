@@ -36,6 +36,7 @@ function buildContext(ctx) {
     code: c.code, title: c.title, credits: c.credits,
     target_weekly_hours: c.target_weekly_hours, studied_hours: c.studiedHours,
     progress: c.progress,
+    outline_file_url: c.outline_file_url || null,
     deliverables: (c.deliverables || []).map((d) => ({
       title: d.title, type: d.type, status: d.status, due: d.due_date, weight: d.weight,
       grade: d.grade, completed: d.completed, is_exam: d.is_exam,
@@ -194,7 +195,17 @@ ${priorQA ? `\nPREVIOUS CONVERSATION:\n${priorQA}\n` : ""}
 QUESTION: ${q}
 
 Return JSON: { "sections": [ { "title": string, "icon": one of graduation|clock|target|book|alert|calendar|chart, "bullets": [short single-sentence strings] } ] }`;
-      const res = await base44.integrations.Core.InvokeLLM({ prompt, response_json_schema: SCHEMA });
+      // Give the AI read access to any course outlines the user attached for
+      // courses mentioned in the question — so it can answer from the outline
+      // (grading weights, key dates, policies, what to study).
+      const qLower = q.toLowerCase();
+      const mentionedOutlines = (ctx.courses || [])
+        .filter((c) => c.outline_file_url && (c.code || "").toLowerCase() && qLower.includes((c.code || "").toLowerCase()))
+        .map((c) => ({ url: c.outline_file_url, code: c.code, title: c.title }));
+      const outlineHint = mentionedOutlines.length
+        ? `\n\nThe user attached the official course outline for ${mentionedOutlines.map((m) => `${m.code} ${m.title}`).join(", ")}. Read those files and use them — grading breakdown, key dates, policies, and what the student needs to study.`
+        : "";
+      const res = await base44.integrations.Core.InvokeLLM({ prompt: prompt + outlineHint, response_json_schema: SCHEMA, file_urls: mentionedOutlines.map((m) => m.url) });
       const data = res?.data ?? res;
       const sections = data?.sections || [];
       setMessages([...history, { role: "assistant", sections }]);

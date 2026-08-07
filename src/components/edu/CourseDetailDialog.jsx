@@ -11,6 +11,7 @@ import { currentGrade, percentToLetter } from "@/lib/eduGrading";
 import ProfessorContact from "@/components/edu/ProfessorContact";
 import GradeCalculator from "@/components/edu/GradeCalculator";
 import SessionNotesList from "@/components/edu/SessionNotesList";
+import CourseOutline from "@/components/edu/CourseOutline";
 import { researchCourse } from "@/lib/courseAutofill";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -121,6 +122,7 @@ export default function CourseDetailDialog({ course, open, onOpenChange, onEditC
               {course.course_description || (generatingDesc ? "Researching…" : "Press Generate to research this course online.")}
             </p>
           </div>
+          <CourseOutline course={course} />
           <ProfessorContact course={course} />
           {/* Grading breakdown */}
           <div className="rounded-lg border border-white/10 p-4">

@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CalendarClock, UploadCloud, Keyboard, ArrowLeft, Sparkles, Loader2, Pencil, Check, Search, X, Database, ClipboardList } from "lucide-react";
-import SyllabusUpload from "@/components/edu/SyllabusUpload";
+import CourseOutlineUpload from "@/components/edu/CourseOutlineUpload";
 import CalendarImport from "@/components/edu/CalendarImport";
 import ScheduleUpload from "@/components/edu/ScheduleUpload";
 import { useEduSync } from "@/lib/eduSyncContext";
@@ -339,27 +339,10 @@ export default function CourseFormModal({ open, onOpenChange, semesterId, semest
     } finally { setSaving(false); }
   }
 
-  async function saveParsed(data) {
-    setSaving(true);
-    try {
-      await createCourse({
-        course: {
-          code: data.code, title: data.title, professor_name: data.professor_name, professor_email: data.professor_email,
-          office_hours: data.office_hours, schedule_days: data.schedule_days, schedule_time: data.schedule_time,
-          location: data.location, target_weekly_hours: data.target_weekly_hours, credits: data.credits,
-          semester_id: semesterId, university_name: settings?.university_name || null,
-        },
-        deliverables: data.deliverables.filter((d) => d.title),
-        materials: data.materials.filter((m) => m.title),
-      });
-      onOpenChange(false);
-    } finally { setSaving(false); }
-  }
-
   const options = [
     { id: "calendar", icon: CalendarClock, title: "Import from Calendar", desc: "AI detects recurring classes from your Google Calendar.", primary: true },
     { id: "schedule", icon: ClipboardList, title: "Upload Schedule", desc: "Drop your class list or schedule photo — we'll read every class and add them all." },
-    { id: "upload", icon: UploadCloud, title: "Upload Syllabus", desc: "AI extracts course, deliverables & materials." },
+    { id: "upload", icon: UploadCloud, title: "Course Outline", desc: "Drop a course outline — we detect the course, attach the file, and summarize it." },
     { id: "manual", icon: Keyboard, title: "Enter Manually", desc: "Type a course code and let AI autofill from your university's catalog." },
   ];
 
@@ -372,14 +355,14 @@ export default function CourseFormModal({ open, onOpenChange, semesterId, semest
             {step === "calendar" && "Import from Calendar"}
             {step === "schedule" && "Upload Schedule"}
             {step === "manual" && (isEdit ? "Edit Course" : "Enter Manually")}
-            {step === "upload" && "Upload Syllabus"}
+            {step === "upload" && "Course Outline"}
           </DialogTitle>
           <DialogDescription className="text-white/50">
             {step === "choose" && "Import your whole schedule, enrich with a syllabus, or enter details manually."}
             {step === "calendar" && "We scan one week of your calendar and detect recurring classes."}
             {step === "schedule" && "Drop a class list or schedule photo and we'll add every course for you."}
             {step === "manual" && (settings?.university_name ? `AI autofills from ${settings.university_name}'s catalog.` : "Add a university in Settings to unlock AI autofill.")}
-            {step === "upload" && "Drop a syllabus and we'll extract the details."}
+            {step === "upload" && "Drop a course outline — we'll detect the course, attach the file, and summarize it."}
           </DialogDescription>
         </DialogHeader>
 
@@ -569,12 +552,8 @@ export default function CourseFormModal({ open, onOpenChange, semesterId, semest
 
         {step === "upload" && (
           <div className="space-y-3">
-            {saving ? (
-              <div className="flex items-center justify-center py-10 text-white/60 text-sm">Saving course…</div>
-            ) : (
-              <SyllabusUpload onConfirmed={saveParsed} />
-            )}
-            {!saving && <Button type="button" variant="ghost" onClick={() => setStep("choose")} className="text-white/50"><ArrowLeft className="h-4 w-4 mr-1" /> Back</Button>}
+            <CourseOutlineUpload semesterId={semesterId} onDone={() => onOpenChange(false)} />
+            <Button type="button" variant="ghost" onClick={() => setStep("choose")} className="text-white/50"><ArrowLeft className="h-4 w-4 mr-1" /> Back</Button>
           </div>
         )}
       </DialogContent>

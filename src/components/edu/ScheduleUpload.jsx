@@ -69,14 +69,35 @@ export default function ScheduleUpload({ semesterId, onDone }) {
         },
       });
       const d = res?.data ?? res;
-      const list = (d?.courses || []).map((c) => ({
+      const raw = (d?.courses || []).map((c) => ({
         code: (c.code || "").trim(),
         title: (c.title || "").trim() || bestGuessTitle(c.code) || (c.code || ""),
         schedule_days: (c.days || []).filter((x) => DAY_VALID.has(x)),
-        schedule_time: c.time || "",
-        location: c.location || "",
+        schedule_time: (c.time || "").trim(),
+        location: (c.location || "").trim(),
         credits: 3,
       }));
+      // Group rows that share the same course code (e.g. a lecture + a lab for the
+      // same class) into one course, preserving the differing times/parts.
+      const normCode = (v) => String(v || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+      const groups = new Map();
+      for (const c of raw) {
+        const key = normCode(c.code) || normCode(c.title) || `__${groups.size}`;
+        const partStr = [c.schedule_days.join(""), c.schedule_time].filter(Boolean).join(" ");
+        const ex = groups.get(key);
+        if (!ex) {
+          groups.set(key, { ...c, _parts: partStr ? [partStr] : [] });
+        } else {
+          ex.schedule_days = Array.from(new Set([...(ex.schedule_days || []), ...(c.schedule_days || [])]));
+          if (!ex.location && c.location) ex.location = c.location;
+          if ((!ex.title || ex.title.toUpperCase().replace(/[^A-Z0-9]/g, "") === normCode(ex.code)) && c.title) ex.title = c.title;
+          if (partStr && !ex._parts.includes(partStr)) ex._parts.push(partStr);
+        }
+      }
+      const list = Array.from(groups.values()).map((c) => {
+        const { _parts, ...rest } = c;
+        return { ...rest, schedule_time: _parts.length ? _parts.join(" · ") : rest.schedule_time };
+      });
       setCourses(list);
       if (list.length) {
         setStatus("review");
