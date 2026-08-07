@@ -71,6 +71,8 @@ export default function CourseFormModal({ open, onOpenChange, semesterId, semest
   const [descError, setDescError] = React.useState(null);
   const reqIdRef = React.useRef(0);
   const selectedRef = React.useRef(false);
+  const researchReqIdRef = React.useRef(0);
+  const lastAutoResearchedRef = React.useRef("");
 
   React.useEffect(() => {
     if (!open) return;
@@ -92,6 +94,8 @@ export default function CourseFormModal({ open, onOpenChange, semesterId, semest
     setDescError(null);
     reqIdRef.current = 0;
     selectedRef.current = false;
+    researchReqIdRef.current = 0;
+    lastAutoResearchedRef.current = "";
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, settings, course, isEdit]);
 
@@ -154,17 +158,50 @@ export default function CourseFormModal({ open, onOpenChange, semesterId, semest
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.code, step, settings, uniObj, profileObj]);
 
+  // When the user TYPES a full, complete-looking course code (letters + 2-4
+  // digits), auto-trigger the web research — it pulls real student-perceived
+  // difficulty signals from RateMyProfessors, Reddit, course-outline PDFs,
+  // and the university's own course page — rather than relying on the rough
+  // cached heuristic. Debounced 700ms so typing in real time doesn't fire a
+  // request per keystroke, and guarded by lastAutoResearchedRef so a single
+  // completed code only researches once.
+  React.useEffect(() => {
+    if (step !== "manual") return;
+    if (selectedRef.current) return;
+    const q = (form.code || "").trim();
+    if (!q || !settings?.university_name) return;
+    const norm = q.toUpperCase().replace(/\s+/g, "").replace(/[^\w]/g, "");
+    if (!/^[A-Z]{2,5}\d{2,4}[A-Z]?$/.test(norm)) return;
+    if (lastAutoResearchedRef.current === norm) return;
+    const t = setTimeout(() => {
+      lastAutoResearchedRef.current = norm;
+      runResearch({ overrideCode: q, auto: true });
+    }, 700);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.code, step, settings?.university_name]);
+
   // On-demand web research for THIS course (code + title) at the user's
   // university. Returns the official course description AND an honest/brutal
   // difficulty ranking, both grounded in real student-perceived signals.
-  async function runResearch() {
-    if (!form.code) { toast({ title: "Enter a course code first", variant: "destructive" }); return; }
+  // Accepts an optional overrideCode/overrideTitle (used when auto-firing
+  // from pickSuggestion or the typed-code debounce — React state may not yet
+  // have applied the new form fields by the time we kick off the request).
+  // `auto` silences the manual "Researched" toast so background-fires don't
+  // spam the user; the difficulty ranking + reason still land in the form.
+  async function runResearch({ overrideCode, overrideTitle, auto = false } = {}) {
+    const code = overrideCode || form.code;
+    if (!code) { if (!auto) toast({ title: "Enter a course code first", variant: "destructive" }); return; }
+    const id = ++researchReqIdRef.current;
     setDescLoading(true); setDescError(null);
     try {
-      const out = await researchCourse({ code: form.code, title: form.title, university: uniObj, profile: profileObj });
+      const out = await researchCourse({ code, title: overrideTitle || form.title, university: uniObj, profile: profileObj });
+      if (id !== researchReqIdRef.current) return;
       if (!out || (!out.description?.trim() && !out.difficulty_ranking)) {
-        setDescError("Couldn't find anything definitive — try again or paste it in manually.");
-        toast({ title: "Nothing found", variant: "destructive" });
+        if (!auto) {
+          setDescError("Couldn't find anything definitive — try again or paste it in manually.");
+          toast({ title: "Nothing found", variant: "destructive" });
+        }
         return;
       }
       setForm((p) => ({
@@ -173,14 +210,18 @@ export default function CourseFormModal({ open, onOpenChange, semesterId, semest
         difficulty_ranking: out.difficulty_ranking || p.difficulty_ranking,
         difficulty_reason: out.difficulty_reason || p.difficulty_reason,
       }));
-      setDescError(null);
-      toast({
-        title: "Researched",
-        description: out.source_url ? "Pulled from your university's catalog + student sources." : "Drafted from catalog + reputation data — review and adjust.",
-      });
+      if (!auto) {
+        setDescError(null);
+        toast({
+          title: "Researched",
+          description: out.source_url ? "Pulled from your university's catalog + student sources." : "Drafted from catalog + reputation data — review and adjust.",
+        });
+      }
     } catch (e) {
-      setDescError("Lookup failed — try again or paste the description in.");
-    } finally { setDescLoading(false); }
+      if (!auto && id === researchReqIdRef.current) setDescError("Lookup failed — try again or paste the description in.");
+    } finally {
+      if (id === researchReqIdRef.current) setDescLoading(false);
+    }
   }
 
   function pickSuggestion(c) {
@@ -188,6 +229,12 @@ export default function CourseFormModal({ open, onOpenChange, semesterId, semest
     applyCandidate(c);
     set("code", c.code);
     setSuggOpen(false);
+    // User just selected a specific class code — auto-trigger the web research
+    // (RateMyProfessors, Reddit, the university's own course page) to upgrade
+    // the cached heuristic difficulty ranking into a grounded one, per the
+    // user request: when a specific class code is input, the app should
+    // research its difficulty from live sources.
+    runResearch({ overrideCode: c.code, overrideTitle: c.title, auto: true });
   }
 
   async function saveManual(e) {

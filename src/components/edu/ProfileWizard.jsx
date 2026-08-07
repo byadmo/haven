@@ -195,6 +195,12 @@ export default function ProfileWizard({ open, onOpenChange, onCompleted }) {
   // Background "AI find calendar → save URL → parse" pipeline whose status
   // surfaces in the prep toast (✓ success / ✗ failed). The toast is dismissable
   // via its X at any stage — the underlying async work keeps running.
+  // Dismiss the in-progress "Preparing…" toast and fire a FRESH, fully-visible
+  // result toast when the pipeline finishes. The previous flow updated the
+  // same toast record — but if the user had already dismissed it with X, the
+  // update would land on a closed (open=false) toast and the success message
+  // would never resurface. Dismissing + a brand-new toast guarantees they see
+  // the completed-parse status regardless of what they did during the wait.
   async function runAutoCatalogToast(opts) {
     const t = toast({
       title: "Preparing your course catalog…",
@@ -214,14 +220,17 @@ export default function ProfileWizard({ open, onOpenChange, onCompleted }) {
       });
       const pD = pRes?.data ?? pRes;
       if (pD?.error) throw new Error(pD.error);
-      t.update({
-        title: <span className="flex items-center gap-1.5"><Check className="h-4 w-4 text-emerald-400" /> Course catalog ready</span>,
+      try { t.dismiss(); } catch {}
+      toast({
+        title: "Course catalog ready",
         description: `${pD.course_count || 0} courses cached${pD.parse_status === "partial" ? " · partial" : ""}.`,
       });
     } catch (e) {
-      t.update({
-        title: <span className="flex items-center gap-1.5"><AlertCircle className="h-4 w-4 text-rose-400" /> Couldn't parse catalog</span>,
+      try { t.dismiss(); } catch {}
+      toast({
+        title: "Couldn't parse catalog",
         description: e?.message || "We'll try again later.",
+        variant: "destructive",
       });
     }
   }
