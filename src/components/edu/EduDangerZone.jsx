@@ -20,9 +20,20 @@ export default function EduDangerZone() {
   const [confirmText, setConfirmText] = useState("");
   const [busy, setBusy] = useState(false);
 
+  // Truly wipe every education record owned by the current user. deleteMany({})
+  // hits the SDK's empty-filter safety guard (no-op), so we list the user's own
+  // records and delete each by id — looping until every education entity is
+  // genuinely empty. Only education entities are touched; Haven Finance data
+  // and the user's Haven account are never modified.
   async function deleteEduRecords(includeSettings) {
     const ents = includeSettings ? [...EDU_DATA_ENTITIES, "EduSettings"] : EDU_DATA_ENTITIES;
-    await Promise.all(ents.map((name) => base44.entities[name].deleteMany({})));
+    for (const name of ents) {
+      for (let i = 0; i < 50; i++) { // cap pages (~50k records) as a safety bound
+        const all = await base44.entities[name].list("-created_date", 1000);
+        if (!all?.length) break;
+        await Promise.all(all.map((r) => base44.entities[name].delete(r.id)));
+      }
+    }
   }
 
   async function doReset() {
