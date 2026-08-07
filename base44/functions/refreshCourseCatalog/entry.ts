@@ -2,25 +2,25 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
 import * as cheerio from 'npm:cheerio@1.0.0';
 
 // ============================================================================
-// 4-Stage Vendor-Aware Hybrid AST parser for undergraduate degree-track course
-// requirements. Invoked by the Haven Education setup wizard pipeline
-// (findCourseCalendar -> save URL -> parse_only) and the Settings "Confirm &
-// Parse" button.
+// 5-Stage Precision-Search + Dual-Tier + Hybrid Parser for undergraduate
+// degree-track course requirements. Invoked by the Haven Education setup
+// wizard pipeline and the Settings "Confirm & Parse" button.
 //
-//   Stage 1 — Vendor API Fast-Path (Coursedog / Kuali public JSON)
-//   Stage 2 — Heading-Bounded Subtree Extraction (HBSE) via cheerio
-//   Stage 3 — Deterministic table/list AST parser (regex course codes)
-//   Stage 4 — Gemini-3-Flash schema-constrained fallback
-//
-// Playwright is unavailable in the Base44 function runtime; direct fetch +
-// cheerio suffices for the typical Canadian university server-rendered
-// academic calendars, and vendor pages expose public JSON APIs that don't
-// need a headless browser either.
+//   Stage 1 — Precision Search (gemini-3-flash web-search) + Zero-Token URL
+//             Weight Scoring (+50 calendar-path / +30 specialization slug /
+//             -100 admissions|news|events|apply|faculty-directory)
+//   Stage 2 — Dual-Tier Scraping: Tier A static fetch + regex gate;
+//             Tier B Playwright fallback is unavailable in the Base44 runtime,
+//             so when Tier A returns < 4 course codes we rely on Stage 5.
+//   Stage 3 — Heading-Bounded Subtree Extraction (HBSE) via cheerio
+//   Stage 4 — Deterministic Grammar Parser + Quality Gate (C >= 0.85 mid)
+//   Stage 5 — Gemini-3-Flash schema-constrained fallback (thinkingLevel minimal)
 // ============================================================================
 
 const FETCH_TIMEOUT_MS = 9000;
 const FRESH_MS = 7 * 24 * 60 * 60 * 1000;
-const COVERAGE_THRESHOLD = 0.85; // Stage 3 emits JSON only at >= 85% coverage
+const COVERAGE_THRESHOLD = 0.85; // Stage 4 emits JSON only at >= 85% coverage
+const TIER_A_CODE_FLOOR = 4;     // Stage 2: accept static HTML if >= 4 distinct course codes
 const MAX_GEMINI_CHARS = 9000;
 const CODE_RE = /\b([A-Z]{2,4})\s?(\d{3,4})([A-Z]?)\b/g;
 const YEAR_RE = /\b(?:year|annee|année)\s*([1-5])\b/i;
@@ -56,107 +56,85 @@ async function fetchText(url, opts = {}) {
   finally { clearTimeout(t); }
 }
 
-// ---------------------------- Stage 1: Vendor --------------------------------
-function detectVendor(url, html = '') {
-  const u = (url || '').toLowerCase();
-  if (u.includes('coursedog.com') || /coursedog\.com|next\.coursedog/i.test(html)) return 'coursedog';
-  if (u.includes('kuali.co') || /kuali\.co/i.test(html)) return 'kuali';
-  return null;
+// ---------------------------- Stage 1: Precision Search + URL Weight Scoring
+// Issues the spec's exact SERP-style query via gemini-3-flash web-search (the
+// only Base44 InvokeLLM model that supports add_context_from_internet), then
+// scores the returned URLs with a zero-LLM +50/-100 path-quality rubric.
+function slugify(s) {
+  return (s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 }
 
-// Deep walk an object graph and return the first array that looks like a
-// course list (entries carry a course-code-like identifier / title).
-function findCoursesDeep(obj, maxDepth = 6, depth = 0) {
-  if (!obj || depth > maxDepth) return null;
-  if (Array.isArray(obj)) {
-    if (obj.length && typeof obj[0] === 'object' &&
-        (obj[0].code || obj[0].course_code || obj[0].courseCode || obj[0].subjectCode ||
-         obj[0].title || obj[0].name || obj[0].courseTitle)) {
-      return obj;
-    }
-    for (const v of obj) {
-      const r = findCoursesDeep(v, maxDepth, depth + 1);
-      if (r && r.length) return r;
-    }
-    return null;
-  }
-  if (typeof obj === 'object') {
-    for (const v of Object.values(obj)) {
-      const r = findCoursesDeep(v, maxDepth, depth + 1);
-      if (r && r.length) return r;
-    }
-  }
-  return null;
-}
-
-function vendorNormalize(list) {
-  const out = [];
-  const seen = new Set();
-  for (const c of list) {
-    if (!c || typeof c !== 'object') continue;
-    const code = (c.code || c.course_code || c.courseCode || c.subjectCode || '').toString().trim();
-    if (!code || seen.has(code)) continue;
-    seen.add(code);
-    out.push({
-      code,
-      title: (c.title || c.courseTitle || c.name || c.course_title || code).toString().trim(),
-      credits: Number(c.credits || c.creditHours || c.credit_hours || 0) || 0,
-    });
-  }
-  return out;
-}
-
-async function vendorCoursedog(pageUrl) {
-  // 1) Next.js __NEXT_DATA__ embedded catalog JSON.
-  const html = await fetchText(pageUrl);
-  if (html) {
-    const m = html.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/i);
-    if (m) {
-      try {
-        const data = JSON.parse(m[1]);
-        const list = findCoursesDeep(data);
-        if (list && list.length) return vendorNormalize(list);
-      } catch {}
-    }
-  }
-  // 2) Documented public catalog endpoints.
+// Zero-token URL weight scoring:
+//   +50  path contains /calendar/, /catalog/, /programs/, /undergraduate/, /academic-programs/
+//   +30  path contains the specialization slug (or its underscore variant)
+//   -100 path contains /admissions/, /news/, /events/, /apply/, /faculty-directory/
+function scoreUrl(url, specialization) {
+  let score = 0;
   try {
-    const u = new URL(pageUrl);
-    const base = `${u.protocol}//${u.host}`;
-    for (const path of ['/api/v1/catalogs', '/api/v1/courses']) {
-      const j = await fetchText(base + path, { asJson: true, timeoutMs: 6000 });
-      const list = findCoursesDeep(j);
-      if (list && list.length) return vendorNormalize(list);
-    }
-  } catch {}
-  return null;
-}
-
-async function vendorKuali(pageUrl) {
-  try {
-    const u = new URL(pageUrl);
-    const base = `${u.protocol}//${u.host}`;
-    const segs = u.pathname.split('/').filter(Boolean);
-    let catalogId = '';
-    for (let i = 0; i < segs.length; i++) {
-      if (segs[i].toLowerCase() === 'catalog' || segs[i].toLowerCase() === 'catalogs') {
-        if (segs[i + 1]) catalogId = segs[i + 1];
-        break;
+    const u = new URL(url);
+    const path = (u.pathname + '/').toLowerCase();
+    if (/\/(calendar|catalog|programs|undergraduate|academic-programs)\//.test(path)) score += 50;
+    if (specialization) {
+      const slug = slugify(specialization);
+      if (slug) {
+        if (path.includes(slug)) score += 30;
+        else {
+          const alt = slug.replace(/-/g, '_');
+          if (alt !== slug && path.includes(alt)) score += 30;
+        }
       }
     }
-    if (!catalogId) return null;
-    const j = await fetchText(`${base}/api/cm/v1/catalogs/${catalogId}/courses`, { asJson: true, timeoutMs: 7000 });
-    let list = findCoursesDeep(j);
-    if (!list) {
-      const j2 = await fetchText(`${base}/api/cm/v1/catalogs/${catalogId}`, { asJson: true, timeoutMs: 7000 });
-      list = findCoursesDeep(j2);
-    }
-    if (list && list.length) return vendorNormalize(list);
+    if (/\/(admissions|news|events|apply|faculty-directory)\//.test(path)) score -= 100;
   } catch {}
-  return null;
+  return score;
 }
 
-// ---------------------------- Stage 2: HBSE ---------------------------------
+function pickBestUrl(urls, specialization) {
+  let best = '', bestScore = -Infinity;
+  for (const u of urls) {
+    const s = scoreUrl(u, specialization);
+    if (s > bestScore) { bestScore = s; best = u; }
+  }
+  return { url: best, score: bestScore };
+}
+
+async function precisionSearch(university, faculty, specialization, trackType, invokeLLM) {
+  const query = `"${university}" "${specialization || ''}" "${faculty || ''}" ("undergraduate calendar" OR "academic calendar" OR "program requirements") -inurl:news -inurl:admissions -inurl:events`;
+  const schema = {
+    type: 'object',
+    properties: {
+      urls: {
+        type: 'array',
+        items: { type: 'string' },
+        description: 'Top organic result URLs for the query (max 8), most relevant first.',
+      },
+    },
+    required: ['urls'],
+  };
+  const prompt = [
+    'Run a Google web search with this exact query and return ONLY the organic result URLs:',
+    query,
+    `Prefer URLs from ${university}'s official domain. Return up to 8 distinct absolute URLs (no titles/snippets). Reject admissions, news, events, and faculty-directory pages.`,
+  ].join('\n');
+  try {
+    const r = await invokeLLM({
+      prompt,
+      model: 'gemini_3_flash',
+      add_context_from_internet: true,
+      response_json_schema: schema,
+    });
+    const d = r?.data ?? r;
+    let urls = Array.isArray(d?.urls) ? d.urls.map((u) => String(u).trim()).filter((u) => /^https?:\/\//i.test(u)) : [];
+    if (!urls.length && typeof d === 'string') {
+      urls = Array.from(d.matchAll(/https?:\/\/[^\s'"<>)]+/gi)).map((m) => m[0]);
+    }
+    return Array.from(new Set(urls)).slice(0, 8);
+  } catch {
+    return [];
+  }
+}
+
+// ---------------------------- Stage 3: HBSE ---------------------------------
 function trackTokens(s) {
   const stop = new Set(['the', 'a', 'an', 'program', 'plan', 'of', 'stream', 'for', 'and', 'in', 'track']);
   return (s || '').toLowerCase().split(/[^a-z0-9]+/).filter((t) => t && !stop.has(t));
@@ -209,7 +187,7 @@ function hbse(html, trackType) {
   return { $, isolated, isolatedText };
 }
 
-// ---------------------------- Stage 3: Deterministic AST --------------------
+// ---------------------------- Stage 4: Deterministic Grammar Parser ---------
 function addCourse(years, year, term, code, title, credits) {
   if (!years[year]) years[year] = {};
   if (!years[year][term]) years[year][term] = [];
@@ -285,7 +263,7 @@ function extractCodes(text) {
   return out;
 }
 
-// ---------------------------- Stage 4: Gemini -------------------------------
+// ---------------------------- Stage 5: Gemini 3 Flash ------------------------
 const PROGRAM_SCHEMA = {
   type: 'object',
   properties: {
@@ -347,6 +325,7 @@ export default async function (req) {
   let tokenUsage = 0;
   let sourceUrl = '';
   let university = '', faculty = '', specialization = '', degree_program = '', trackType = '';
+  let parse_notes_stage1 = '';
   try {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
@@ -385,59 +364,55 @@ export default async function (req) {
       });
     }
 
-    // URL discovery (Stage 0): reuse the existing AI-discovery function so no
-    // new Tavily/Serper secret is required.
-    sourceUrl = url0 && /^https?:\/\//i.test(url0) ? url0 : '';
-    if (!sourceUrl) {
-      try {
-        const disc = await base44.functions.invoke('findCourseCalendar', {
-          university_name: university, faculty, degree_program, specialization, trackType,
-        });
-        const d = disc?.data ?? disc;
-        sourceUrl = (d && (d.best_url || d.url)) || '';
-      } catch { sourceUrl = ''; }
+    // ------------------- Stage 1: Precision Search + URL Weight Scoring -----
+    // The caller MAY supply an explicit calendar URL (parse_only / setup-wizard
+    // save-then-parse flow). Otherwise run a gemini-3-flash web-search query
+    // and apply the zero-LLM +50/-100 path-quality rubric to its candidates.
+    if (url0 && /^https?:\/\//i.test(url0)) {
+      sourceUrl = url0;
+    } else {
+      const candidates = await precisionSearch(university, faculty, degree_program || specialization, trackType,
+        (p) => base44.integrations.Core.InvokeLLM(p));
+      tokenUsage += 1;
+      const pick = pickBestUrl(candidates, specialization || degree_program);
+      sourceUrl = pick.url;
+      if (candidates.length) {
+        parse_notes_stage1 = `Stage 1: ${candidates.length} candidate URLs from Gemini web-search; picked score=${pick.score}.`;
+      }
     }
     if (!sourceUrl) {
       return Response.json({
-        status: 'error', error: 'No calendar URL provided and discovery found none.',
-        meta: { university, faculty, specialization: degree_program, trackType, sourceUrl: '', tokenUsage: 0 },
+        status: 'error', error: 'Precision search returned no candidate calendar URLs.',
+        meta: { university, faculty, specialization: degree_program, trackType, sourceUrl: '', tokenUsage },
         program: { degreeTitle: '', academicYears: [] },
-        parse_status: 'failed', parse_notes: 'No calendar URL provided and discovery found none.',
+        parse_status: 'failed', parse_notes: 'Precision search returned no candidate calendar URLs.',
       }, { status: 422 });
     }
 
     let parse_status = 'failed';
-    let parse_notes = '';
+    let parse_notes = parse_notes_stage1 || '';
     let academicYears = [];
     let degreeTitle = degree_program || '';
 
-    // ------------------- Stage 1: Vendor API Fast-Path -------------------
-    const vendor = detectVendor(sourceUrl);
-    let vendorCourses = null;
-    if (vendor === 'coursedog') vendorCourses = await vendorCoursedog(sourceUrl);
-    else if (vendor === 'kuali') vendorCourses = await vendorKuali(sourceUrl);
-    if (vendorCourses && vendorCourses.length) {
-      executionMode = 'VENDOR_API';
-      parse_status = 'success';
-      parse_notes = `Vendor API (${vendor}): ${vendorCourses.length} courses.`;
-      academicYears = [{ yearNumber: 1, terms: [{ termName: 'Catalog', requiredCourses: vendorCourses }] }];
-    }
-
-    // ------------------- Stage 2: HBSE -------------------
+    // -------- Stage 2: Dual-Tier Scrape (Tier A regex gate) + Stage 3: HBSE --
     let cleanedHtml = '';
     let isolatedText = '';
     let $$ = null;
     if (!executionMode) {
       const html = await fetchText(sourceUrl);
+      // Stage 2 Tier A: accept static HTML if it carries >= 4 distinct course
+      // codes; otherwise (empty SPA shell) we cannot Tier-B render (Playwright
+      // unavailable in the runtime) and fall straight through to Stage 5.
+      const tierACodes = extractCodes(html || '');
       if (!html || html.length < 200) {
         const codes = extractCodes(html || '');
         return Response.json({
           status: codes.length ? 'success' : 'error',
           executionMode: codes.length ? 'DETERMINISTIC_AST' : null,
-          meta: { university, faculty, specialization: degree_program, trackType, sourceUrl, tokenUsage: 0 },
+          meta: { university, faculty, specialization: degree_program, trackType, sourceUrl, tokenUsage },
           program: { degreeTitle, academicYears: codes.length ? [{ yearNumber: 1, terms: [{ termName: 'Catalog', requiredCourses: codes.map((c) => ({ code: c, title: c, credits: 0 })) }] }] : [] },
           parse_status: codes.length ? 'partial' : 'failed',
-          parse_notes: codes.length ? 'Regex salvage from raw HTML.' : 'Could not render the target calendar page.',
+          parse_notes: (parse_notes ? parse_notes + ' ' : '') + (codes.length ? 'Regex salvage from raw HTML.' : 'Could not render the target calendar page.'),
           course_count: codes.length,
           calendar_source_url: sourceUrl,
         }, { status: codes.length ? 200 : 422 });
@@ -445,8 +420,12 @@ export default async function (req) {
       cleanedHtml = html;
       const hb = hbse(html, trackType);
       $$ = hb.$; isolatedText = hb.isolatedText;
+      if (tierACodes.length < TIER_A_CODE_FLOOR) {
+        parse_notes = (parse_notes ? parse_notes + ' ' : '') +
+          `Stage 2 Tier A: only ${tierACodes.length} course codes in static HTML (< ${TIER_A_CODE_FLOOR}); Playwright Tier B unavailable in runtime.`;
+      }
 
-      // ------------------- Stage 3: Deterministic AST -------------------
+      // ------------------- Stage 4: Deterministic Grammar Parser -----------
       const ast = stageAstParse(hb.isolated, trackType);
       if (ast.totalCourses >= 5 && ast.coverage >= COVERAGE_THRESHOLD) {
         executionMode = 'DETERMINISTIC_AST';
@@ -454,7 +433,7 @@ export default async function (req) {
         parse_notes = `Deterministic AST: ${ast.totalCourses} courses, ${(ast.coverage * 100).toFixed(0)}% coverage.`;
         academicYears = ast.academicYears;
       } else {
-        // ------------------- Stage 4: Gemini fallback -------------------
+        // ------------------- Stage 5: Gemini 3 Flash schema fallback ---------
         try {
           const gres = await base44.integrations.Core.InvokeLLM({
             prompt: buildGeminiPrompt(university, faculty, degree_program, trackType, sourceUrl, isolatedText),
