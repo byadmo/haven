@@ -40,6 +40,11 @@ const NOISE_SEL = 'script, style, nav, footer, header, aside, noscript, svg, ifr
 // alternate-URL probing. Salvage-only 'partial' parses usually yield < 8.
 const MIN_ACCEPTABLE_COURSES = 8;
 const MAX_ALTERNATES = 3;
+// Max precision-search rounds when every result so far has been a dead (404)
+// link: each round rephrases the SERP query ("course catalog", "degree
+// requirements", ...) so the retry isn't identical to the last. Bounded to
+// avoid runaway Gemini credit spend.
+const MAX_SEARCH_ROUNDS = 3;
 
 function normKey(parts) {
   return parts.map((p) => (p || '').toString().trim().toLowerCase()).filter(Boolean).join('::');
@@ -141,8 +146,17 @@ function pickBestUrl(urls, specialization) {
   return { url: best, score: bestScore };
 }
 
-async function precisionSearch(university, faculty, specialization, trackType, invokeLLM) {
-  const query = `"${university}" "${specialization || ''}" "${faculty || ''}" ("undergraduate calendar" OR "academic calendar" OR "program requirements") -inurl:news -inurl:admissions -inurl:events`;
+async function precisionSearch(university, faculty, specialization, trackType, invokeLLM, round = 0) {
+  // Rephrase the SERP qualifier each retry round so a search that returned only
+  // dead links gets a fresh angle (course catalog, degree requirements,
+  // undergraduate program). Round 0 = original query.
+  const phrases = [
+    '("undergraduate calendar" OR "academic calendar" OR "program requirements")',
+    '("course catalog" OR "list of courses" OR "course offerings" OR "courses")',
+    '("degree requirements" OR "undergraduate program" OR "academic plan")',
+  ];
+  const phrase = phrases[round % phrases.length];
+  const query = `"${university}" "${specialization || ''}" "${faculty || ''}" ${phrase} -inurl:news -inurl:admissions -inurl:events`;
   const schema = {
     type: 'object',
     properties: {
@@ -175,6 +189,32 @@ async function precisionSearch(university, faculty, specialization, trackType, i
   } catch {
     return [];
   }
+}
+
+// Re-run precision search until at least `minWanted` LIVE url is found, varying
+// the query phrasing each round. Verifies every candidate of each round (up to
+// `cap`) and stops as soon as the live quota is met — so round 0 still verifies
+// all of its candidates (preserving "pick best among multiple live"), and the
+// rephrased rounds only kick in when round 0 returned only dead (404) links.
+// `known` is a Set mutated with every URL ever seen (live or dead) so callers
+// can reuse it as the self-heal alternate pool. Bounded by MAX_SEARCH_ROUNDS.
+async function discoverLiveUrls({ university, faculty, specialization, trackType, invokeLLM, known, cap, minWanted, bump }) {
+  const live = [];
+  let searches = 0;
+  for (let round = 0; round < MAX_SEARCH_ROUNDS && live.length < minWanted; round++) {
+    let found = [];
+    try {
+      found = await precisionSearch(university, faculty, specialization, trackType, invokeLLM, round);
+      searches++;
+      if (bump) bump();
+    } catch { /* try the next rephrased round */ }
+    for (const u of found) {
+      if (!u || known.has(u) || live.length >= cap) continue;
+      known.add(u);
+      if (await verifyLive(u)) live.push(u);
+    }
+  }
+  return { live, searches };
 }
 
 // ---------------------------- Stage 3: HBSE ---------------------------------
@@ -678,19 +718,20 @@ export default async function (req) {
     if (url0 && /^https?:\/\//i.test(url0)) {
       sourceUrl = url0;
     } else {
-      stage1Urls = await precisionSearch(university, faculty, degree_program || specialization, trackType,
-        (p) => base44.integrations.Core.InvokeLLM(p));
-      tokenUsage += 1;
-      // Verify each candidate is LIVE before trusting it — stale year-specific
-      // paths (e.g. /2024-2025/...) 404 once the calendar rolls to a new year.
-      const liveUrls = [];
-      for (const u of stage1Urls.slice(0, 8)) {
-        if (await verifyLive(u)) liveUrls.push(u);
-      }
+      // Discover LIVE candidate URLs, restarting with rephrased queries when a
+      // search returns only dead (404) links — up to MAX_SEARCH_ROUNDS rounds.
+      const stage1Seen = new Set();
+      const { live: liveUrls, searches: s1Searches } = await discoverLiveUrls({
+        university, faculty, specialization: degree_program || specialization, trackType,
+        invokeLLM: (p) => base44.integrations.Core.InvokeLLM(p),
+        known: stage1Seen, cap: 8, minWanted: 1,
+        bump: () => { tokenUsage += 1; },
+      });
+      stage1Urls = Array.from(stage1Seen);
       const pick = pickBestUrl(liveUrls.length ? liveUrls : stage1Urls, specialization || degree_program);
       sourceUrl = pick.url;
       if (stage1Urls.length) {
-        parse_notes_stage1 = `Stage 1: ${stage1Urls.length} candidate URLs; ${liveUrls.length} live; picked score=${pick.score}.`;
+        parse_notes_stage1 = `Stage 1: ${s1Searches} search round(s), ${stage1Urls.length} URL(s), ${liveUrls.length} live; picked score=${pick.score}.`;
       }
     }
     if (!sourceUrl) {
@@ -725,10 +766,27 @@ export default async function (req) {
         seen.add(u);
         if (await verifyLive(u)) liveAlts.push(u);
       }
-      if (liveAlts.length < MAX_ALTERNATES) {
+      if (liveAlts.length === 0) {
+        // All caller/Stage-1 alternates were dead — restart the link search
+        // with rephrased queries until a LIVE url surfaces, or all MAX_SEARCH
+        // ROUNDS are spent. (per user request: keep restarting until it's no
+        // longer returning dead links.)
+        const { live, searches } = await discoverLiveUrls({
+          university, faculty, specialization: degree_program || specialization, trackType,
+          invokeLLM: (p) => base44.integrations.Core.InvokeLLM(p),
+          known: seen, cap: MAX_ALTERNATES, minWanted: 1,
+          bump: () => { tokenUsageRef.value += 1; },
+        });
+        liveAlts = live;
+        if (live.length === 0) {
+          parse_notes_stage1 = (parse_notes_stage1 ? parse_notes_stage1 + ' ' : '') +
+            `Self-heal: ${searches} rephrased search round(s) all returned dead links.`;
+        }
+      } else if (liveAlts.length < MAX_ALTERNATES) {
+        // Already have ≥1 live alt; top up with one more round if short.
         try {
           const found = await precisionSearch(university, faculty, degree_program || specialization, trackType,
-            (p) => base44.integrations.Core.InvokeLLM(p));
+            (p) => base44.integrations.Core.InvokeLLM(p), 0);
           tokenUsageRef.value += 1;
           for (const u of found) {
             if (seen.has(u) || liveAlts.length >= MAX_ALTERNATES) continue;
