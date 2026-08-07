@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
-import { GraduationCap, ChevronLeft, ChevronRight, Check, Mail, Building2, Calendar, Target, Clock, Briefcase, ListChecks, ImageUp, FileText, Loader2, X, Sparkles } from "lucide-react";
+import { GraduationCap, ChevronLeft, ChevronRight, Check, AlertCircle, Mail, Building2, Calendar, Target, Clock, Briefcase, ListChecks, ImageUp, FileText, Loader2, X, Sparkles } from "lucide-react";
 import { useEduSync } from "@/lib/eduSyncContext";
 import { base44 } from "@/api/base44Client";
 import { getProfile, saveProfile } from "@/lib/eduProfile";
@@ -58,19 +58,11 @@ export default function ProfileWizard({ open, onOpenChange, onCompleted }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings]);
 
-  // As soon as the user has entered university + faculty + degree program
-  // (mid-wizard), Haven immediately kicks off the course-catalog parser in
-  // the background so course-code autofill works by the time they reach the
-  // Add Course page. Ref-guarded so it only fires once per setup.
-  const catalogFiredRef = React.useRef(false);
-  React.useEffect(() => {
-    if (catalogFiredRef.current) return;
-    if (form.university_name && form.faculty && form.degree_program) {
-      catalogFiredRef.current = true;
-      refreshCatalogInBackground({ university_name: form.university_name, faculty: form.faculty, degree_program: form.degree_program });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.university_name, form.faculty, form.degree_program]);
+  // The "AI find calendar + save URL + auto-parse" pipeline runs once at the
+  // END of the wizard (see finish below) — we no longer pre-fire mid-wizard, so
+  // the chosen calendar URL is persisted to EduSettings and the parse-only
+  // flow run together at setup completion, with a single dismissable status
+  // toast (✓ ready / ✗ failed).
 
   const back = () => setStep((s) => Math.max(1, s - 1));
   const toggleDay = (d) => setForm((f) => ({
@@ -181,19 +173,57 @@ export default function ProfileWizard({ open, onOpenChange, onCompleted }) {
       }
     } catch {}
 
-    // Pre-fetch the program's course catalog (already auto-kicked off in step 2
-    // the moment university + faculty + program were entered). Guarded by the
-    // same ref so we don't double-fire. The toast reminds them it's running.
+    // End-of-wizard pipeline: AI find calendar → save URL to EduSettings →
+    // parse the confirmed URL. The prep toast stays until dismissed (the X now
+    // closes it) and is updated with a success checkmark or failure icon when
+    // the parse resolves. Fired off in the background so the wizard can close
+    // immediately and the result surfaces in Haven Education afterward.
     if (form.university_name && form.faculty && form.degree_program) {
-      if (!catalogFiredRef.current) {
-        catalogFiredRef.current = true;
-        refreshCatalogInBackground({ university_name: form.university_name, faculty: form.faculty, degree_program: form.degree_program });
-      }
-      toast({ title: "Preparing your course catalog…", description: "Fetching your program's courses in the background." });
+      runAutoCatalogToast({
+        university_name: form.university_name,
+        university_domain: form.university_domain,
+        faculty: form.faculty,
+        degree_program: form.degree_program,
+        specialization: form.specialization,
+      });
     }
     onCompleted?.();
     onOpenChange(false);
     if (form.import_choice === "manual") navigate("/education/courses");
+  }
+
+  // Background "AI find calendar → save URL → parse" pipeline whose status
+  // surfaces in the prep toast (✓ success / ✗ failed). The toast is dismissable
+  // via its X at any stage — the underlying async work keeps running.
+  async function runAutoCatalogToast(opts) {
+    const t = toast({
+      title: "Preparing your course catalog…",
+      description: "Finding your university calendar and parsing courses in the background.",
+      duration: 0,
+    });
+    try {
+      const fRes = await base44.functions.invoke("findCourseCalendar", opts);
+      const fD = fRes?.data ?? fRes;
+      const best = fD?.best_url || (Array.isArray(fD?.candidates) && fD.candidates[0]?.url) || "";
+      if (!best) throw new Error("Couldn't find your university calendar URL.");
+      if (updateSettings) await updateSettings({ university_course_catalog_url: best });
+      const pRes = await base44.functions.invoke("refreshCourseCatalog", {
+        ...opts,
+        university_course_catalog_url: best,
+        parse_only: true,
+      });
+      const pD = pRes?.data ?? pRes;
+      if (pD?.error) throw new Error(pD.error);
+      t.update({
+        title: <span className="flex items-center gap-1.5"><Check className="h-4 w-4 text-emerald-400" /> Course catalog ready</span>,
+        description: `${pD.course_count || 0} courses cached${pD.parse_status === "partial" ? " · partial" : ""}.`,
+      });
+    } catch (e) {
+      t.update({
+        title: <span className="flex items-center gap-1.5"><AlertCircle className="h-4 w-4 text-rose-400" /> Couldn't parse catalog</span>,
+        description: e?.message || "We'll try again later.",
+      });
+    }
   }
 
   const remaining = useMemo(() => {
