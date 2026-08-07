@@ -92,6 +92,10 @@
       "type": "string",
       "description": "URL of the university's course catalog / academic calendar page."
     },
+    "faculty": {
+      "type": "string",
+      "description": "Faculty / school the user belongs to, e.g. Faculty of Engineering. Used to pre-fill new courses."
+    },
     "degree_program": {
       "type": "string",
       "description": "User's degree program e.g. Electrical Engineering"

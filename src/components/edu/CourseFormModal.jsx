@@ -7,12 +7,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CalendarClock, UploadCloud, Keyboard, ArrowLeft, Sparkles, Loader2 } from "lucide-react";
+import { CalendarClock, UploadCloud, Keyboard, ArrowLeft, Sparkles, Loader2, Pencil, Check, Info } from "lucide-react";
 import SyllabusUpload from "@/components/edu/SyllabusUpload";
 import CalendarImport from "@/components/edu/CalendarImport";
 import { useEduSync } from "@/lib/eduSyncContext";
 import { useToast } from "@/components/ui/use-toast";
-import { autofillCourse } from "@/lib/courseAutofill";
+import { autofillCourse, matchesProfileBranch } from "@/lib/courseAutofill";
 
 const DAYS = ["M", "T", "W", "Th", "F", "S", "Su"];
 const DIFF_OPTIONS = ["Easy", "Moderate", "Hard"];
@@ -24,16 +24,28 @@ export default function CourseFormModal({ open, onOpenChange, semesterId, semest
   const [saving, setSaving] = React.useState(false);
   const [autofilling, setAutofilling] = React.useState(false);
   const [form, setForm] = React.useState(emptyForm());
+  const [candidates, setCandidates] = React.useState([]);
+  const [selectedCandidate, setSelectedCandidate] = React.useState(0);
+  const [editingHours, setEditingHours] = React.useState(false);
+  const lastAutoCodeRef = React.useRef("");
 
   React.useEffect(() => {
     if (open) {
       const f = emptyForm();
-      // Inherit the user's university so autofill + saved course default to it.
+      // Inherit the user's university + program/faculty so the saved course
+      // defaults to the right context and the faculty/degree fields pre-fill.
       if (settings?.university_name) f.university_name = settings.university_name;
+      if (settings?.faculty) f.faculty = settings.faculty;
+      if (settings?.degree_program) f.degree_program = settings.degree_program;
+      if (settings?.specialization) f.specialization = settings.specialization;
       setForm(f);
       setStep("choose");
       setSaving(false);
       setAutofilling(false);
+      setCandidates([]);
+      setSelectedCandidate(0);
+      setEditingHours(false);
+      lastAutoCodeRef.current = "";
     }
   }, [open, settings]);
 
@@ -50,6 +62,24 @@ export default function CourseFormModal({ open, onOpenChange, semesterId, semest
   }
   function set(k, v) { setForm((p) => ({ ...p, [k]: v })); }
 
+  function applyCandidate(c) {
+    setCandidates((prev) => prev);
+    setForm((p) => ({
+      ...p,
+      code: c.code || p.code,
+      title: c.title || p.title,
+      course_description: c.description || p.course_description,
+      credits: typeof c.credits === "number" && c.credits > 0 ? c.credits : p.credits,
+      faculty: c.faculty || p.faculty,
+      degree_program: c.degree_program || p.degree_program,
+      specialization: c.specialization || p.specialization,
+      prerequisites: c.prerequisites || p.prerequisites,
+      difficulty_ranking: c.difficulty_ranking || p.difficulty_ranking,
+      difficulty_reason: c.difficulty_reason || p.difficulty_reason,
+      target_weekly_hours: typeof c.estimated_weekly_hours === "number" ? c.estimated_weekly_hours : p.target_weekly_hours,
+    }));
+  }
+
   async function runAutofill() {
     if (!form.code) {
       toast({ title: "Enter a course code first", variant: "destructive" });
@@ -65,26 +95,52 @@ export default function CourseFormModal({ open, onOpenChange, semesterId, semest
         domain: settings?.university_domain,
         catalogUrl: settings?.university_course_catalog_url,
       };
-      const out = await autofillCourse({ code: form.code, university: uni });
-      setForm((p) => ({
-        ...p,
-        title: out.title || p.title,
-        course_description: out.description || p.course_description,
-        credits: typeof out.credits === "number" && out.credits > 0 ? out.credits : p.credits,
-        faculty: out.faculty || p.faculty,
-        degree_program: out.degree_program || p.degree_program,
-        specialization: out.specialization || p.specialization,
-        prerequisites: out.prerequisites || p.prerequisites,
-        difficulty_ranking: out.difficulty_ranking || p.difficulty_ranking,
-        difficulty_reason: out.difficulty_reason || p.difficulty_reason,
-        university_name: p.university_name || settings?.university_name,
-      }));
-      if (!out.description) toast({ title: "Couldn't find that course — fields left editable", description: "Best-guess department filled from the code prefix." });
+      const profile = {
+        degree_program: settings?.degree_program,
+        specialization: settings?.specialization,
+        faculty: settings?.faculty,
+      };
+      const out = await autofillCourse({ code: form.code, university: uni, profile });
+      const list = out.candidates || [];
+      setCandidates(list);
+      setSelectedCandidate(0);
+      if (list.length === 1) {
+        applyCandidate(list[0]);
+      } else if (list.length > 1) {
+        applyCandidate(list[0]);
+      }
+      if (!list[0]?.description) {
+        toast({ title: "Best-guess filled", description: "Couldn't find that exact course — fields pre-filled from the code prefix; edit as needed." });
+      } else if (list.length > 1) {
+        toast({ title: `${list.length} matches found`, description: "Pick the right course from the dropdown." });
+      }
     } catch (e) {
       toast({ title: "Autofill failed", variant: "destructive" });
     } finally {
       setAutofilling(false);
     }
+  }
+
+  // Auto-run the catalog lookup when the typed code belongs to the user's
+  // declared program branch (in-program course). For codes outside the branch
+  // (electives), don't auto-run — the user can press the AI Autofill button.
+  function maybeAutoAutofill() {
+    const code = (form.code || "").trim();
+    if (!code) return;
+    if (!settings?.degree_program) return;
+    if (code === lastAutoCodeRef.current) return;
+    lastAutoCodeRef.current = code;
+    const profile = {
+      degree_program: settings.degree_program,
+      specialization: settings.specialization,
+      faculty: settings.faculty,
+    };
+    if (matchesProfileBranch(code, profile)) runAutofill();
+  }
+
+  function selectCandidate(idx) {
+    setSelectedCandidate(idx);
+    if (candidates[idx]) applyCandidate(candidates[idx]);
   }
 
   async function saveManual(e) {
@@ -131,7 +187,7 @@ export default function CourseFormModal({ open, onOpenChange, semesterId, semest
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-black border-white/10 text-zinc-100 max-w-lg">
+      <DialogContent className="bg-black border-white/10 text-zinc-100 max-w-3xl w-full">
         <DialogHeader>
           <DialogTitle className="text-zinc-100">
             {step === "choose" && "Add Course"}
@@ -177,13 +233,34 @@ export default function CourseFormModal({ open, onOpenChange, semesterId, semest
             <div>
               <Label className="text-white/50">Course Code</Label>
               <div className="flex gap-2 mt-1">
-                <Input value={form.code} onChange={(e) => set("code", e.target.value)} className="bg-black border-white/10" placeholder="e.g. ECE 105" required />
+                <Input value={form.code} onChange={(e) => set("code", e.target.value)} onBlur={maybeAutoAutofill} className="bg-black border-white/10" placeholder="e.g. ECE 105" required />
                 <Button type="button" onClick={runAutofill} disabled={autofilling || !form.code} className="bg-emerald-500/15 border border-emerald-400/30 text-emerald-300 hover:bg-emerald-500/25 shrink-0" title="AI autofill from your university's course catalog">
                   {autofilling ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Sparkles className="h-4 w-4 mr-1" />}
                   <span className="whitespace-nowrap">AI Autofill</span>
                 </Button>
               </div>
+              {settings?.degree_program && (
+                <p className="text-[10px] text-white/30 mt-1 flex items-center gap-1">
+                  <Info className="h-3 w-3" />
+                  Codes in your program ({settings.degree_program}) auto-fill; other codes use the button.
+                </p>
+              )}
             </div>
+
+            {candidates.length > 1 && (
+              <div>
+                <Label className="text-white/50">Matched Courses</Label>
+                <Select value={String(selectedCandidate)} onValueChange={(v) => selectCandidate(Number(v))}>
+                  <SelectTrigger className="bg-black border-white/10 mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {candidates.map((c, i) => (
+                      <SelectItem key={i} value={String(i)}>{c.code}: {c.title}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[10px] text-white/35 mt-1">Multiple matches found — pick the right one.</p>
+              </div>
+            )}
 
             <div><Label className="text-white/50">Title</Label>
               <Input value={form.title} onChange={(e) => set("title", e.target.value)} className="bg-black border-white/10 mt-1" required />
@@ -193,16 +270,16 @@ export default function CourseFormModal({ open, onOpenChange, semesterId, semest
               <div className="flex items-center gap-2 rounded-md border border-white/10 bg-emerald-500/5 px-3 py-2">
                 <span className={`h-2.5 w-2.5 rounded-full ${form.difficulty_ranking === "Easy" ? "bg-emerald-400" : form.difficulty_ranking === "Moderate" ? "bg-amber-400" : "bg-rose-400"}`} />
                 <span className="text-xs text-zinc-100 font-medium">{form.difficulty_ranking}</span>
-                {form.difficulty_reason && <span className="text-[11px] text-white/50 truncate">— {form.difficulty_reason}</span>}
+                {form.difficulty_reason && <span className="text-[11px] text-white/50 break-words min-w-0">— {form.difficulty_reason}</span>}
               </div>
             )}
 
             <div>
               <Label className="text-white/50">Course Description</Label>
-              <Textarea value={form.course_description || ""} onChange={(e) => set("course_description", e.target.value)} rows={2} className="bg-black border-white/10 mt-1 text-sm" placeholder="Auto-filled from the catalog — edit as needed" />
+              <Textarea value={form.course_description || ""} onChange={(e) => set("course_description", e.target.value)} rows={3} className="bg-black border-white/10 mt-1 text-sm leading-relaxed whitespace-normal break-words" placeholder="Auto-filled from the catalog — edit as needed" />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div><Label className="text-white/50">Faculty</Label><Input value={form.faculty || ""} onChange={(e) => set("faculty", e.target.value)} className="bg-black border-white/10 mt-1" placeholder="e.g. Faculty of Engineering" /></div>
               <div><Label className="text-white/50">Degree Program</Label><Input value={form.degree_program || ""} onChange={(e) => set("degree_program", e.target.value)} className="bg-black border-white/10 mt-1" placeholder="e.g. Electrical Engineering" /></div>
               <div><Label className="text-white/50">Specialization</Label><Input value={form.specialization || ""} onChange={(e) => set("specialization", e.target.value)} className="bg-black border-white/10 mt-1" placeholder="e.g. Power Systems" /></div>
@@ -219,13 +296,33 @@ export default function CourseFormModal({ open, onOpenChange, semesterId, semest
               <div><Label className="text-white/50">Credits</Label><Input type="number" value={form.credits} onChange={(e) => set("credits", e.target.value)} className="bg-black border-white/10 mt-1" /></div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            {/* AI-Estimated Weekly Hours — read-only with edit override */}
+            <div className="rounded-md border border-white/10 bg-black/40 px-3 py-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <Label className="text-white/50 block">AI-Estimated Weekly Hours</Label>
+                  <p className="text-[10px] text-white/35 mt-0.5">(based on course difficulty & credit weight)</p>
+                </div>
+                {editingHours ? (
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <Input type="number" min="0" max="80" value={form.target_weekly_hours} onChange={(e) => set("target_weekly_hours", e.target.value)} className="bg-black border-white/10 w-20" />
+                    <button type="button" onClick={() => setEditingHours(false)} className="text-emerald-300 hover:text-emerald-200 p-1" title="Done"><Check className="h-4 w-4" /></button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-sm font-mono tabular-nums text-zinc-100">{form.target_weekly_hours}h</span>
+                    <button type="button" onClick={() => setEditingHours(true)} className="text-white/40 hover:text-emerald-300 p-1" title="Edit weekly hours"><Pencil className="h-3.5 w-3.5" /></button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div><Label className="text-white/50">Professor Name</Label><Input value={form.professor_name} onChange={(e) => set("professor_name", e.target.value)} className="bg-black border-white/10 mt-1" /></div>
               <div><Label className="text-white/50">Professor Email</Label><Input value={form.professor_email} onChange={(e) => set("professor_email", e.target.value)} className="bg-black border-white/10 mt-1" /></div>
               <div><Label className="text-white/50">Office Hours</Label><Input value={form.office_hours} onChange={(e) => set("office_hours", e.target.value)} className="bg-black border-white/10 mt-1" /></div>
               <div><Label className="text-white/50">Schedule Time</Label><Input value={form.schedule_time} onChange={(e) => set("schedule_time", e.target.value)} placeholder="10:00-11:30" className="bg-black border-white/10 mt-1" /></div>
               <div><Label className="text-white/50">Location</Label><Input value={form.location} onChange={(e) => set("location", e.target.value)} className="bg-black border-white/10 mt-1" /></div>
-              <div><Label className="text-white/50">Target Weekly Hours</Label><Input type="number" value={form.target_weekly_hours} onChange={(e) => set("target_weekly_hours", e.target.value)} className="bg-black border-white/10 mt-1" /></div>
             </div>
 
             <div>

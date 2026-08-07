@@ -309,11 +309,13 @@ function UniversitySection() {
   const [uni, setUni] = React.useState({ name: settings?.university_name || "", domain: settings?.university_domain || "", catalogUrl: settings?.university_course_catalog_url || "" });
   const [program, setProgram] = React.useState(settings?.degree_program || "");
   const [spec, setSpec] = React.useState(settings?.specialization || "");
+  const [faculty, setFaculty] = React.useState(settings?.faculty || "");
 
   React.useEffect(() => {
     setUni({ name: settings?.university_name || "", domain: settings?.university_domain || "", catalogUrl: settings?.university_course_catalog_url || "" });
     setProgram(settings?.degree_program || "");
     setSpec(settings?.specialization || "");
+    setFaculty(settings?.faculty || "");
   }, [settings]);
 
   async function save(next) {
@@ -322,6 +324,7 @@ function UniversitySection() {
         university_name: next?.name || "",
         university_domain: next?.domain || "",
         university_course_catalog_url: next?.catalogUrl || "",
+        faculty,
         degree_program: program,
         specialization: spec,
       });
@@ -339,6 +342,10 @@ function UniversitySection() {
       </div>
       <UniversitySelector value={uni} onChange={(n) => { setUni(n || { name: "", domain: "", catalogUrl: "" }); save(n); }} />
       <div className="grid grid-cols-2 gap-3 mt-3">
+        <div className="col-span-2">
+          <Label className="text-[11px] text-white/50 mb-1 block">Faculty</Label>
+          <Input value={faculty} onChange={(e) => setFaculty(e.target.value)} onBlur={() => save(uni)} placeholder="e.g. Faculty of Engineering" className="bg-black border-white/10 h-9" />
+        </div>
         <div>
           <Label className="text-[11px] text-white/50 mb-1 block">Degree program</Label>
           <Input value={program} onChange={(e) => setProgram(e.target.value)} onBlur={() => save(uni)} placeholder="e.g. Electrical Engineering" className="bg-black border-white/10 h-9" />

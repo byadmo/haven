@@ -34,7 +34,7 @@ export default function ProfileWizard({ open, onOpenChange, onCompleted }) {
     weekly_study_hours: 15, has_job: false, work_hours: 0, work_days: [], import_choice: "",
     screenshot_courses: [], transcript_courses: [],
     university_name: "", university_domain: "", university_course_catalog_url: "",
-    degree_program: "", specialization: "",
+    faculty: "", degree_program: "", specialization: "",
     ...(getProfile() || {}),
   }));
   const [parsing, setParsing] = useState(null); // 'schedule' | 'transcript' | null
@@ -49,6 +49,7 @@ export default function ProfileWizard({ open, onOpenChange, onCompleted }) {
     if (settings.university_name && !form.university_name) set("university_name", settings.university_name);
     if (settings.university_domain && !form.university_domain) set("university_domain", settings.university_domain);
     if (settings.university_course_catalog_url && !form.university_course_catalog_url) set("university_course_catalog_url", settings.university_course_catalog_url);
+    if (settings.faculty && !form.faculty) set("faculty", settings.faculty);
     if (settings.degree_program && !form.degree_program) set("degree_program", settings.degree_program);
     if (settings.specialization && !form.specialization) set("specialization", settings.specialization);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -127,6 +128,7 @@ export default function ProfileWizard({ open, onOpenChange, onCompleted }) {
       university_name: form.university_name || "",
       university_domain: form.university_domain || "",
       university_course_catalog_url: form.university_course_catalog_url || "",
+      faculty: form.faculty || "",
       degree_program: form.degree_program || "",
       specialization: form.specialization || "",
     };
@@ -140,6 +142,7 @@ export default function ProfileWizard({ open, onOpenChange, onCompleted }) {
           university_name: form.university_name || settings?.university_name || "",
           university_domain: form.university_domain || settings?.university_domain || "",
           university_course_catalog_url: form.university_course_catalog_url || settings?.university_course_catalog_url || "",
+          faculty: form.faculty || settings?.faculty || "",
           degree_program: form.degree_program || settings?.degree_program || "",
           specialization: form.specialization || settings?.specialization || "",
         });
@@ -169,7 +172,7 @@ export default function ProfileWizard({ open, onOpenChange, onCompleted }) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg bg-black border-white/10 p-0 overflow-hidden flex flex-col h-[85vh] max-h-[660px]">
+      <DialogContent className="max-w-xl bg-black border-white/10 p-0 overflow-hidden flex flex-col h-[85vh] max-h-[660px]">
         {/* Fixed header — same height on every step */}
         <div className="p-5 sm:p-6 pb-3 shrink-0">
           <DialogTitle className="text-base font-semibold text-zinc-50 flex items-center gap-2">
@@ -213,6 +216,7 @@ export default function ProfileWizard({ open, onOpenChange, onCompleted }) {
               <div className="rounded-md border border-white/10 p-3 space-y-2.5">
                 <p className="text-[10px] uppercase tracking-widest text-white/40">Program (optional)</p>
                 <div className="grid grid-cols-2 gap-2">
+                  <div className="col-span-2"><Label className="text-[11px] text-white/50 mb-1 block">Faculty</Label><Input value={form.faculty || ""} onChange={(e) => set("faculty", e.target.value)} placeholder="e.g. Faculty of Engineering" className="bg-black border-white/10 h-9" /></div>
                   <div><Label className="text-[11px] text-white/50 mb-1 block">Degree program</Label><Input value={form.degree_program || ""} onChange={(e) => set("degree_program", e.target.value)} placeholder="e.g. Electrical Engineering" className="bg-black border-white/10 h-9" /></div>
                   <div><Label className="text-[11px] text-white/50 mb-1 block">Specialization</Label><Input value={form.specialization || ""} onChange={(e) => set("specialization", e.target.value)} placeholder="e.g. Power Systems" className="bg-black border-white/10 h-9" /></div>
                 </div>
@@ -323,12 +327,16 @@ export default function ProfileWizard({ open, onOpenChange, onCompleted }) {
               {SUGGESTIONS.map((s, i) => {
                 const active = studyLevel?.label === s.label;
                 return (
-                  <div key={s.label} className={`flex items-center gap-2 rounded border px-2 py-1 text-[11px] transition-colors ${active ? "border-emerald-400/40 bg-emerald-500/10" : "border-white/10"}`}>
-                    <span className="font-mono text-white/30 w-3">{i + 1}</span>
-                    <span className={`font-medium ${active ? "text-emerald-200" : "text-zinc-200"}`}>{s.label}</span>
-                    <span className="text-white/40 font-mono">{s.range}</span>
-                    <span className="text-white/35 truncate flex-1">— {s.short}</span>
-                    {active && <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />}
+                  <div key={s.label} className={`flex items-start gap-2 rounded border px-2.5 py-1.5 text-[11px] transition-colors ${active ? "border-emerald-400/40 bg-emerald-500/10" : "border-white/10"}`}>
+                    <span className="font-mono text-white/30 w-3 shrink-0">{i + 1}</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className={`font-medium ${active ? "text-emerald-200" : "text-zinc-200"}`}>{s.label}</span>
+                        <span className="text-white/40 font-mono">{s.range}</span>
+                        {active && <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />}
+                      </div>
+                      <span className="text-white/35 break-words leading-snug block">— {s.short}</span>
+                    </div>
                   </div>
                 );
               })}

@@ -9,6 +9,8 @@ import { base44 } from "@/api/base44Client";
 const PREFIX_MAP = {
   ECE: { department: "Electrical and Computer Engineering", faculty: "Faculty of Engineering" },
   EE: { department: "Electrical Engineering", faculty: "Faculty of Engineering" },
+  ELE: { department: "Electrical Engineering", faculty: "Faculty of Engineering" },
+  ELEC: { department: "Electrical Engineering", faculty: "Faculty of Engineering" },
   CIVE: { department: "Civil Engineering", faculty: "Faculty of Engineering" },
   ME: { department: "Mechanical Engineering", faculty: "Faculty of Engineering" },
   MENG: { department: "Mechanical Engineering", faculty: "Faculty of Engineering" },
@@ -30,6 +32,7 @@ const PREFIX_MAP = {
   BIOLOGY: { department: "Biology", faculty: "Faculty of Science" },
   ECON: { department: "Economics", faculty: "Faculty of Arts" },
   ENGL: { department: "English", faculty: "Faculty of Arts" },
+  ARTS: { department: "Arts", faculty: "Faculty of Arts" },
   HIST: { department: "History", faculty: "Faculty of Arts" },
   PSYCH: { department: "Psychology", faculty: "Faculty of Science" },
   PSY: { department: "Psychology", faculty: "Faculty of Science" },
@@ -54,24 +57,56 @@ export function guessFromCode(code) {
   return PREFIX_MAP[m[1]] || null;
 }
 
+// Does the typed course code's subject prefix belong to the user's declared
+// degree program / specialization? Used to decide whether to auto-run the AI
+// catalog lookup (in-program) or wait for a manual button press (elective).
+// Conservative: matches only when a meaningful word from the profile overlaps
+// the prefix's predicted department.
+export function matchesProfileBranch(code, profile = {}) {
+  const guess = guessFromCode(code);
+  if (!guess) return false;
+  const profileText = `${profile.degree_program || ""} ${profile.specialization || ""}`.toLowerCase().trim();
+  if (!profileText) return false;
+  const meaningful = (s) => s.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 4);
+  const pwords = meaningful(profileText);
+  const dwords = meaningful(guess.department || "");
+  return pwords.some((w) => dwords.includes(w));
+}
+
+// Rough weekly-hours fallback: ~2h per credit, scaled by difficulty.
+function fallbackHours(credits, difficulty) {
+  const c = credits && credits > 0 ? credits : 3;
+  const eff = c >= 1 ? c : 0.5; // half-credit courses count as a normal course
+  const base = 6 * (eff >= 1 ? Math.min(eff, 6) / 3 : 1);
+  const mult = difficulty === "Hard" ? 1.4 : difficulty === "Easy" ? 0.8 : 1.1;
+  return Math.max(2, Math.round(base * mult));
+}
+
 // Fetch course details for a course code at the user's university via web
-// search. Returns: { title, description, credits, faculty, degree_program,
-// specialization, prerequisites, difficulty_ranking, difficulty_reason }.
-// Always resolves (best-guess from the prefix if AI finds nothing).
-export async function autofillCourse({ code, university }) {
+// search. Returns: { candidates: Array<{code,title,description,credits,
+// faculty,degree_program,specialization,prerequisites,difficulty_ranking,
+// difficulty_reason,estimated_weekly_hours}>, weekly_hours }.
+// The first candidate is the best/exact match. Always resolves.
+export async function autofillCourse({ code, university, profile }) {
   const uniName = university?.university_name || university?.name || "";
   const uniDomain = university?.university_domain || university?.domain || "";
   const catalogUrl = university?.university_course_catalog_url || university?.catalogUrl || "";
+  const program = profile?.degree_program || "";
+  const spec = profile?.specialization || "";
 
   const prompt = [
     "You are an expert on Canadian university course catalogs.",
     `A student is adding the course with code "${code}"${uniName ? ` at ${uniName}` : ""}.`,
+    program
+      ? `Their declared degree program is "${program}"${spec ? ` (specialization: "${spec}")` : ""}. Prioritize matching courses from that program's official course listing; only broaden to the wider university catalog if the code clearly belongs to a different department.`
+      : "",
     catalogUrl
-      ? `Try to find this course on the university's course catalog at ${catalogUrl} (and the broader ${uniDomain} site).`
+      ? `Find courses on the university's course catalog at ${catalogUrl} (and the broader ${uniDomain} site).`
       : uniDomain
-        ? `Try to find this course on the ${uniDomain} website and public academic calendar.`
+        ? `Find courses on the ${uniDomain} website and public academic calendar.`
         : "Search the web for this course code at a Canadian university.",
-    "Return a JSON object with these fields:",
+    "Return a JSON object with a 'courses' array of 1 to 3 best-match course objects. The FIRST item must be the best/exact match for the given code. Each course object has:",
+    "- code: the course code as listed (string)",
     "- title: the official course title (string)",
     "- description: the official course description as published in the catalog (string, 1-3 sentences)",
     "- credits: credit weight as a number (e.g. 3, 0.5, 4). Default 3 if unknown.",
@@ -81,10 +116,11 @@ export async function autofillCourse({ code, university }) {
     "- prerequisites: a short string listing prerequisites, or 'None' if none",
     "- difficulty_ranking: one of 'Easy', 'Moderate', 'Hard' based on course content, workload, credit weight and reputation",
     "- difficulty_reason: ONE short sentence (max ~20 words) explaining the ranking",
+    "- estimated_weekly_hours: a number — recommended total study hours per week (lectures + labs + tutorials + independent study), based on credit weight, difficulty, and any lab/tutorial time mentioned in the description",
     "If you cannot find the exact course, infer the department from the course code prefix and still give your best-guess fields. Never leave title blank — use the course code as the title if nothing else fits.",
   ].join(" ");
 
-  let result = null;
+  let courses = null;
   try {
     const res = await base44.integrations.Core.InvokeLLM({
       prompt,
@@ -93,50 +129,65 @@ export async function autofillCourse({ code, university }) {
       response_json_schema: {
         type: "object",
         properties: {
-          title: { type: "string" },
-          description: { type: "string" },
-          credits: { type: "number" },
-          faculty: { type: "string" },
-          degree_program: { type: "string" },
-          specialization: { type: "string" },
-          prerequisites: { type: "string" },
-          difficulty_ranking: { type: "string", enum: ["Easy", "Moderate", "Hard"] },
-          difficulty_reason: { type: "string" },
+          courses: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                code: { type: "string" },
+                title: { type: "string" },
+                description: { type: "string" },
+                credits: { type: "number" },
+                faculty: { type: "string" },
+                degree_program: { type: "string" },
+                specialization: { type: "string" },
+                prerequisites: { type: "string" },
+                difficulty_ranking: { type: "string", enum: ["Easy", "Moderate", "Hard"] },
+                difficulty_reason: { type: "string" },
+                estimated_weekly_hours: { type: "number" },
+              },
+              required: ["title", "difficulty_ranking"],
+            },
+          },
         },
-        required: ["title", "difficulty_ranking"],
+        required: ["courses"],
       },
     });
-    result = res?.data ?? res;
+    const d = res?.data ?? res;
+    courses = Array.isArray(d?.courses) ? d.courses : null;
   } catch (e) {
-    result = null;
+    courses = null;
   }
 
-  // Fallback prefix guess for department/faculty when AI returned nothing useful.
   const guess = guessFromCode(code);
-  if (result) {
-    return {
-      title: result.title || code,
-      description: result.description || "",
-      credits: typeof result.credits === "number" && result.credits > 0 ? result.credits : 3,
-      faculty: result.faculty || guess?.faculty || "",
-      degree_program: result.degree_program || "",
-      specialization: result.specialization || "",
-      prerequisites: result.prerequisites || "",
-      difficulty_ranking: result.difficulty_ranking || "Moderate",
-      difficulty_reason: result.difficulty_reason || "",
-    };
+  const normalize = (c) => ({
+    code: c?.code || code,
+    title: c?.title || code,
+    description: c?.description || "",
+    credits: typeof c?.credits === "number" && c.credits > 0 ? c.credits : 3,
+    faculty: c?.faculty || guess?.faculty || "",
+    degree_program: c?.degree_program || "",
+    specialization: c?.specialization || "",
+    prerequisites: c?.prerequisites || "",
+    difficulty_ranking: c?.difficulty_ranking || "Moderate",
+    difficulty_reason: c?.difficulty_reason || "",
+    estimated_weekly_hours: typeof c?.estimated_weekly_hours === "number" && c.estimated_weekly_hours > 0
+      ? c.estimated_weekly_hours
+      : fallbackHours(typeof c?.credits === "number" ? c.credits : 3, c?.difficulty_ranking || "Moderate"),
+  });
+
+  let candidates;
+  if (courses && courses.length) {
+    candidates = courses.slice(0, 3).map(normalize);
+  } else {
+    candidates = [{
+      code, title: code, description: "", credits: 3,
+      faculty: guess?.faculty || "", degree_program: "", specialization: "",
+      prerequisites: "", difficulty_ranking: "Moderate", difficulty_reason: "",
+      estimated_weekly_hours: fallbackHours(3, "Moderate"),
+    }];
   }
-  return {
-    title: code,
-    description: "",
-    credits: 3,
-    faculty: guess?.faculty || "",
-    degree_program: "",
-    specialization: "",
-    prerequisites: "",
-    difficulty_ranking: "Moderate",
-    difficulty_reason: "",
-  };
+  return { candidates, weekly_hours: candidates[0]?.estimated_weekly_hours ?? fallbackHours(3, "Moderate") };
 }
 
 // Generate (or regenerate) a detailed difficulty explanation for a course.
