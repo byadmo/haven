@@ -7,6 +7,7 @@ import { fetchLivePrices } from "@/lib/netWorth";
 import { computeCategoryUpdates } from "@/lib/categorizeAuto";
 import ThemeRoot from "@/components/ThemeRoot";
 import FinancialSplash from "@/components/finance/FinancialSplash";
+import FinancialHeader from "@/components/finance/FinancialHeader";
 import { useToast } from "@/components/ui/use-toast";
 
 const FinanceDataContext = React.createContext(null);
@@ -276,9 +277,16 @@ function FinanceLayoutInner({ children }) {
     );
   }
   return (
-    <ThemeRoot theme={theme} app="finance" className="dark min-h-screen relative">
-      {showSplash && <FinancialSplash onComplete={handleSplashComplete} />}
-      {children ?? <Outlet />}
-    </ThemeRoot>
-  );
+      <ThemeRoot theme={theme} app="finance" className="dark min-h-screen relative finance-accent">
+        {showSplash && <FinancialSplash onComplete={handleSplashComplete} />}
+        {!showSplash && (
+          <div className="flex flex-col min-h-screen selection:bg-emerald-500/30">
+            <FinancialHeader />
+            <main className="max-w-6xl mx-auto w-full px-4 sm:px-8 py-6 pb-24 sm:pb-8">
+              {children ?? <Outlet />}
+            </main>
+          </div>
+        )}
+      </ThemeRoot>
+    );
 }
