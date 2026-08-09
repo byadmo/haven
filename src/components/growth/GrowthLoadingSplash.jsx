@@ -1,52 +1,40 @@
 import React from "react";
-import { ShieldCheck } from "lucide-react";
+import { Flame } from "lucide-react";
+import { THEMES, DEFAULT_THEME, getStoredTheme } from "@/lib/themes";
 
-// Loading splash for Haven Growth. Amber-on-black to match the Growth brand
-// accent used across the module (ShieldCheck / Flame amber-300/400).
+// Loading splash for Haven Growth, shown while the Growth module's data loads.
+// Colors follow the user's chosen Haven Growth theme.
 export default function GrowthLoadingSplash() {
+  const t = THEMES[getStoredTheme("growth")] || THEMES[DEFAULT_THEME];
+
   return (
     <div
-      className="fixed inset-0 z-50 overflow-hidden text-white flex flex-col items-center justify-center p-6"
+      className="fixed inset-0 z-50 overflow-hidden flex flex-col items-center justify-center p-6"
       style={{
-        background:
-          "radial-gradient(120% 120% at 50% 0%, #2d1b14 0%, #1a0f0a 60%, #000000 100%)",
+        color: t.text,
+        background: `radial-gradient(120% 120% at 50% 0%, ${t.surface} 0%, ${t.bg} 60%, #000000 100%)`,
       }}
     >
-      {/* Drifting ambient blobs — amber */}
-      <div
-        className="pointer-events-none absolute -top-24 -left-16 h-72 w-72 rounded-full animate-pulse"
-        style={{ background: "radial-gradient(circle, #f59e0b22, transparent 70%)" }}
-      />
-      <div
-        className="pointer-events-none absolute -bottom-24 -right-16 h-80 w-80 rounded-full"
-        style={{ background: "radial-gradient(circle, #f973161a, transparent 70%)" }}
-      />
+      {/* drifting ambient blobs — themed */}
+      <div className="pointer-events-none absolute -top-24 -left-16 h-72 w-72 rounded-full" style={{ background: `radial-gradient(circle, ${t.primary}33, transparent 70%)`, animation: "splash-float 9s ease-in-out infinite" }} />
+      <div className="pointer-events-none absolute -bottom-24 -right-16 h-80 w-80 rounded-full" style={{ background: `radial-gradient(circle, ${t.secondary}2a, transparent 70%)`, animation: "splash-float 12s ease-in-out infinite", animationDelay: "1.2s" }} />
 
-      <div className="relative z-10 flex flex-col items-center gap-5 text-center">
+      <div className="relative z-10 flex flex-col items-center">
         <div
-          className="inline-flex items-center justify-center rounded-2xl border h-16 w-16 splash-logo-in"
-          style={{ borderColor: "#f59e0b4d", background: "#f59e0b1a" }}
+          className="splash-logo-in inline-flex items-center justify-center rounded-2xl border"
+          style={{ height: 64, width: 64, borderColor: `${t.primary}4d`, background: `${t.primary}1a` }}
         >
-          <ShieldCheck className="h-8 w-8 text-amber-400" />
+          <Flame style={{ height: 32, width: 32, color: t.primary }} />
         </div>
-
-        <div className="space-y-1.5 splash-fade-up">
-          <span className="text-[10px] uppercase tracking-[0.25em] font-mono text-amber-400">
-            Haven
-          </span>
-          <h1 className="text-2xl font-bold tracking-tight text-white">Growth</h1>
-        </div>
-
-        {/* Loading dots */}
-        <div className="flex items-center gap-1.5 pt-1">
+        <span className="splash-fade-up mt-4 font-semibold tracking-tight" style={{ fontSize: 28, color: t.text, animationDelay: "0.4s" }}>
+          Haven <span style={{ color: t.primary }}>Growth</span>
+        </span>
+        <div className="splash-fade-up mt-8 flex items-center gap-2" style={{ animationDelay: "0.7s" }}>
           {[0, 1, 2].map((i) => (
             <span
               key={i}
-              className="h-1.5 w-1.5 rounded-full bg-amber-400"
-              style={{
-                animation: "dd-dot 1.1s ease-in-out infinite",
-                animationDelay: `${i * 0.18}s`,
-              }}
+              className="h-2 w-2 rounded-full"
+              style={{ background: t.primary, animation: "dd-dot 1.1s ease-in-out infinite", animationDelay: `${i * 0.18}s` }}
             />
           ))}
         </div>
