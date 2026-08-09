@@ -1,7 +1,7 @@
 import React from "react";
 import { Outlet, Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { LayoutDashboard, BookOpen, Timer, GraduationCap, BarChart3, ShieldCheck, CalendarDays, ArrowLeft } from "lucide-react";
+import { LayoutDashboard, Timer, BookOpen, ShieldCheck, ArrowLeft, Settings } from "lucide-react";
 import { percentToGpa } from "@/lib/eduGrading";
 import EducationSplash from "@/components/edu/EducationSplash";
 import { useToast } from "@/components/ui/use-toast";
@@ -14,12 +14,10 @@ import { DEFAULT_THEME } from "@/lib/themes";
 export const GCALENDAR_CONNECTOR_ID = "6a70ef7e9f47c094588c220b";
 
 export const EDU_NAV = [
-  { to: "/education", label: "Dashboard", icon: LayoutDashboard, end: true },
-  { to: "/education/courses", label: "Courses", icon: BookOpen },
-  { to: "/education/schedule", label: "Schedule", icon: CalendarDays },
-  { to: "/education/timer", label: "Timer", icon: Timer },
-  { to: "/education/grades", label: "Grades", icon: GraduationCap },
-  { to: "/education/analytics", label: "Analytics", icon: BarChart3 },
+  { to: "/education", label: "Home", icon: LayoutDashboard, end: true },
+  { to: "/education/focus", label: "Focus Hub", icon: Timer },
+  { to: "/education/vault", label: "Vault", icon: BookOpen },
+  { to: "/education/settings", label: "Settings", icon: Settings },
 ];
 
 const EduSyncContext = React.createContext(null);

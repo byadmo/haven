@@ -13,13 +13,10 @@ import FinancialAllocation from '@/pages/finance/FinancialAllocation';
 import Splash from '@/pages/Splash';
 import Hub from '@/pages/Hub';
 import { EduLayout } from '@/lib/eduSyncContext';
-import EduDashboard from '@/pages/edu/EduDashboard';
-import EduCourses from '@/pages/edu/EduCourses';
-import EduTimer from '@/pages/edu/EduTimer';
-import EduGrades from '@/pages/edu/EduGrades';
-import EduAnalytics from '@/pages/edu/EduAnalytics';
+import EduHome from '@/pages/edu/EduHome';
+import EduFocusHub from '@/pages/edu/EduFocusHub';
+import EduVault from '@/pages/edu/EduVault';
 import EduSettings from '@/pages/edu/EduSettings';
-import EduSchedule from '@/pages/edu/EduSchedule';
 import Goals from '@/pages/Goals';
 import Debts from '@/pages/Debts';
 import Accounts from '@/pages/Accounts';
@@ -77,14 +74,16 @@ const AuthenticatedApp = () => {
       <Route element={<ProtectedRoute unauthenticatedElement={<Splash />} />}>
         <Route path="/" element={<Hub />} />
         <Route element={<EduLayout />}>
-          <Route path="/education" element={<EduDashboard />} />
-          <Route path="/education/courses" element={<EduCourses />} />
-          <Route path="/education/schedule" element={<EduSchedule />} />
-          <Route path="/education/timer" element={<EduTimer />} />
-          <Route path="/education/grades" element={<EduGrades />} />
-          <Route path="/education/analytics" element={<EduAnalytics />} />
-          <Route path="/education/settings" element={<EduSettings />} />
-        </Route>
+                  <Route path="/education" element={<EduHome />} />
+                  <Route path="/education/focus" element={<EduFocusHub />} />
+                  <Route path="/education/vault" element={<EduVault />} />
+                  <Route path="/education/settings" element={<EduSettings />} />
+                  <Route path="/education/courses" element={<Navigate to="/education/vault" replace />} />
+                  <Route path="/education/schedule" element={<Navigate to="/education/focus" replace />} />
+                  <Route path="/education/timer" element={<Navigate to="/education/focus" replace />} />
+                  <Route path="/education/grades" element={<Navigate to="/education/vault" replace />} />
+                  <Route path="/education/analytics" element={<Navigate to="/education/vault" replace />} />
+                </Route>
         <Route element={<FinanceLayout />}>
           <Route element={<OnboardingGate><KeepAliveOutlet /></OnboardingGate>}>
             <Route path="/overview" element={<FinancialDashboard />} />

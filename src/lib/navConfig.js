@@ -26,17 +26,14 @@ export const FINANCE_DEFAULT_NAV = [
 export const FINANCE_LOCKED = ["overview"];
 
 export const EDU_PAGES = [
-  { id: "dashboard", to: "/education", label: "Dashboard", icon: LayoutDashboard, end: true, locked: true },
-  { id: "courses", to: "/education/courses", label: "Courses", icon: BookOpen },
-  { id: "schedule", to: "/education/schedule", label: "Schedule", icon: CalendarDays },
-  { id: "flowmodoro", to: "/education/timer", label: "Flowmodoro", icon: Timer },
-  { id: "grades", to: "/education/grades", label: "Grades", icon: GraduationCap },
-  { id: "analytics", to: "/education/analytics", label: "Analytics", icon: BarChart3 },
+  { id: "home", to: "/education", label: "Home", icon: LayoutDashboard, end: true, locked: true },
+  { id: "focus", to: "/education/focus", label: "Focus Hub", icon: Timer },
+  { id: "vault", to: "/education/vault", label: "Academic Vault", icon: BookOpen },
   { id: "settings", to: "/education/settings", label: "Settings", icon: SettingsIcon },
 ];
 
-export const EDU_DEFAULT_NAV = ["dashboard", "courses", "schedule", "flowmodoro", "grades", "analytics"];
-export const EDU_LOCKED = ["dashboard"];
+export const EDU_DEFAULT_NAV = ["home", "focus", "vault", "settings"];
+export const EDU_LOCKED = ["home"];
 
 // Turn a stored config array + a page catalog into { primary, more } nav lists.
 // - locked ids are always present in `primary` (prepended if missing)
