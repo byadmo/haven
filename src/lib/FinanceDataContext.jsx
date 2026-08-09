@@ -6,6 +6,7 @@ import { computeAnalytics } from "@/lib/financeAnalytics";
 import { fetchLivePrices } from "@/lib/netWorth";
 import { computeCategoryUpdates } from "@/lib/categorizeAuto";
 import ThemeRoot from "@/components/ThemeRoot";
+import FinancialSplash from "@/components/finance/FinancialSplash";
 import { useToast } from "@/components/ui/use-toast";
 
 const FinanceDataContext = React.createContext(null);
@@ -259,6 +260,14 @@ export function FinanceLayout() {
 
 function FinanceLayoutInner({ children }) {
   const { loading, theme } = useFinanceData();
+  const [showSplash, setShowSplash] = React.useState(() => {
+    try { return sessionStorage.getItem("fin_splash_shown") !== "1"; } catch { return true; }
+  });
+  const handleSplashComplete = React.useCallback(() => {
+    setShowSplash(false);
+    try { sessionStorage.setItem("fin_splash_shown", "1"); } catch {}
+  }, []);
+
   if (loading) {
     return (
       <div className="dark min-h-screen bg-black flex items-center justify-center">
@@ -266,11 +275,9 @@ function FinanceLayoutInner({ children }) {
       </div>
     );
   }
-  // Wrap finance pages in .finance-accent so the brand-accent palette
-  // resolves to indigo (see index.css). Education pages are not wrapped and
-  // keep the default emerald.
   return (
     <ThemeRoot theme={theme} app="finance" className="dark min-h-screen relative">
+      {showSplash && <FinancialSplash onComplete={handleSplashComplete} />}
       {children ?? <Outlet />}
     </ThemeRoot>
   );

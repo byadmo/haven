@@ -5,6 +5,8 @@ import {
 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { AGENTS } from "@/lib/agentPrompts";
+import { buildInsightPrompt } from "@/lib/promptBuilder";
+import { checkRateLimit, recordCall } from "@/lib/rateLimiter";
 
 const fmt = (v) =>
   (v || 0).toLocaleString(undefined, {
@@ -92,6 +94,19 @@ export default function StockAdvisor({ stocks, prices }) {
   async function run() {
     setLoading(true);
     try {
+      const rl = checkRateLimit("Ask Jue for portfolio audit");
+      if (!rl.ok) {
+        setData({
+          headline: "Rate limited",
+          risk_call: "—",
+          holdings: [],
+          placement: [],
+          priorities: [{ icon: "check", title: "Try again later", detail: rl.reason }],
+        });
+        setLoading(false);
+        return;
+      }
+
       const totalValue = stocks.reduce(
         (sum, x) => sum + (typeof prices?.[x.symbol] === "number" ? prices[x.symbol] * (x.shares || 0) : 0),
         0
@@ -106,19 +121,22 @@ export default function StockAdvisor({ stocks, prices }) {
         return `- ${s.symbol} | ${s.shares} sh | avg $${(s.avg_buy_price || 0).toFixed(2)} | acct ${s.account || "Non-Registered"} | weight ${weight.toFixed(1)}% | ${has ? `now $${price.toFixed(2)} · value $${value.toFixed(2)} · P&L ${pnl >= 0 ? "+" : ""}$${pnl.toFixed(2)}` : "no live price"}`;
       }).join("\n");
 
-      const prompt = `${AGENTS.JUE.systemPrompt}
+      const contextBlock = `PORTFOLIO:\n${lines || "(no holdings)"}\n\nTotal market value: ${fmt(totalValue)}`;
 
-Audit the user's current portfolio and return a structured JSON assessment. For each holding issue an action (Hold/Trim/Liquidate/Buy/Watch/Add), its risk tier (Safe/Moderate/Aggressive/Speculative), its portfolio weight, and a one-sentence thesis with concrete numbers. Use bullet points with emojis (🚀, 📈, 🛡️, 💎) in each thesis. Apply the Holistic Risk Cap and TFSA-first account placement rules. Keep placement and priorities specific (tickers + dollars).
+      const taskDirective = `Audit the user's current portfolio and return a structured JSON assessment. For each holding issue an action (Hold/Trim/Liquidate/Buy/Watch/Add), its risk tier (Safe/Moderate/Aggressive/Speculative), its portfolio weight, and a one-sentence thesis with concrete numbers. Use bullet points with emojis (🚀, 📈, 🛡️, 💎) in each thesis. Apply the Holistic Risk Cap and TFSA-first account placement rules. Keep placement and priorities specific (tickers + dollars).`;
 
-PORTFOLIO:
-${lines || "(no holdings)"}
-
-Total market value: ${fmt(totalValue)}`;
+      const prompt = buildInsightPrompt({
+        agent: AGENTS.JUE,
+        sectionName: "Portfolio",
+        contextBlock,
+        taskDirective,
+      });
 
       const result = await base44.integrations.Core.InvokeLLM({
         prompt,
         response_json_schema: JUE_SCHEMA,
       });
+      recordCall("Ask Jue for portfolio audit");
       const parsed = typeof result === "string" ? JSON.parse(result) : result?.response || result;
       if (!parsed?.holdings) throw new Error("bad shape");
       setData(parsed);
@@ -143,7 +161,7 @@ Total market value: ${fmt(totalValue)}`;
           </span>
           <div className="min-w-0">
             <h2 className="font-semibold text-sm text-zinc-100">{name} · {title}</h2>
-            <p className="text-[10px] uppercase tracking-widest text-white/50">AI portfolio audit &amp; risk call</p>
+            <p className="text-[10px] uppercase tracking-widest text-white/50">Portfolio audit & risk assessment</p>
           </div>
         </div>
         <Button

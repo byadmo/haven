@@ -50,6 +50,7 @@ export function buildPrompt({
   contextData = "",
   extraDirective = "",
   goalAnalysis = "",
+  sharedCapabilities = "",
 }) {
   const parts = [
     agent.systemPrompt,
@@ -57,6 +58,7 @@ export function buildPrompt({
     SAFETY_GUARDRAIL,
   ];
 
+  if (sharedCapabilities) parts.push(sharedCapabilities);
   if (extraDirective) parts.push(extraDirective);
   if (contextData) parts.push(contextData);
   if (goalAnalysis) parts.push(goalAnalysis);

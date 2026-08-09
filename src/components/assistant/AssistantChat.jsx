@@ -450,6 +450,7 @@ export default function AssistantChat({ accounts, debts, transactions, debtPayme
               userMessage: userText,
               contextData: buildContext({ ...ctxData, activeAgent }),
               goalAnalysis: goalSection,
+              sharedCapabilities: SHARED_CAPABILITIES,
             });
             const obj = await callLLM(prompt, fileUrls);
             recordCall(userText);
@@ -567,14 +568,15 @@ export default function AssistantChat({ accounts, debts, transactions, debtPayme
           sectionName: "Assistant",
           userMessage: extra,
           contextData: ctx,
+          sharedCapabilities: SHARED_CAPABILITIES,
         });
-      const obj = await callLLM(prompt);
-      const opsList = opsFromResponse(obj);
-      if (opsList.length) { setOps(opsList); setOpsOpen(true); }
-      else addMsg({ role: "assistant", kind: "text", text: "I couldn't regenerate a valid set of changes — try rephrasing." });
-    } catch (e) {
-      addMsg({ role: "assistant", kind: "text", text: "I couldn't regenerate just now — try rephrasing." });
-    } finally {
+        const obj = await callLLM(prompt);
+        const opsList = opsFromResponse(obj);
+        if (opsList.length) { setOps(opsList); setOpsOpen(true); }
+        else addMsg({ role: "assistant", kind: "text", text: "I couldn't regenerate a valid set of changes — try rephrasing." });
+      } catch (e) {
+        addMsg({ role: "assistant", kind: "text", text: "I couldn't regenerate just now — try rephrasing." });
+      } finally {
       setOpsBusy(false);
     }
   }

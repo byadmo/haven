@@ -3,7 +3,7 @@ import { Outlet, Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { LayoutDashboard, BookOpen, Timer, GraduationCap, BarChart3, ShieldCheck, CalendarDays, ArrowLeft } from "lucide-react";
 import { percentToGpa } from "@/lib/eduGrading";
-import EduSplash from "@/components/edu/EduSplash";
+import EducationSplash from "@/components/edu/EducationSplash";
 import { useToast } from "@/components/ui/use-toast";
 import ProfileWizard from "@/components/edu/ProfileWizard";
 import { isProfileAddressed, markProfileSkipped } from "@/lib/eduProfile";
@@ -331,7 +331,7 @@ export function EduLayout() {
   return (
     <EduSyncProvider>
       <EduShell>
-        {showSplash && <EduSplash onDone={() => setShowSplash(false)} />}
+        {showSplash && <EducationSplash onComplete={() => setShowSplash(false)} />}
         {!showSplash && (
           <ProfileWizard
             open={showWizard}
