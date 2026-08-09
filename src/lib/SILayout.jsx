@@ -9,6 +9,7 @@ import { resolveNav } from "@/lib/navConfig";
 import { useSI } from "@/lib/SIContext";
 import GrowthSplash from "@/components/growth/GrowthSplash";
 import GrowthSetupModal from "@/components/growth/GrowthSetupModal";
+import GrowthLoadingSplash from "@/components/growth/GrowthLoadingSplash";
 
 // Nav config for Self-Improvement module
 export const SI_PAGES = [
@@ -69,6 +70,10 @@ export function SILayout({ children }) {
 
   const iconClass = (isActive) =>
     `relative h-[18px] w-[18px] transition-colors duration-200 ${isActive ? "text-amber-300" : "text-white/45"}`;
+
+  if (!loaded) {
+    return <GrowthLoadingSplash />;
+  }
 
   return (
     <div className="min-h-screen bg-[var(--th-bg)] text-[var(--th-text)]">
