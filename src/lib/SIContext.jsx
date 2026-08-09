@@ -179,15 +179,18 @@ export function SIProvider({ children }) {
   }, [updateSettings]);
 
   // ── Habits ──
-  const addHabit = useCallback(async (habit) => {
-    const newHabit = {
-      name: habit.name,
-      icon: habit.icon || "CheckCircle",
-      color: habit.color || "amber",
-      target_frequency: habit.frequency || "daily",
-      created_date: new Date().toISOString(),
-      ...habit,
-    };
+    const addHabit = useCallback(async (habit) => {
+      const newHabit = {
+        name: habit.name,
+        icon: habit.icon || "CheckCircle",
+        color: habit.color || "amber",
+        difficulty: habit.difficulty ?? 3,
+        target_frequency: habit.frequency || "daily",
+        cumulative_repetitions: 0,
+        misses: 0,
+        created_date: new Date().toISOString(),
+        ...habit,
+      };
     try {
       const saved = await base44.entities.Focus.create(newHabit);
       setHabits(prev => [saved, ...prev]);

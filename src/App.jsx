@@ -42,6 +42,7 @@ import ForgotPassword from '@/pages/ForgotPassword';
 import ResetPassword from '@/pages/ResetPassword';
 import { SIProvider } from '@/lib/SIContext';
 import { SILayout } from '@/lib/SILayout';
+import { GrowthProvider } from '@/lib/GrowthContext';
 import SIDashboard from '@/pages/growth/SIDashboard';
 import HabitsPage from '@/pages/growth/HabitsPage';
 import StreaksPage from '@/pages/growth/StreaksPage';
@@ -110,13 +111,15 @@ const AuthenticatedApp = () => {
           <Route path="/setup" element={<Setup />} />
         </Route>
         <Route element={<SIProvider><SILayout /></SIProvider>}>
-          <Route path="/growth" element={<SIDashboard />} />
-          <Route path="/growth/habits" element={<HabitsPage />} />
-          <Route path="/growth/streaks" element={<StreaksPage />} />
-          <Route path="/growth/journal" element={<JournalPage />} />
-          <Route path="/growth/analytics" element={<SIAnalyticsPage />} />
-          <Route path="/growth/settings" element={<GrowthSettingsPage />} />
-        </Route>
+                  <Route element={<GrowthProvider><Outlet /></GrowthProvider>}>
+                    <Route path="/growth" element={<SIDashboard />} />
+                    <Route path="/growth/habits" element={<HabitsPage />} />
+                    <Route path="/growth/streaks" element={<StreaksPage />} />
+                    <Route path="/growth/journal" element={<JournalPage />} />
+                    <Route path="/growth/analytics" element={<SIAnalyticsPage />} />
+                    <Route path="/growth/settings" element={<GrowthSettingsPage />} />
+                  </Route>
+                </Route>
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>

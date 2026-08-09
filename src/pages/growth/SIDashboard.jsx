@@ -1,12 +1,14 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Target, Flame, BookOpen, TrendingUp, ArrowRight } from "lucide-react";
+import { Target, Flame, BookOpen, TrendingUp, ArrowRight, Timer, CalendarDays } from "lucide-react";
 import { useSI } from "@/lib/SIContext";
 import { SI_PAGES } from "@/lib/SILayout";
 import { StatGridSkeleton } from "@/components/ui/skeleton-presets";
+import { useGrowth } from "@/lib/GrowthContext";
 
 export default function SIDashboard() {
   const { habits, entries, reflections, getStreak, getTodayStatus, loaded } = useSI();
+  const { totalXp, level, xpInLevel, xpForNext } = useGrowth();
 
   const todayDone = habits.filter(h => getTodayStatus(h.id)).length;
   const totalHabits = habits.length;
@@ -32,11 +34,29 @@ export default function SIDashboard() {
   return (
     <div className="dd-page-enter space-y-6">
       <div>
-        <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-white">Growth Dashboard</h1>
-        <p className="text-sm text-white/50 mt-1">Your habits, streaks, and reflections at a glance.</p>
-      </div>
+              <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-white">Growth Dashboard</h1>
+              <p className="text-sm text-white/50 mt-1">Your habits, streaks, and reflections at a glance.</p>
+            </div>
 
-      {/* Stats grid — skeleton while loading */}
+            {/* XP / Level bar */}
+            <div className="rounded-2xl border border-white/10 bg-gradient-to-r from-amber-500/5 to-teal-500/5 p-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Target className="h-4 w-4 text-amber-400" />
+                  <span className="text-sm font-semibold text-white">Level {level}</span>
+                </div>
+                <span className="text-xs text-white/50">{totalXp} total XP</span>
+              </div>
+              <div className="h-2 rounded-full bg-white/5 overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-amber-500 to-teal-400 transition-all"
+                  style={{ width: `${(xpInLevel / Math.max(xpForNext, 1)) * 100}%` }}
+                />
+              </div>
+              <p className="text-[10px] text-white/30 mt-1">{xpInLevel} / {xpForNext} XP to next level</p>
+            </div>
+
+            {/* Stats grid — skeleton while loading */}
       {!loaded ? (
         <StatGridSkeleton count={4} />
       ) : (
