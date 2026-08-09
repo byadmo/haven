@@ -8,6 +8,7 @@ import {
   PieChart,
 } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
+import CustomizeNavModal from "@/components/nav/CustomizeNavModal";
 import CommandPalette from "@/components/finance/CommandPalette";
 import BackupModal from "@/components/finance/BackupModal";
 import { useFinanceData } from "@/lib/FinanceDataContext";

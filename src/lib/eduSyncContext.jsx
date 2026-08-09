@@ -1,11 +1,13 @@
 import React from "react";
 import { Outlet, Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { LayoutDashboard, Timer, BookOpen, ShieldCheck, ArrowLeft, Settings } from "lucide-react";
+import { LayoutDashboard, Timer, BookOpen, ShieldCheck, ArrowLeft, Settings, GraduationCap } from "lucide-react";
 import { percentToGpa } from "@/lib/eduGrading";
 import EducationSplash from "@/components/edu/EducationSplash";
 import { useToast } from "@/components/ui/use-toast";
 import ProfileWizard from "@/components/edu/ProfileWizard";
+import EduTopBar from "@/components/edu/EduTopBar";
+import EduBottomNav from "@/components/edu/EduBottomNav";
 import { isProfileAddressed, markProfileSkipped } from "@/lib/eduProfile";
 import ThemeRoot from "@/components/ThemeRoot";
 import { DEFAULT_THEME } from "@/lib/themes";
@@ -361,8 +363,13 @@ function EduShell({ children, skipLoadingSpinner = false }) {
   return (
     <ThemeRoot theme={theme} app="education" className="dark min-h-screen relative">
       <div className="flex flex-col min-h-screen selection:bg-emerald-500/30">
-        {children}
-        <div className="pb-24 sm:pb-0" />
+        <EduTopBar />
+        <main className="flex-1">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
+            {children}
+          </div>
+        </main>
+        <EduBottomNav />
       </div>
     </ThemeRoot>
   );

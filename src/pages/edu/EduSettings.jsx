@@ -9,8 +9,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/use-toast";
-import EduTopBar from "@/components/edu/EduTopBar";
-import EduBottomNav from "@/components/edu/EduBottomNav";
 import PageTitle from "@/components/finance/PageTitle";
 import Reveal from "@/components/finance/Reveal";
 import { useEduSyncData, GCALENDAR_CONNECTOR_ID } from "@/lib/eduSyncContext";
@@ -126,8 +124,7 @@ export default function EduSettings() {
 
   return (
     <>
-      <EduTopBar />
-      <main className="max-w-3xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+      <div className="max-w-3xl mx-auto space-y-6">
         <PageTitle title="Settings" subtitle="Google Calendar & study preferences" icon={SettingsIcon} />
 
         {/* Profile */}
@@ -277,7 +274,7 @@ export default function EduSettings() {
         <div className="space-y-4 pt-2">
           <EduDangerZone />
         </div>
-      </main>
+      </div>
       <CustomizeNavModal
         open={navOpen}
         onOpenChange={setNavOpen}
@@ -289,7 +286,6 @@ export default function EduSettings() {
         accent="emerald"
         title="Customize Education Navigation"
       />
-      <EduBottomNav />
 
       <ProfileWizard open={wizardOpen} onOpenChange={setWizardOpen} onCompleted={() => setProfileComplete(true)} />
     </>
