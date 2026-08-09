@@ -15,19 +15,13 @@ import {
 
 export const FINANCE_PAGES = [
   { id: "overview", to: "/overview", label: "Overview", icon: LayoutDashboard, end: true, locked: true },
+  { id: "allocation", to: "/allocation", label: "Allocation", icon: PieChart },
   { id: "debts", to: "/debts", label: "Debts", icon: CreditCard },
-  { id: "budgets", to: "/budgeting", label: "Budgets", icon: PiggyBank },
-  { id: "insights", to: "/insights", label: "Insights", icon: PieChart },
-  { id: "cashflow", to: "/cashflow", label: "Cash Flow", icon: Activity },
-  { id: "portfolio", to: "/portfolio", label: "Portfolio", icon: Briefcase },
-  { id: "forecast", to: "/forecast", label: "Forecast", icon: TrendingUp },
-  { id: "credit-utilization", to: "/credit-utilization", label: "Credit Utilization", icon: Gauge },
-  { id: "assistant", to: "/assistant", label: "Ask Wei", icon: Sparkles },
   { id: "settings", to: "/settings", label: "Settings", icon: SettingsIcon },
 ];
 
 export const FINANCE_DEFAULT_NAV = [
-  "overview", "budgets", "cashflow", "forecast", "credit-utilization", "insights",
+  "overview", "allocation", "debts",
 ];
 export const FINANCE_LOCKED = ["overview"];
 

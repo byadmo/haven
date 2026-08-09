@@ -1,13 +1,15 @@
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
-import { BrowserRouter as Router, Route, Routes, Outlet } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, Outlet, Navigate } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import ScrollToTop from './components/ScrollToTop';
 // Add page imports here
 import Dashboard from '@/pages/Dashboard';
+import FinancialDashboard from '@/pages/finance/FinancialDashboard';
+import FinancialAllocation from '@/pages/finance/FinancialAllocation';
 import Splash from '@/pages/Splash';
 import Hub from '@/pages/Hub';
 import { EduLayout } from '@/lib/eduSyncContext';
@@ -18,20 +20,12 @@ import EduGrades from '@/pages/edu/EduGrades';
 import EduAnalytics from '@/pages/edu/EduAnalytics';
 import EduSettings from '@/pages/edu/EduSettings';
 import EduSchedule from '@/pages/edu/EduSchedule';
-import Insights from '@/pages/Insights';
-import Settings from '@/pages/Settings';
-import Forecast from '@/pages/Forecast';
-import Budgeting from '@/pages/Budgeting';
-import RecurringBills from '@/pages/RecurringBills';
-import CashFlow from '@/pages/CashFlow';
-import Portfolio from '@/pages/Portfolio';
-import Assistant from '@/pages/Assistant';
-import Accounts from '@/pages/Accounts';
 import Goals from '@/pages/Goals';
 import Debts from '@/pages/Debts';
+import Accounts from '@/pages/Accounts';
 import Transactions from '@/pages/Transactions';
 import Setup from '@/pages/Setup';
-import CreditUtilization from '@/pages/CreditUtilization';
+import Settings from '@/pages/Settings';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { FinanceLayout } from '@/lib/FinanceDataContext';
 import OnboardingGate from '@/components/onboarding/OnboardingGate';
@@ -93,20 +87,16 @@ const AuthenticatedApp = () => {
         </Route>
         <Route element={<FinanceLayout />}>
           <Route element={<OnboardingGate><KeepAliveOutlet /></OnboardingGate>}>
-            <Route path="/overview" element={<Dashboard />} />
-            <Route path="/goals" element={<Goals />} />
-            <Route path="/debts" element={<Debts />} />
-            <Route path="/transactions" element={<Transactions />} />
-            <Route path="/recurring-bills" element={<RecurringBills />} />
-            <Route path="/insights" element={<Insights />} />
+            <Route path="/overview" element={<FinancialDashboard />} />
+                        <Route path="/allocation" element={<FinancialAllocation />} />
+                        <Route path="/goals" element={<Goals />} />
+                        <Route path="/debts" element={<Debts />} />
+                        <Route path="/insights" element={<Navigate to="/allocation" replace />} />
+                        <Route path="/forecast" element={<Navigate to="/overview" replace />} />
+                        <Route path="/budgeting" element={<Navigate to="/allocation" replace />} />
+                        <Route path="/cashflow" element={<Navigate to="/overview" replace />} />
+                        <Route path="/credit-utilization" element={<Navigate to="/allocation" replace />} />
             <Route path="/settings" element={<Settings />} />
-            <Route path="/forecast" element={<Forecast />} />
-            <Route path="/budgeting" element={<Budgeting />} />
-            <Route path="/cashflow" element={<CashFlow />} />
-            <Route path="/portfolio" element={<Portfolio />} />
-            <Route path="/assistant" element={<Assistant />} />
-            <Route path="/accounts" element={<Accounts />} />
-            <Route path="/credit-utilization" element={<CreditUtilization />} />
           </Route>
           <Route path="/setup" element={<Setup />} />
         </Route>
