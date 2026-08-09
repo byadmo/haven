@@ -45,6 +45,7 @@ export default function GrowthSplash({ onComplete }) {
           <h1 className="text-3xl font-bold tracking-tight mt-1" style={{ color: t.text }}>
             Haven <span style={{ color: t.primary }}>Growth</span>
           </h1>
+          <p className="text-sm mt-2 font-semibold tracking-tight" style={{ color: t.primary }}>Your growth. Unstoppable.</p>
           <p className="text-sm mt-2 leading-relaxed" style={{ color: t.muted }}>
             Optimize your daily routines, build unstoppable streaks, and capture meaningful reflections.
           </p>

@@ -8,7 +8,7 @@
 
 import {
   LayoutDashboard, CreditCard, PiggyBank, PieChart, Activity, Briefcase,
-  TrendingUp, Gauge, Wallet, ArrowLeftRight, Target, Sparkles, CalendarClock,
+  TrendingUp, Gauge, Wallet, ArrowLeftRight, Sparkles, CalendarClock,
   Settings as SettingsIcon,
   BookOpen, CalendarDays, Timer, GraduationCap, BarChart3,
 } from "lucide-react";
@@ -23,7 +23,6 @@ export const FINANCE_PAGES = [
   { id: "portfolio", to: "/portfolio", label: "Portfolio", icon: Briefcase },
   { id: "forecast", to: "/forecast", label: "Forecast", icon: TrendingUp },
   { id: "credit-utilization", to: "/credit-utilization", label: "Credit Utilization", icon: Gauge },
-  { id: "goals", to: "/goals", label: "Goals", icon: Target },
   { id: "assistant", to: "/assistant", label: "Ask Wei", icon: Sparkles },
   { id: "settings", to: "/settings", label: "Settings", icon: SettingsIcon },
 ];

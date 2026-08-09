@@ -33,7 +33,7 @@ export default function EduSplash({ onDone }) {
         <span className="splash-fade-up mt-4 font-semibold tracking-tight" style={{ fontSize: 28, color: t.text, animationDelay: "0.4s" }}>
           Haven <span style={{ color: t.primary }}>Education</span>
         </span>
-        <p className="splash-fade-up mt-2 text-sm" style={{ color: t.muted, animationDelay: "0.6s" }}>Your semester, organized.</p>
+        <p className="splash-fade-up mt-2 text-sm" style={{ color: t.muted, animationDelay: "0.6s" }}>Your semester. Organized.</p>
         <div className="splash-fade-up mt-8 flex items-center gap-2" style={{ animationDelay: "0.9s" }}>
           {[0, 1, 2].map((i) => (
             <span
