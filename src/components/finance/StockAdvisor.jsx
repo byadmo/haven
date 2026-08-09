@@ -108,7 +108,7 @@ export default function StockAdvisor({ stocks, prices }) {
 
       const prompt = `${AGENTS.JUE.systemPrompt}
 
-Audit the user's current portfolio and return a structured JSON assessment. For each holding issue an action (Hold/Trim/Liquidate/Buy/Watch/Add), its risk tier (Safe/Moderate/Aggressive/Speculative), its portfolio weight, and a one-sentence thesis with concrete numbers. Apply the Holistic Risk Cap and TFSA-first account placement rules. Keep placement and priorities specific (tickers + dollars).
+Audit the user's current portfolio and return a structured JSON assessment. For each holding issue an action (Hold/Trim/Liquidate/Buy/Watch/Add), its risk tier (Safe/Moderate/Aggressive/Speculative), its portfolio weight, and a one-sentence thesis with concrete numbers. Use bullet points with emojis (🚀, 📈, 🛡️, 💎) in each thesis. Apply the Holistic Risk Cap and TFSA-first account placement rules. Keep placement and priorities specific (tickers + dollars).
 
 PORTFOLIO:
 ${lines || "(no holdings)"}

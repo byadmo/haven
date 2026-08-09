@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
   ShieldCheck, Settings as SettingsIcon, ArrowLeft, Ellipsis,
@@ -6,6 +6,9 @@ import {
 } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { resolveNav } from "@/lib/navConfig";
+import { useSI } from "@/lib/SIContext";
+import GrowthSplash from "@/components/growth/GrowthSplash";
+import GrowthSetupModal from "@/components/growth/GrowthSetupModal";
 
 // Nav config for Self-Improvement module
 export const SI_PAGES = [
@@ -14,9 +17,10 @@ export const SI_PAGES = [
   { id: "streaks", to: "/growth/streaks", label: "Streaks", icon: Flame },
   { id: "journal", to: "/growth/journal", label: "Journal", icon: BookOpen },
   { id: "analytics", to: "/growth/analytics", label: "Analytics", icon: TrendingUp },
+  { id: "settings", to: "/growth/settings", label: "Settings", icon: SettingsIcon },
 ];
 
-export const SI_DEFAULT_NAV = ["dashboard", "habits", "streaks", "journal", "analytics"];
+export const SI_DEFAULT_NAV = ["dashboard", "habits", "streaks", "journal", "analytics", "settings"];
 export const SI_LOCKED = ["dashboard"];
 
 const MAX_ICONS = 4;
@@ -26,8 +30,35 @@ const isItemActive = (to, end, pathname) =>
 
 export function SILayout({ children }) {
   const [moreOpen, setMoreOpen] = useState(false);
+  const { settings, loaded, updateSettings } = useSI();
+  const [showSplash, setShowSplash] = useState(false);
+  const [showSetup, setShowSetup] = useState(false);
   const location = window.location;
   const navigate = useNavigate();
+
+  // First-time splash detection
+  useEffect(() => {
+    if (!loaded) return;
+    if (!settings.has_completed_splash) {
+      setShowSplash(true);
+    } else if (!settings.has_completed_setup) {
+      setShowSetup(true);
+    }
+  }, [loaded, settings.has_completed_splash, settings.has_completed_setup]);
+
+  const handleSplashComplete = async () => {
+    setShowSplash(false);
+    await updateSettings({ has_completed_splash: true });
+    // If setup also not done, show it next
+    if (!settings.has_completed_setup) {
+      setShowSetup(true);
+    }
+  };
+
+  const handleSetupComplete = async () => {
+    setShowSetup(false);
+    await updateSettings({ has_completed_setup: true });
+  };
 
   const { primary, more } = resolveNav(SI_DEFAULT_NAV, SI_PAGES, SI_DEFAULT_NAV, SI_LOCKED);
   const icons = primary.slice(0, MAX_ICONS);
@@ -41,6 +72,12 @@ export function SILayout({ children }) {
 
   return (
     <div className="min-h-screen bg-[var(--th-bg)] text-[var(--th-text)]">
+      {/* First-time splash overlay */}
+      {showSplash && <GrowthSplash onComplete={handleSplashComplete} />}
+
+      {/* First-time setup wizard */}
+      <GrowthSetupModal open={showSetup} onComplete={handleSetupComplete} />
+
       {/* Top nav */}
       <header
         className="sticky top-0 z-30 bg-black border-b border-white/10 select-none"

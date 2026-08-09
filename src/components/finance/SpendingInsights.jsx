@@ -87,7 +87,7 @@ export default function SpendingInsights({ monthLabel, start, end, transactions 
 
       const prompt = `${AGENTS.SNO.systemPrompt}
 
-Analyze this user's spending for the month of ${monthLabel} and give actionable, personalized feedback on their spending habits, the top categories they overspent on, and concrete suggestions to save.
+Analyze this user's spending for the month of ${monthLabel} and give actionable, personalized feedback on their spending habits, the top categories they overspent on, and concrete suggestions to save. Use bullet points with emojis (🔎, 📈, 📉, 💡) in each insight.
 
 Return JSON with: headline, summary (1-2 sentences), top_category (name), top_category_amount (number), top_category_pct (number 0-100 of total spend), and 3-5 points (icon in trending-up|dollar|target|alert|check|activity, title, detail). Be specific and reference real numbers and category names.
 

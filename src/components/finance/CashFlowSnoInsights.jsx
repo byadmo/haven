@@ -137,8 +137,8 @@ export default function CashFlowSnoInsights({ anchor }) {
     setOut("");
     try {
       const prompt =
-        `${AGENTS.SNO.systemPrompt}\n\nYou are reviewing ONE specific month. Below is the user's data scoped to that month.\n\n${ctx}\n\n` +
-        `Provide a tight monthly diagnostic for ${monthLabel}: lead with the headline numbers (income, outflow, net, savings rate), then period-over-period vs last month, then savings leaks (non-essential categories that blew past baseline, with exact figures), then a prioritized action plan. Keep it skimmable and grounded in the numbers above. No legal advice.`;
+       `${AGENTS.SNO.systemPrompt}\n\nYou are reviewing ONE specific month. Below is the user's data scoped to that month.\n\n${ctx}\n\n` +
+       `Provide a tight monthly diagnostic for ${monthLabel}. Format as bullet points with emojis (🔎, 📈, 📉, 💡, ⚡). Lead with headline numbers (income, outflow, net, savings rate), then period-over-period vs last month, then savings leaks (non-essential categories that blew past baseline, with exact figures), then a prioritized action plan. Keep it skimmable, no walls of text, no legal advice.`;
       const res = await base44.integrations.Core.InvokeLLM({ prompt });
       setOut(typeof res === "string" ? res : JSON.stringify(res));
     } catch {

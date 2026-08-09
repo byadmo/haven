@@ -57,7 +57,7 @@ export default function FinancialHealthScore() {
     let alive = true;
     setInsight("");
     base44.integrations.Core.InvokeLLM({
-      prompt: `You are a concise financial coach. The user's weakest financial-health factor is "${weakest.key}" scoring ${Math.round(weakest.score)}/100 (${weakest.detail}). Overall health score is ${composite}/100. Reply with ONE short, actionable sentence (max 18 words) on improving "${weakest.key}". Just the sentence.`,
+      prompt: `You are a concise financial coach. The user's weakest financial-health factor is "${weakest.key}" scoring ${Math.round(weakest.score)}/100 (${weakest.detail}). Overall health score is ${composite}/100. Reply with ONE short, actionable sentence (max 18 words) on improving "${weakest.key}". Use a relevant emoji at the start. Just the sentence.`,
     }).then((r) => { if (alive) { const txt = typeof r === "string" ? r : (r?.text || r?.content || ""); if (txt) setInsight(txt.trim()); } })
       .catch(() => {});
     return () => { alive = false; };

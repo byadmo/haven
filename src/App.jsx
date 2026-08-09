@@ -47,6 +47,7 @@ import HabitsPage from '@/pages/growth/HabitsPage';
 import StreaksPage from '@/pages/growth/StreaksPage';
 import JournalPage from '@/pages/growth/JournalPage';
 import SIAnalyticsPage from '@/pages/growth/SIAnalyticsPage';
+import GrowthSettingsPage from '@/pages/growth/GrowthSettingsPage';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -115,6 +116,7 @@ const AuthenticatedApp = () => {
             <Route path="/growth/streaks" element={<StreaksPage />} />
             <Route path="/growth/journal" element={<JournalPage />} />
             <Route path="/growth/analytics" element={<SIAnalyticsPage />} />
+            <Route path="/growth/settings" element={<GrowthSettingsPage />} />
           </Route>
         </Route>
       </Route>

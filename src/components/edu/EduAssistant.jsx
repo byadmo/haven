@@ -187,7 +187,7 @@ export default function EduAssistant({ scope }) {
           ? `Q: ${m.text}`
           : `A: ${(m.sections || []).map((s) => `${s.title}: ${(s.bullets || []).join("; ")}`).join(" | ")}`
       ).join("\n");
-      const prompt = `You are EduSync AI, an academic assistant for a university student. Analyze the student's current semester data and answer their question. Be specific, actionable, concise, and use the real data provided. Return 1-4 sections as JSON.
+      const prompt = `You are EduSync AI, an academic assistant for a university student. Analyze the student's current semester data and answer their question. Be specific, actionable, and concise. Always format bullets into clean point form with helpful emojis (e.g. 🎓, 📚, ⏱️, 🎯, 💡, 📅). Avoid long walls of text. Return 1-4 sections as JSON.
 
 CURRENT SEMESTER DATA (JSON):
 ${JSON.stringify(ctxData, null, 2)}

@@ -49,7 +49,7 @@ LEFTOVER (this timeframe): ${fmt(leftover)}`;
 
       const prompt = `${AGENTS.CLU.systemPrompt}
 
-Review the user's ${timeframeLabel} budget below. Use the Trailing 3-Month Minimum Income concept if income looks variable. Issue hard dollar-amount directives for transfers, buffers, or debt, and name exact cutbacks per bill category. Return JSON only.
+Review the user's ${timeframeLabel} budget below. Use the Trailing 3-Month Minimum Income concept if income looks variable. Issue hard dollar-amount directives for transfers, buffers, or debt, and name exact cutbacks per bill category. Use bullet points with emojis (⚡, 📊, 🎯, 💰) in each insight. Return JSON only.
 
 ${ctx}`;
 

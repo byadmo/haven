@@ -54,7 +54,7 @@ Student context:
 - Target study hours/week: ${studyHrTarget}
 - Past transcript: ${pastGrades ? `${pastGrades.count} prior courses, ${pastGrades.credits} credits earned. Term GPAs: ${pastGrades.terms}. Strongest depts: ${pastGrades.majors}` : "none"}
 
-Balance work commitments with study feasibility. Recommend exactly ONE load label.
+Balance work commitments with study feasibility. Recommend exactly ONE load label. Use concise bullet points with emojis (🎓, 📚, ⏱️) in the reasoning.
 Respond ONLY as JSON with keys label (exactly "Light" | "Moderate" | "Heavy"), credits (a short range string like "9-12"), and reasoning (1-2 sentences referencing performance and work schedule).`;
 
       const r = await base44.integrations.Core.InvokeLLM({

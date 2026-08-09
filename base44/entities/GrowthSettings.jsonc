@@ -1,0 +1,75 @@
+{
+  "name": "GrowthSettings",
+  "type": "object",
+  "properties": {
+    "has_completed_splash": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether the user has seen the Haven Growth splash screen at least once."
+    },
+    "has_completed_setup": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether the user has completed the first-time setup wizard (starter habits selection)."
+    },
+    "display_name": {
+      "type": "string",
+      "description": "User's preferred display name within Haven Growth."
+    },
+    "primary_focus_goal": {
+      "type": "string",
+      "description": "The user's main self-improvement goal (e.g. 'Build a 90-day deep work streak')."
+    },
+    "theme": {
+      "type": "string",
+      "default": "midnight",
+      "description": "Selected Haven Growth theme key (original, midnight, daylight, cottonCandy, forest, sunset)."
+    },
+    "ui_scale": {
+      "type": "number",
+      "default": 100,
+      "description": "Global UI display scale percentage (90-125). Synced across all Haven modules."
+    },
+    "google_calendar_connected": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether Google Calendar is connected for habit reminders and schedule sync."
+    },
+    "calendar_email": {
+      "type": "string",
+      "description": "Email of the connected Google account for Calendar sync."
+    },
+    "daily_reminder_time": {
+      "type": "string",
+      "description": "Time of day (HH:MM) to send habit reminder notifications."
+    },
+    "week_starts_on": {
+      "type": "string",
+      "enum": ["sunday", "monday"],
+      "default": "monday",
+      "description": "Which day the streak/analytics week starts on."
+    },
+    "nav_items": {
+      "type": "array",
+      "description": "Customized navigation bar order — array of Growth page identifiers. Pages not in this array go under the 'More' dropdown.",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [],
+  "rls": {
+    "read": {
+      "created_by_id": "{{user.id}}"
+    },
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}

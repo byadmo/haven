@@ -8,7 +8,6 @@ import Reveal from "@/components/finance/Reveal";
 import InsightMetrics from "@/components/finance/InsightMetrics";
 import IncomeVsSpendingChart from "@/components/finance/IncomeVsSpendingChart";
 import SpendingInsights from "@/components/finance/SpendingInsights";
-import InsightsStrategyCompare from "@/components/finance/InsightsStrategyCompare";
 import { OverviewSavings, OverviewHeatmap, useOverviewData } from "@/components/dashboard/OverviewTab";
 
 export default function Insights() {
@@ -79,8 +78,6 @@ export default function Insights() {
         </div>
 
         <Reveal><IncomeVsSpendingChart data={monthlyData} /></Reveal>
-
-        <Reveal><InsightsStrategyCompare /></Reveal>
       </main>
     </div>
   );
