@@ -9,8 +9,8 @@ export const FINANCE_PAGES = [
   { id: "overview", to: "/overview", label: "Overview", icon: LayoutDashboard, end: true, locked: true },
   { id: "allocation", to: "/allocation", label: "Allocation", icon: PieChart },
   { id: "debts", to: "/debts", label: "Debts", icon: CreditCard },
-  { id: "goals", to: "/allocation?tab=goals", label: "Goals", icon: Target },
-    { id: "credit-health", to: "/allocation?tab=credit", label: "Credit", icon: Gauge },
+  { id: "goals", to: "/goals", label: "Goals", icon: Target },
+    { id: "credit-health", to: "/credit-utilization", label: "Credit", icon: Gauge },
   { id: "settings", to: "/settings", label: "Settings", icon: SettingsIcon },
 ];
 
@@ -21,11 +21,11 @@ export const FINANCE_LOCKED = ["overview"];
 
 export const EDU_PAGES = [
   { id: "home", to: "/education", label: "Home", icon: LayoutDashboard, end: true, locked: true },
-  { id: "courses", to: "/education/vault#courses", label: "Courses", icon: BookOpen },
-  { id: "focus", to: "/education/focus", label: "Focus Hub", icon: Timer },
-  { id: "schedule", to: "/education/focus#schedule", label: "Schedule", icon: CalendarDays },
-  { id: "grades", to: "/education/vault#grades", label: "Grades", icon: GraduationCap },
-  { id: "analytics", to: "/education/vault#analytics", label: "Analytics", icon: BarChart3 },
+  { id: "courses", to: "/education", label: "Courses", icon: BookOpen },
+    { id: "focus", to: "/education", label: "Focus Hub", icon: Timer },
+    { id: "schedule", to: "/education", label: "Schedule", icon: CalendarDays },
+    { id: "grades", to: "/education", label: "Grades", icon: GraduationCap },
+    { id: "analytics", to: "/education", label: "Analytics", icon: BarChart3 },
   { id: "settings", to: "/education/settings", label: "Settings", icon: SettingsIcon },
 ];
 

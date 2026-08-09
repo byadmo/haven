@@ -19,6 +19,7 @@ import EduVault from '@/pages/edu/EduVault';
 import EduSettings from '@/pages/edu/EduSettings';
 import Goals from '@/pages/Goals';
 import Debts from '@/pages/Debts';
+import CreditUtilization from '@/pages/CreditUtilization';
 import Accounts from '@/pages/Accounts';
 import Transactions from '@/pages/Transactions';
 import Setup from '@/pages/Setup';
@@ -94,7 +95,7 @@ const AuthenticatedApp = () => {
                         <Route path="/forecast" element={<Navigate to="/overview" replace />} />
                         <Route path="/budgeting" element={<Navigate to="/allocation" replace />} />
                         <Route path="/cashflow" element={<Navigate to="/overview" replace />} />
-                        <Route path="/credit-utilization" element={<Navigate to="/allocation" replace />} />
+                                    <Route path="/credit-utilization" element={<CreditUtilization />} />
             <Route path="/settings" element={<Settings />} />
           </Route>
           <Route path="/setup" element={<Setup />} />
