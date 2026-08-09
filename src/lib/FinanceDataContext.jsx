@@ -269,7 +269,8 @@ function FinanceLayoutInner({ children }) {
     try { sessionStorage.setItem("fin_splash_shown", "1"); } catch {}
   }, []);
 
-  if (loading) {
+  // Show splash overlay while loading AND on first session visit
+  if (loading && !showSplash) {
     return (
       <div className="dark min-h-screen bg-black flex items-center justify-center">
         <div className="w-8 h-8 border-4 border-zinc-800 border-t-zinc-400 rounded-full animate-spin" />

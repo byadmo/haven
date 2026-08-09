@@ -324,12 +324,15 @@ export function EduLayout() {
   const [showSplash, setShowSplash] = React.useState(() => {
     try { return sessionStorage.getItem("edu_splash_shown") !== "1"; } catch { return true; }
   });
-  React.useEffect(() => { try { sessionStorage.setItem("edu_splash_shown", "1"); } catch {} }, []);
+  const handleEduSplashComplete = React.useCallback(() => {
+    setShowSplash(false);
+    try { sessionStorage.setItem("edu_splash_shown", "1"); } catch {}
+  }, []);
   const [showWizard, setShowWizard] = React.useState(() => isProfileAddressed() ? false : true);
   return (
     <EduSyncProvider>
       <EduShell>
-        {showSplash && <EducationSplash onComplete={() => setShowSplash(false)} />}
+        {showSplash && <EducationSplash onComplete={handleEduSplashComplete} />}
         {!showSplash && (
           <ProfileWizard
             open={showWizard}
@@ -337,7 +340,7 @@ export function EduLayout() {
             onCompleted={() => setShowWizard(false)}
           />
         )}
-        <Outlet />
+        {!showSplash && <Outlet />}
       </EduShell>
     </EduSyncProvider>
   );
