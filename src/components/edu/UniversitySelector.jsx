@@ -2,7 +2,7 @@
 // comprehensive list as the user types, and falls back to manual entry (name,
 // domain, catalog URL) when the university isn't in the list.
 import React from "react";
-import { Search, Loader2, Building2, X } from "lucide-react";
+import { Search, Building2, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { searchUniversities } from "@/lib/canadianUniversities";

@@ -31,7 +31,7 @@ export default function CustomizeNavModal({
 
   useEffect(() => {
     if (open) setDraft(normalizeConfig(navItems, defaultNav, locked));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [open]);
 
   const byId = Object.fromEntries(pages.map((p) => [p.id, p]));

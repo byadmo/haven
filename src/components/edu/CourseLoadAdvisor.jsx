@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Brain, Loader2, GraduationCap, HeartPulse } from "lucide-react";
+import { Brain, Loader2, HeartPulse } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useEduSync } from "@/lib/eduSyncContext";
 import { Button } from "@/components/ui/button";

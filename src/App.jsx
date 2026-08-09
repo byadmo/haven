@@ -1,7 +1,7 @@
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, Outlet } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
@@ -40,6 +40,13 @@ import Login from '@/pages/Login';
 import Register from '@/pages/Register';
 import ForgotPassword from '@/pages/ForgotPassword';
 import ResetPassword from '@/pages/ResetPassword';
+import { SIProvider } from '@/lib/SIContext';
+import { SILayout } from '@/lib/SILayout';
+import SIDashboard from '@/pages/growth/SIDashboard';
+import HabitsPage from '@/pages/growth/HabitsPage';
+import StreaksPage from '@/pages/growth/StreaksPage';
+import JournalPage from '@/pages/growth/JournalPage';
+import SIAnalyticsPage from '@/pages/growth/SIAnalyticsPage';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -100,6 +107,15 @@ const AuthenticatedApp = () => {
             <Route path="/credit-utilization" element={<CreditUtilization />} />
           </Route>
           <Route path="/setup" element={<Setup />} />
+        </Route>
+        <Route element={<SILayout />}>
+          <Route element={<SIProvider><Outlet /></SIProvider>}>
+            <Route path="/growth" element={<SIDashboard />} />
+            <Route path="/growth/habits" element={<HabitsPage />} />
+            <Route path="/growth/streaks" element={<StreaksPage />} />
+            <Route path="/growth/journal" element={<JournalPage />} />
+            <Route path="/growth/analytics" element={<SIAnalyticsPage />} />
+          </Route>
         </Route>
       </Route>
       <Route path="*" element={<PageNotFound />} />

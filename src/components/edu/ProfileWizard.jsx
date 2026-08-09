@@ -7,13 +7,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
-import { GraduationCap, ChevronLeft, ChevronRight, Check, AlertCircle, Mail, Building2, Calendar, Target, Clock, Briefcase, ListChecks, ImageUp, FileText, Loader2, X, Sparkles } from "lucide-react";
+import { GraduationCap, ChevronLeft, ChevronRight, Check, Mail, Building2, Calendar, Target, Clock, Briefcase, ListChecks, ImageUp, FileText, Loader2, X, Sparkles } from "lucide-react";
 import { useEduSync } from "@/lib/eduSyncContext";
 import FileDropzone from "@/components/edu/FileDropzone";
 import { base44 } from "@/api/base44Client";
 import { getProfile, saveProfile } from "@/lib/eduProfile";
 import { useToast } from "@/components/ui/use-toast";
-import { refreshCatalogInBackground } from "@/lib/courseAutofill";
 import UniversitySelector from "@/components/edu/UniversitySelector";
 
 const SUGGESTIONS = [
@@ -56,7 +55,7 @@ export default function ProfileWizard({ open, onOpenChange, onCompleted }) {
     if (settings.faculty && !form.faculty) set("faculty", settings.faculty);
     if (settings.degree_program && !form.degree_program) set("degree_program", settings.degree_program);
     if (settings.specialization && !form.specialization) set("specialization", settings.specialization);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [settings]);
 
   // The "AI find calendar + save URL + auto-parse" pipeline runs once at the

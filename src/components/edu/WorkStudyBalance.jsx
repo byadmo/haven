@@ -55,7 +55,7 @@ export default function WorkStudyBalance() {
       class_hours: defaultClassHours || Math.round(defaultCredits) || 0,
       sleep_hours_per_day: v.sleep_hours_per_day || 8,
     }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [defaultCredits, defaultStudy, defaultClassHours]);
 
   React.useEffect(() => {

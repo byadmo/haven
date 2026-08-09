@@ -65,7 +65,7 @@ export default function EduTimer() {
     setBlockLogged(false);
     setCycle((c) => c + 1);
     notify("Break over — new focus session started 📚");
-    // eslint-disable-next-line
+     
   }, [phase, breakSecondsLeft]);
 
   // Custom target reached
@@ -73,7 +73,7 @@ export default function EduTimer() {
     if (modeId === "custom" && phase === "study" && running && customMin > 0 && studySeconds === customMin * 60) {
       notify(`Target reached — ${customMin}m studied. Take a break when ready.`);
     }
-    // eslint-disable-next-line
+     
   }, [studySeconds]);
 
   // Tab title

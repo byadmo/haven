@@ -43,7 +43,7 @@ export default function ScheduleTaskModal({ open, onOpenChange, defaultDate, del
     } else {
       setForm(empty(defaultDate || today));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [open, deliverable, defaultDate]);
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));

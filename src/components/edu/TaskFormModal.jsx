@@ -25,7 +25,7 @@ export default function TaskFormModal({ open, onOpenChange, defaultDate }) {
 
   useEffect(() => {
     if (open) setForm(empty(defaultDate || today));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [open]);
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));

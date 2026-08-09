@@ -41,7 +41,7 @@ export default function PaychequeAllocator({ bills, vaults, setVaults, loadingVa
     } else {
       didInit.current = true;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [loadingVaults, vaults.length]);
 
   // Auto-update the Bills Vault target_allocation whenever the per-paycheque
@@ -62,7 +62,7 @@ export default function PaychequeAllocator({ bills, vaults, setVaults, loadingVa
       } catch {}
     }, 600);
     return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [perPaycheque, loadingVaults, vaults.length]);
 
   const nextOrder = (vaults.reduce((m, v) => Math.max(m, v.display_order || 0), 0) || 0) + 1;

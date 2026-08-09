@@ -66,7 +66,7 @@ export default function ProductivityCompare() {
     }).catch(() => { if (!cancelled) setQuote(""); })
     .finally(() => { if (!cancelled) setLoadingQuote(false); });
     return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [days, data.current.mins, data.current.sessions, data.current.tasks, data.prev.mins, data.prev.sessions, data.prev.tasks, direction]);
 
   return (

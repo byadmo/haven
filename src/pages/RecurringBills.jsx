@@ -49,7 +49,7 @@ export default function RecurringBills() {
     if (scannedOnce || loading) return;
     setScannedOnce(true);
     if (aiAutoDetect) runScan(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [aiAutoDetect, scannedOnce, loading]);
 
   async function runScan(announce) {

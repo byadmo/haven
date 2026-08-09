@@ -1,7 +1,7 @@
 import React from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ShieldCheck, Wallet, GraduationCap, ArrowRight } from "lucide-react";
+import { ShieldCheck, Wallet, GraduationCap, ArrowRight, Flame } from "lucide-react";
 import ThemeRoot from "@/components/ThemeRoot";
 
 const CARDS = [
@@ -25,6 +25,17 @@ const CARDS = [
     iconWrap: "border-emerald-400/30 bg-emerald-500/10",
     iconColor: "text-emerald-300",
     glow: "from-emerald-500/15",
+    label: "Open",
+  },
+  {
+    to: "/growth",
+    title: "Haven Growth",
+    desc: "Habits, streaks, mood tracking & reflections.",
+    icon: Flame,
+    ring: "group-hover:border-amber-400/50",
+    iconWrap: "border-amber-400/30 bg-amber-500/10",
+    iconColor: "text-amber-300",
+    glow: "from-amber-500/15",
     label: "Open",
   },
 ];
@@ -69,12 +80,12 @@ export default function Hub() {
               Choose your Haven
             </h1>
             <p className="text-sm text-white/50 mt-2 max-w-md leading-relaxed">
-              Select a workspace to continue. Your finance dashboard is ready; education is on the way.
+              Select a workspace to continue. Finance, education, and growth — all in one place.
             </p>
           </motion.div>
 
           {/* Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {CARDS.map((c, i) => {
               const Icon = c.icon;
               return (

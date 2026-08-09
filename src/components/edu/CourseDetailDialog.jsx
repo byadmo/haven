@@ -4,7 +4,6 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Plus, Trash2, Check, Pencil, Sparkles, Loader2 } from "lucide-react";
 import { useEduSync } from "@/lib/eduSyncContext";
 import { currentGrade, percentToLetter } from "@/lib/eduGrading";

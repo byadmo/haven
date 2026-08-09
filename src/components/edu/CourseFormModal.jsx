@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { CalendarClock, UploadCloud, Keyboard, ArrowLeft, Sparkles, Loader2, Pencil, Check, Search, X, Database, ClipboardList } from "lucide-react";
 import CourseOutlineUpload from "@/components/edu/CourseOutlineUpload";
 import CalendarImport from "@/components/edu/CalendarImport";
@@ -111,7 +111,7 @@ export default function CourseFormModal({ open, onOpenChange, semesterId, semest
     researchPromiseRef.current = Promise.resolve(null);
     setTitleAuto(false);
     titleStateRef.current = true;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [open, settings, course, isEdit]);
 
   function toggleDay(d) {
@@ -189,7 +189,7 @@ export default function CourseFormModal({ open, onOpenChange, semesterId, semest
       }
     }, 300);
     return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [form.code, step, settings, uniObj, profileObj]);
 
   // Per user request: difficulty research fires ONLY when the user explicitly

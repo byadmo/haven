@@ -81,7 +81,7 @@ export default function OnboardingWizard({ existingProfile, force = false, onCom
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [isDone, finishing, canAdvance, step]);
 
   const set = (patch) => setDraft((d) => ({ ...d, ...patch }));

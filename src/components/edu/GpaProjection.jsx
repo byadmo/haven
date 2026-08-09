@@ -49,7 +49,7 @@ export default function GpaProjection() {
       credits += row.credits;
     });
     return credits > 0 ? +(pts / credits).toFixed(2) : null;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [courseRows, proj, scale]);
 
   const trendUp = projectedGpa != null && cumulativeGpa != null ? projectedGpa >= cumulativeGpa : null;

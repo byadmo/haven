@@ -1,5 +1,5 @@
 import React from "react";
-import { BookOpen, Plus, DollarSign, ArrowRight, Briefcase, ListPlus } from "lucide-react";
+import { BookOpen, Plus, DollarSign, ArrowRight, ListPlus } from "lucide-react";
 import EduTopBar from "@/components/edu/EduTopBar";
 import EduBottomNav from "@/components/edu/EduBottomNav";
 import PageTitle from "@/components/finance/PageTitle";

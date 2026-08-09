@@ -13,7 +13,7 @@ import PageTitle from "@/components/finance/PageTitle";
 import Reveal from "@/components/finance/Reveal";
 import { useEduSync } from "@/lib/eduSyncContext";
 import TranscriptGpa from "@/components/edu/TranscriptGpa";
-import { currentGrade, projectedGrade, percentToLetter, percentToGpa, neededForTarget } from "@/lib/eduGrading";
+import { currentGrade, projectedGrade, percentToLetter, neededForTarget } from "@/lib/eduGrading";
 
 const LETTERS = ["A+", "A", "A-", "B+", "B", "B-", "C+", "C", "C-", "D"];
 const LETTER_PCT = { "A+": 97, A: 92, "A-": 87, "B+": 82, B: 77, "B-": 72, "C+": 67, C: 62, "C-": 57, D: 52 };
