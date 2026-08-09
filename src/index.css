@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -177,13 +177,27 @@
   .max-w-7xl { max-width: 131rem !important; }
 
   /* no soft shadows, no glass blur */
-  .shadow, .shadow-sm, .shadow-md, .shadow-lg, .shadow-xl, .shadow-2xl { box-shadow: none !important; }
-  .drop-shadow, .drop-shadow-md, .drop-shadow-lg { filter: none !important; }
-  .backdrop-blur, .backdrop-blur-sm, .backdrop-blur-md, .backdrop-blur-xl, .backdrop-blur-2xl {
-    backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
-  }
+    .shadow, .shadow-sm, .shadow-md, .shadow-lg, .shadow-xl, .shadow-2xl { box-shadow: none !important; }
+    .drop-shadow, .drop-shadow-md, .drop-shadow-lg { filter: none !important; }
+    .backdrop-blur, .backdrop-blur-sm, .backdrop-blur-md, .backdrop-blur-xl, .backdrop-blur-2xl {
+      backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
+    }
 
-  /* surfaces → true black */
+    /* ── WealthSimple theme: re-enable subtle shadows + blur ── */
+      html[data-theme="wealthsimple"] .shadow-sm { box-shadow: 0 1px 3px rgba(0,0,0,0.3) !important; }
+      html[data-theme="wealthsimple"] .shadow-md { box-shadow: 0 4px 12px rgba(0,0,0,0.4) !important; }
+      html[data-theme="wealthsimple"] .shadow-lg { box-shadow: 0 8px 24px rgba(0,0,0,0.5) !important; }
+      html[data-theme="wealthsimple"] .backdrop-blur,
+      html[data-theme="wealthsimple"] .backdrop-blur-sm { backdrop-filter: blur(8px) !important; -webkit-backdrop-filter: blur(8px) !important; }
+      html[data-theme="wealthsimple"] .backdrop-blur-md { backdrop-filter: blur(12px) !important; -webkit-backdrop-filter: blur(12px) !important; }
+      /* WealthSimple: switch from monospace to Inter (clean fintech sans-serif) */
+      html[data-theme="wealthsimple"] {
+        --font-body: 'Inter', system-ui, -apple-system, sans-serif;
+        --font-heading: 'Inter', system-ui, -apple-system, sans-serif;
+        --font-display: 'Inter', system-ui, -apple-system, sans-serif;
+      }
+
+      /* surfaces → true black */
   .bg-zinc-900, .bg-zinc-900\/60, .bg-zinc-900\/70, .bg-zinc-900\/80, .bg-zinc-950, .bg-zinc-950\/60, .bg-zinc-950\/70 { background-color: #000 !important; }
   /* borders → white/10 */
   .border-zinc-800, .border-zinc-800\/60, .border-zinc-800\/70 { border-color: rgb(255 255 255 / 0.10) !important; }

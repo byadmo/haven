@@ -3,9 +3,9 @@
 // channels (--e-*) so every existing emerald-based accent follows the chosen
 // primary automatically. See src/components/ThemeRoot.jsx for application.
 
-export const DEFAULT_THEME = "midnight";
+export const DEFAULT_THEME = "wealthsimple";
 
-export const THEME_KEYS = ["original", "midnight", "daylight", "cottonCandy", "forest", "sunset"];
+export const THEME_KEYS = ["original", "midnight", "daylight", "cottonCandy", "forest", "sunset", "wealthsimple"];
 
 export const THEMES = {
   // Original: the pre-theme-system look — true-black canvas (the telemetry
@@ -110,6 +110,25 @@ export const THEMES = {
     danger: "#dc2626",
     charts: ["#f97316", "#ef4444", "#f59e0b", "#facc15"],
   },
+  // ── WealthSimple-Inspired ──────────────────────────────────────────
+  // Deep navy canvas, signature teal accent, clean sans-serif feel.
+  // Matches the WealthSimple fintech aesthetic — premium, trustworthy, airy.
+  wealthsimple: {
+    key: "wealthsimple",
+    label: "WealthSimple",
+    tagline: "Clean fintech",
+    tint: "dark",
+    bg: "#0B1426",
+    surface: "#131D33",
+    primary: "#00E5A0",
+    secondary: "#3B82F6",
+    text: "#E8EEF4",
+    muted: "rgba(232, 238, 244, 0.50)",
+    border: "rgba(255, 255, 255, 0.08)",
+    success: "#00E5A0",
+    danger: "#FF4D4D",
+    charts: ["#00E5A0", "#3B82F6", "#F59E0B", "#A78BFA"],
+  },
 };
 
 function normalize(key) {
@@ -167,8 +186,6 @@ export function applyTheme(el, key) {
   s.setProperty("--th-success", t.success);
   s.setProperty("--th-danger", t.danger);
   t.charts.forEach((c, i) => s.setProperty(`--th-chart-${i + 1}`, c));
-  // Emerald accent scale follows the theme primary (300/200 lean on secondary
-  // for depth) so every emerald-* utility recolors with the theme automatically.
   // Emerald accent scale follows the theme primary (300/200 lean on secondary
   // for depth) so every emerald-* utility recolors with the theme automatically.
   // The "original" theme keeps the native per-sub-app accents (emerald/indigo
