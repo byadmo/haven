@@ -9,7 +9,7 @@ import StatementImportModal from "@/components/finance/StatementImportModal";
 import MetricsRow from "@/components/finance/MetricsRow";
 import ChartSwitcher from "@/components/finance/ChartSwitcher";
 import RecentTransactions from "@/components/finance/RecentTransactions";
-import UpcomingBills from "@/components/finance/UpcomingBills";
+import UpcomingRecurring from "@/components/finance/UpcomingRecurring";
 import FinancialHealthScore from "@/components/finance/FinancialHealthScore";
 import UpcomingBillsWidget from "@/components/finance/UpcomingBillsWidget";
 import AccountsSummary from "@/components/finance/AccountsSummary";
@@ -138,7 +138,7 @@ export default function Dashboard() {
           {/* Row 1.5 — financial health · upcoming bills */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Reveal><FinancialHealthScore /></Reveal>
-            <Reveal delay={0.03}><UpcomingBills transactions={txns} onChanged={refresh} /></Reveal>
+            <Reveal delay={0.03}><UpcomingRecurring transactions={txns} accounts={accounts} onChanged={refresh} /></Reveal>
           </div>
 
           {/* Row 2 — accounts ledger */}

@@ -23,8 +23,6 @@ export const FINANCE_PAGES = [
   { id: "portfolio", to: "/portfolio", label: "Portfolio", icon: Briefcase },
   { id: "forecast", to: "/forecast", label: "Forecast", icon: TrendingUp },
   { id: "credit-utilization", to: "/credit-utilization", label: "Credit Utilization", icon: Gauge },
-  { id: "accounts", to: "/accounts", label: "Accounts", icon: Wallet },
-  { id: "transactions", to: "/transactions", label: "Transactions", icon: ArrowLeftRight },
   { id: "goals", to: "/goals", label: "Goals", icon: Target },
   { id: "assistant", to: "/assistant", label: "Ask Wei", icon: Sparkles },
   { id: "settings", to: "/settings", label: "Settings", icon: SettingsIcon },

@@ -73,7 +73,7 @@ export function SILayout({ children }) {
   return (
     <div className="min-h-screen bg-[var(--th-bg)] text-[var(--th-text)]">
       {/* First-time splash overlay */}
-      {showSplash && <GrowthSplash onComplete={handleSplashComplete} />}
+      {showSplash && <GrowthSplash onComplete={handleSplashComplete} theme={settings.theme || "midnight"} />}
 
       {/* First-time setup wizard */}
       <GrowthSetupModal open={showSetup} onComplete={handleSetupComplete} />
