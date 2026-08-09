@@ -331,7 +331,7 @@ export function EduLayout() {
   const [showWizard, setShowWizard] = React.useState(() => isProfileAddressed() ? false : true);
   return (
     <EduSyncProvider>
-      <EduShell>
+      <EduShell skipLoadingSpinner={showSplash}>
         {showSplash && <EducationSplash onComplete={handleEduSplashComplete} />}
         {!showSplash && (
           <ProfileWizard
@@ -346,10 +346,12 @@ export function EduLayout() {
   );
 }
 
-function EduShell({ children }) {
+function EduShell({ children, skipLoadingSpinner = false }) {
   const { loading, settings } = useEduSync();
   const theme = settings?.theme || DEFAULT_THEME;
-  if (loading) {
+  // When the splash is active, render it immediately (even during loading).
+  // Only show the loading spinner when there's no splash to display.
+  if (loading && !skipLoadingSpinner) {
     return (
       <div className="dark min-h-screen bg-black flex items-center justify-center">
         <div className="w-8 h-8 border-4 border-zinc-800 border-t-emerald-400 rounded-full animate-spin" />
