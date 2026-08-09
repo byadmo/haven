@@ -109,15 +109,13 @@ const AuthenticatedApp = () => {
           </Route>
           <Route path="/setup" element={<Setup />} />
         </Route>
-        <Route element={<SILayout />}>
-          <Route element={<SIProvider><Outlet /></SIProvider>}>
-            <Route path="/growth" element={<SIDashboard />} />
-            <Route path="/growth/habits" element={<HabitsPage />} />
-            <Route path="/growth/streaks" element={<StreaksPage />} />
-            <Route path="/growth/journal" element={<JournalPage />} />
-            <Route path="/growth/analytics" element={<SIAnalyticsPage />} />
-            <Route path="/growth/settings" element={<GrowthSettingsPage />} />
-          </Route>
+        <Route element={<SIProvider><SILayout /></SIProvider>}>
+          <Route path="/growth" element={<SIDashboard />} />
+          <Route path="/growth/habits" element={<HabitsPage />} />
+          <Route path="/growth/streaks" element={<StreaksPage />} />
+          <Route path="/growth/journal" element={<JournalPage />} />
+          <Route path="/growth/analytics" element={<SIAnalyticsPage />} />
+          <Route path="/growth/settings" element={<GrowthSettingsPage />} />
         </Route>
       </Route>
       <Route path="*" element={<PageNotFound />} />
