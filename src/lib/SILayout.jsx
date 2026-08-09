@@ -89,9 +89,9 @@ export function SILayout({ children }) {
         style={{ paddingTop: "env(safe-area-inset-top)" }}
       >
         <div className="max-w-6xl mx-auto px-6 sm:px-8 h-16 flex items-center gap-3">
-          <Link to="/" title="Back to Haven Hub" className="flex items-center gap-2 shrink-0 group rounded-md px-1.5 -mx-1.5 py-1 hover:bg-white/5 transition-colors">
+          <Link to="/" viewTransition title="Back to Haven Hub" className="flex items-center gap-2 shrink-0 group rounded-md px-1.5 -mx-1.5 py-1 hover:bg-white/5 transition-colors">
             <ArrowLeft className="h-3.5 w-3.5 text-white/40 group-hover:text-amber-300 transition-colors" strokeWidth={2} />
-            <div className="flex items-center justify-center rounded-xl border border-amber-400/30 bg-amber-500/10 group-hover:border-amber-400/50 transition-colors" style={{ height: 30, width: 30 }}>
+            <div className="flex items-center justify-center rounded-xl border border-amber-400/30 bg-amber-500/10 group-hover:border-amber-400/50 transition-colors" style={{ height: 30, width: 30, viewTransitionName: "haven-logo" }}>
               <ShieldCheck className="text-amber-400" style={{ height: 16, width: 16 }} />
             </div>
             <span className="text-sm font-semibold tracking-tight text-white">Haven Growth</span>
@@ -104,6 +104,7 @@ export function SILayout({ children }) {
                 key={to}
                 to={to}
                 end={end}
+                viewTransition
                 className={({ isActive }) =>
                   `flex items-center gap-1.5 px-3 h-9 rounded-md text-xs font-medium whitespace-nowrap shrink-0 transition-colors ${
                     isActive
@@ -140,6 +141,7 @@ export function SILayout({ children }) {
               key={to}
               to={to}
               end={end}
+              viewTransition
               aria-label={label}
               className="relative grid place-items-center rounded-full"
               style={{ height: 48, width: 48 }}
@@ -173,7 +175,7 @@ export function SILayout({ children }) {
             {drawerItems.map(({ to, label, icon: Icon }) => (
               <button
                 key={to}
-                onClick={() => { setMoreOpen(false); navigate(to); }}
+                onClick={() => { setMoreOpen(false); navigate(to, { viewTransition: true }); }}
                 className={`flex items-center gap-3 rounded-xl border px-3.5 py-3.5 text-left transition-colors ${
                   location.pathname === to
                     ? "border-amber-400/40 bg-amber-500/10 text-amber-300"

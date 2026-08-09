@@ -3,9 +3,10 @@ import { Link } from "react-router-dom";
 import { Target, Flame, BookOpen, TrendingUp, ArrowRight } from "lucide-react";
 import { useSI } from "@/lib/SIContext";
 import { SI_PAGES } from "@/lib/SILayout";
+import { StatGridSkeleton } from "@/components/ui/skeleton-presets";
 
 export default function SIDashboard() {
-  const { habits, entries, reflections, getStreak, getTodayStatus } = useSI();
+  const { habits, entries, reflections, getStreak, getTodayStatus, loaded } = useSI();
 
   const todayDone = habits.filter(h => getTodayStatus(h.id)).length;
   const totalHabits = habits.length;
@@ -35,22 +36,26 @@ export default function SIDashboard() {
         <p className="text-sm text-white/50 mt-1">Your habits, streaks, and reflections at a glance.</p>
       </div>
 
-      {/* Stats grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        {stats.map((s) => {
-          const Icon = s.icon;
-          return (
-            <div key={s.label} className="rounded-2xl border border-white/10 bg-black p-4 sm:p-5">
-              <div className={`inline-flex items-center justify-center rounded-lg border h-9 w-9 mb-3 ${colorMap[s.color]}`}>
-                <Icon className="h-4 w-4" strokeWidth={1.75} />
+      {/* Stats grid — skeleton while loading */}
+      {!loaded ? (
+        <StatGridSkeleton count={4} />
+      ) : (
+        <div className="haven-fade-in grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          {stats.map((s) => {
+            const Icon = s.icon;
+            return (
+              <div key={s.label} className="rounded-2xl border border-white/10 bg-black p-4 sm:p-5 transition-all duration-200 hover:border-white/20">
+                <div className={`inline-flex items-center justify-center rounded-lg border h-9 w-9 mb-3 ${colorMap[s.color]}`}>
+                  <Icon className="h-4 w-4" strokeWidth={1.75} />
+                </div>
+                <p className="text-2xl sm:text-3xl font-semibold tracking-tight text-white">{s.value}</p>
+                <p className="text-xs text-white/50 mt-0.5">{s.label}</p>
+                <p className="text-[10px] text-white/30 mt-0.5">{s.sub}</p>
               </div>
-              <p className="text-2xl sm:text-3xl font-semibold tracking-tight text-white">{s.value}</p>
-              <p className="text-xs text-white/50 mt-0.5">{s.label}</p>
-              <p className="text-[10px] text-white/30 mt-0.5">{s.sub}</p>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Today's habits quick view */}
       <div className="rounded-2xl border border-white/10 bg-black p-5 sm:p-6">

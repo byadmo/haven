@@ -132,6 +132,7 @@ export default function MobileNav() {
               key={to}
               to={to}
               end={end}
+              viewTransition
               aria-label={label}
               ref={(el) => (itemRefs.current[i] = el)}
               className="relative grid place-items-center rounded-full"
@@ -174,7 +175,7 @@ export default function MobileNav() {
                   key={to}
                   onClick={() => {
                     setMoreOpen(false);
-                    navigate(to);
+                    navigate(to, { viewTransition: true });
                   }}
                   className={`flex items-center gap-3 rounded-xl border px-3.5 py-3.5 text-left transition-colors ${
                     isActive

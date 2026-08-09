@@ -53,6 +53,7 @@ export default function EduTopBar() {
                 key={n.id}
                 to={n.to}
                 end={n.end}
+                viewTransition
                 className={({ isActive }) =>
                   `flex items-center gap-1.5 px-3 h-9 rounded-md text-xs font-medium transition-colors whitespace-nowrap shrink-0 ${
                     isActive ? "bg-emerald-500/15 text-emerald-300 border border-emerald-400/30" : "text-white/50 hover:text-white hover:bg-white/5 border border-transparent"
@@ -119,6 +120,7 @@ export default function EduTopBar() {
             {/* Settings */}
             <NavLink
               to="/education/settings"
+              viewTransition
               className="flex items-center gap-1.5 h-8 w-8 rounded-md border border-white/10 text-white/50 hover:text-white hover:border-white/30 hover:bg-white/5 transition-colors justify-center"
               aria-label="Settings"
             >

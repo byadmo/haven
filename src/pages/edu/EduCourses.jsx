@@ -1,5 +1,6 @@
 import React from "react";
 import { BookOpen, Plus, DollarSign, ArrowRight, ListPlus } from "lucide-react";
+import { motion, useReducedMotion } from "framer-motion";
 import EduTopBar from "@/components/edu/EduTopBar";
 import EduBottomNav from "@/components/edu/EduBottomNav";
 import PageTitle from "@/components/finance/PageTitle";
@@ -16,6 +17,7 @@ import { useToast } from "@/components/ui/use-toast";
 
 export default function EduCourses() {
   const { activeSemester, courses, materials, updateSettings, settings } = useEduSync();
+  const reduceMotion = useReducedMotion();
   const { toast } = useToast();
   const [addOpen, setAddOpen] = React.useState(false);
   const [quickAddOpen, setQuickAddOpen] = React.useState(false);
@@ -78,11 +80,27 @@ export default function EduCourses() {
           {/* Courses */}
           <div className="lg:col-span-8">
             {courses.length ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {courses.map((c, i) => (
-                  <Reveal key={c.id} delay={i * 0.03}><CourseCard course={c} onOpen={setDetailCourse} /></Reveal>
+              <motion.div
+                className="grid grid-cols-1 sm:grid-cols-2 gap-4"
+                initial={reduceMotion ? false : "hidden"}
+                animate="visible"
+                variants={{
+                  hidden: {},
+                  visible: { transition: { staggerChildren: 0.08 } },
+                }}
+              >
+                {courses.map((c) => (
+                  <motion.div
+                    key={c.id}
+                    variants={{
+                      hidden: { opacity: 0, y: 20 },
+                      visible: { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.22, 1, 0.36, 1] } },
+                    }}
+                  >
+                    <CourseCard course={c} onOpen={setDetailCourse} />
+                  </motion.div>
                 ))}
-              </div>
+              </motion.div>
             ) : (
               <div className="rounded-lg border border-white/10 bg-black p-12 text-center">
                 <BookOpen className="h-8 w-8 text-white/20 mx-auto mb-3" />

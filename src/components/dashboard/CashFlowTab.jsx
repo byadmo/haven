@@ -82,7 +82,7 @@ export default function CashFlowTab({ refreshKey, transactions = [], onRefresh }
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card3 title="Recurring Transactions" subtitle="Auto-detected from your history">
           <button onClick={runDetection} disabled={recurringLoading}
-            className="mb-3 text-[11px] flex items-center gap-1 text-white/60 hover:text-white border border-white/10 rounded px-2 py-1">
+            className="mb-3 text-[11px] flex items-center gap-1 text-white/60 hover:text-white border border-white/10 rounded px-2 py-1 transition-all duration-200 ease-out">
             <RefreshCw className={`h-3 w-3 ${recurringLoading ? "animate-spin" : ""}`} /> Re-run detection
           </button>
           <RecurringList transactions={transactions} />

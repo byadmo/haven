@@ -495,7 +495,7 @@ export default function ProfileWizard({ open, onOpenChange, onCompleted }) {
 
 function ImportOption({ icon: Icon, title, hint, disabled, onClick }) {
   return (
-    <button type="button" disabled={disabled} onClick={onClick} className="flex items-center gap-2.5 rounded-md border border-white/10 p-3 text-left w-full disabled:opacity-40 disabled:cursor-not-allowed hover:border-emerald-400/30">
+    <button type="button" disabled={disabled} onClick={onClick} className="flex items-center gap-2.5 rounded-md border border-white/10 p-3 text-left w-full disabled:opacity-40 disabled:cursor-not-allowed hover:border-emerald-400/30 transition-all duration-200 ease-out">
       <Icon className="h-4 w-4 text-emerald-300 shrink-0" />
       <div className="min-w-0">
         <p className="text-sm text-zinc-100">{title}</p>

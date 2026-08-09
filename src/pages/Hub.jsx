@@ -59,7 +59,7 @@ export default function Hub() {
         {/* Header / logo */}
         <header className="flex items-center justify-between py-6 sm:py-8">
           <div className="flex items-center gap-2.5 splash-logo-in">
-            <div className="flex items-center justify-center rounded-xl border border-white/15 bg-white/5" style={{ height: 32, width: 32 }}>
+            <div className="flex items-center justify-center rounded-xl border border-white/15 bg-white/5" style={{ height: 32, width: 32, viewTransitionName: "haven-logo" }}>
               <ShieldCheck className="text-white/80" style={{ height: 18, width: 18 }} />
             </div>
             <span className="text-base font-semibold tracking-tight text-white">Haven</span>
@@ -92,7 +92,7 @@ export default function Hub() {
                 <motion.button
                   key={c.to}
                   type="button"
-                  onClick={() => navigate(c.to)}
+                  onClick={() => navigate(c.to, { viewTransition: true })}
                   initial={{ opacity: 0, y: 18 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.45, delay: 0.1 + i * 0.08, ease: [0.22, 1, 0.36, 1] }}

@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { Drawer as DrawerPrimitive } from "vaul"
-
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion"
 import { cn } from "@/lib/utils"
 
 const Drawer = ({
@@ -19,30 +19,68 @@ const DrawerPortal = DrawerPrimitive.Portal
 
 const DrawerClose = DrawerPrimitive.Close
 
-const DrawerOverlay = React.forwardRef(({ className, ...props }, ref) => (
-  <DrawerPrimitive.Overlay
-    ref={ref}
-    className={cn("fixed inset-0 z-50 bg-black/80", className)}
-    {...props} />
-))
+// ── Overlay — Framer Motion blur + opacity fade ──────────────────────
+const DrawerOverlay = React.forwardRef(({ className, ...props }, ref) => {
+  const reduceMotion = useReducedMotion()
+  return (
+    <DrawerPrimitive.Overlay ref={ref} asChild {...props}>
+      <motion.div
+        className={cn("fixed inset-0 z-50 bg-black/80", className)}
+        style={{ backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)" }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={reduceMotion ? { duration: 0 } : { duration: 0.25, ease: "easeOut" }}
+      />
+    </DrawerPrimitive.Overlay>
+  )
+})
 DrawerOverlay.displayName = DrawerPrimitive.Overlay.displayName
 
-const DrawerContent = React.forwardRef(({ className, children, ...props }, ref) => (
-  <DrawerPortal>
-    <DrawerOverlay />
-    <DrawerPrimitive.Content
-      ref={ref}
-      className={cn(
-        "fixed inset-x-0 bottom-0 z-50 mt-24 flex h-auto flex-col rounded-t-[10px] border bg-background",
-        className
-      )}
-      {...props}>
-      <div className="mx-auto mt-4 h-2 w-[100px] rounded-full bg-muted" />
-      {children}
-    </DrawerPrimitive.Content>
-  </DrawerPortal>
-))
-DrawerContent.displayName = "DrawerContent"
+// ── Content — Vaul handles drag physics; we add the spring entrance ──
+const DrawerContent = React.forwardRef(({ className, children, ...props }, ref) => {
+  const reduceMotion = useReducedMotion()
+
+  return (
+    <DrawerPortal>
+      <AnimatePresence>
+        <DrawerOverlay />
+        <DrawerPrimitive.Content
+          ref={ref}
+          asChild
+          {...props}
+        >
+          <motion.div
+            className={cn(
+              "fixed inset-x-0 bottom-0 z-50 mt-24 flex h-auto flex-col rounded-t-[10px] border bg-background",
+              className
+            )}
+            initial={reduceMotion
+              ? { opacity: 0 }
+              : { opacity: 0, y: "100%" }
+            }
+            animate={reduceMotion
+              ? { opacity: 1 }
+              : { opacity: 1, y: 0 }
+            }
+            exit={reduceMotion
+              ? { opacity: 0 }
+              : { opacity: 0, y: "100%" }
+            }
+            transition={reduceMotion
+              ? { duration: 0.15 }
+              : { type: "spring", stiffness: 350, damping: 35, mass: 0.9 }
+            }
+          >
+            <div className="mx-auto mt-4 h-2 w-[100px] rounded-full bg-muted" />
+            {children}
+          </motion.div>
+        </DrawerPrimitive.Content>
+      </AnimatePresence>
+    </DrawerPortal>
+  )
+})
+DrawerContent.displayName = DrawerPrimitive.Content.displayName
 
 const DrawerHeader = ({
   className,

@@ -50,6 +50,7 @@ export default function EduBottomNav() {
               key={to}
               to={to}
               end={end}
+              viewTransition
               aria-label={label}
               className="relative grid place-items-center rounded-full transition-colors"
               style={{ height: 48, width: 48, flex: 1 }}
@@ -94,7 +95,7 @@ export default function EduBottomNav() {
               return (
                 <button
                   key={to}
-                  onClick={() => { setMoreOpen(false); navigate(to); }}
+                  onClick={() => { setMoreOpen(false); navigate(to, { viewTransition: true }); }}
                   className={`flex items-center gap-3 rounded-xl border px-3.5 py-3.5 text-left transition-colors ${
                     isActive
                       ? "border-emerald-400/40 bg-emerald-500/10 text-emerald-300"

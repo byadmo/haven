@@ -357,8 +357,56 @@
   .splash-logo-in, .splash-fade-up, .splash-slide-in, .splash-fade-in { animation: none !important; opacity: 1; transform: none; }
 }
 
+/* ── View Transitions API (React Router native) ── */
+/* Cross-fade between routes with shared element morphing. React Router's
+   `viewTransition` prop triggers document.startViewTransition() under the hood;
+   these rules control the visual transition. GPU-composited, no JS overhead. */
+::view-transition-old(root) {
+  animation: exit-fade 150ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+::view-transition-new(root) {
+  animation: enter-fade 200ms cubic-bezier(0, 0, 0.2, 1) both;
+}
+/* Shared elements tagged with view-transition-name morph between routes. */
+::view-transition-group(haven-logo) {
+  animation-duration: 250ms;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+::view-transition-group(haven-shell) {
+  animation-duration: 200ms;
+  animation-timing-function: ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root),
+  ::view-transition-group(haven-logo),
+  ::view-transition-group(haven-shell) {
+    animation: none !important;
+  }
+}
+
 /* Mobile: keep bottom space for the floating nav. The global ~30% density
    reduction is handled by the root font-size above (no zoom needed). */
 @media (max-width: 639px) {
   body { padding-bottom: 7rem; }
+}
+
+/* ── Fade-in for skeleton → content swap ── */
+@keyframes haven-fade-in { from { opacity: 0; } to { opacity: 1; } }
+.haven-fade-in { animation: haven-fade-in 300ms ease-out both; }
+
+/* ── Comprehensive reduced-motion guard ── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  ::view-transition-old(root),
+  ::view-transition-new(root),
+  ::view-transition-group(haven-logo),
+  ::view-transition-group(haven-shell) {
+    animation: none !important;
+  }
 }

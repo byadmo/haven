@@ -1,6 +1,8 @@
+"use client"
+
 import * as React from "react"
 import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog"
-
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button"
 
@@ -10,29 +12,68 @@ const AlertDialogTrigger = AlertDialogPrimitive.Trigger
 
 const AlertDialogPortal = AlertDialogPrimitive.Portal
 
-const AlertDialogOverlay = React.forwardRef(({ className, ...props }, ref) => (
-  <AlertDialogPrimitive.Overlay
-    className={cn(
-      "fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
-      className
-    )}
-    {...props}
-    ref={ref} />
-))
+// ── Overlay ──────────────────────────────────────────────────────────
+const AlertDialogOverlay = React.forwardRef(({ className, ...props }, ref) => {
+  const reduceMotion = useReducedMotion()
+  return (
+    <AlertDialogPrimitive.Overlay ref={ref} asChild {...props}>
+      <motion.div
+        className={cn("fixed inset-0 z-50 bg-black/80", className)}
+        style={{ backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)" }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={reduceMotion ? { duration: 0 } : { duration: 0.2, ease: "easeOut" }}
+      />
+    </AlertDialogPrimitive.Overlay>
+  )
+})
 AlertDialogOverlay.displayName = AlertDialogPrimitive.Overlay.displayName
 
-const AlertDialogContent = React.forwardRef(({ className, ...props }, ref) => (
-  <AlertDialogPortal>
-    <AlertDialogOverlay />
-    <AlertDialogPrimitive.Content
-      ref={ref}
-      className={cn(
-        "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg",
-        className
-      )}
-      {...props} />
-  </AlertDialogPortal>
-))
+// ── Content ──────────────────────────────────────────────────────────
+const AlertDialogContent = React.forwardRef(({ className, children, ...props }, ref) => {
+  const reduceMotion = useReducedMotion()
+
+  return (
+    <AlertDialogPortal>
+      <AnimatePresence>
+        <AlertDialogOverlay />
+        <AlertDialogPrimitive.Content
+          ref={ref}
+          asChild
+          {...props}
+        >
+          <motion.div
+            className={cn(
+              "fixed left-1/2 top-1/2 z-50 grid w-full max-w-lg gap-4",
+              "border bg-background p-6 shadow-lg sm:rounded-lg",
+              className
+            )}
+            style={{ x: "-50%", y: "-50%" }}
+            initial={reduceMotion
+              ? { opacity: 0 }
+              : { opacity: 0, scale: 0.96, x: "-50%", y: "-44%" }
+            }
+            animate={reduceMotion
+              ? { opacity: 1 }
+              : { opacity: 1, scale: 1, x: "-50%", y: "-50%" }
+            }
+            exit={reduceMotion
+              ? { opacity: 0 }
+              : { opacity: 0, scale: 0.98, x: "-50%", y: "-48%" }
+            }
+            transition={reduceMotion
+              ? { duration: 0.15 }
+              : { type: "spring", stiffness: 400, damping: 30, mass: 0.8 }
+            }
+          >
+            {children}
+          </motion.div>
+        </AlertDialogPrimitive.Content>
+      </AnimatePresence>
+    </AlertDialogPortal>
+  )
+})
 AlertDialogContent.displayName = AlertDialogPrimitive.Content.displayName
 
 const AlertDialogHeader = ({

@@ -473,7 +473,7 @@ export default function CourseFormModal({ open, onOpenChange, semesterId, semest
             <div>
               <div className="flex items-center justify-between gap-2">
                 <Label className="text-white/50">Course Description</Label>
-                <button type="button" onClick={runResearch} disabled={descLoading || !form.code} className="inline-flex items-center gap-1 text-[11px] text-emerald-300 hover:text-emerald-200 disabled:opacity-50 shrink-0" title="Research this course's description + difficulty from the web">
+                <button type="button" onClick={runResearch} disabled={descLoading || !form.code} className="inline-flex items-center gap-1 text-[11px] text-emerald-300 hover:text-emerald-200 disabled:opacity-50 shrink-0 transition-all duration-200 ease-out" title="Research this course's description + difficulty from the web">
                   {descLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
                   {descLoading ? "Researching…" : "Generate"}
                 </button>

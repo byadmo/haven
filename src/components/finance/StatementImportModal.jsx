@@ -752,7 +752,7 @@ export default function StatementImportModal({ open, onOpenChange, accounts = []
                 <button
                   onClick={reset}
                   disabled={importing}
-                  className="text-[11px] font-mono uppercase tracking-widest text-white/40 hover:text-white disabled:opacity-40 shrink-0"
+                  className="text-[11px] font-mono uppercase tracking-widest text-white/40 hover:text-white disabled:opacity-40 shrink-0 transition-all duration-200 ease-out"
                 >
                   Start over
                 </button>

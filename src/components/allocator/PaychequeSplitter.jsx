@@ -202,7 +202,7 @@ function VaultAllocationRow({ v, income, othersCommitted, isOver, onAmount, onDe
               className="h-7 w-20 font-mono tabular-nums text-right"
             />
           )}
-          <button onClick={onDelete} title="Delete vault" className="h-6 w-6 grid place-items-center rounded border border-white/10 text-white/40 hover:text-rose-300 hover:border-rose-400/30">
+          <button onClick={onDelete} title="Delete vault" className="h-6 w-6 grid place-items-center rounded border border-white/10 text-white/40 hover:text-rose-300 hover:border-rose-400/30 transition-all duration-200 ease-out">
             <Trash2 className="h-3 w-3" />
           </button>
         </div>

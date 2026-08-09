@@ -23,6 +23,7 @@ function TopNavLink({ to, label, icon: Icon, end }) {
     <NavLink
       to={to}
       end={end}
+      viewTransition
       className={({ isActive }) =>
         `flex items-center gap-1.5 px-3 h-9 rounded-md text-xs font-medium whitespace-nowrap shrink-0 transition-colors ${
           isActive
@@ -49,11 +50,11 @@ export default function DashboardHeader({ actions }) {
         style={{ paddingTop: "env(safe-area-inset-top)" }}
       >
         <div className="max-w-6xl mx-auto px-6 sm:px-8 h-16 flex items-center gap-3">
-          <Link to="/" title="Back to Haven Hub" className="flex items-center gap-2 shrink-0 group rounded-md px-1.5 -mx-1.5 py-1 hover:bg-white/5 transition-colors">
+          <Link to="/" viewTransition title="Back to Haven Hub" className="flex items-center gap-2 shrink-0 group rounded-md px-1.5 -mx-1.5 py-1 hover:bg-white/5 transition-colors">
             <ArrowLeft className="h-3.5 w-3.5 text-white/40 group-hover:text-emerald-300 transition-colors" strokeWidth={2} />
             <div
               className="flex items-center justify-center rounded-xl border border-emerald-400/30 bg-emerald-500/10 group-hover:border-emerald-400/50 transition-colors"
-              style={{ height: 30, width: 30 }}
+              style={{ height: 30, width: 30, viewTransitionName: "haven-logo" }}
             >
               <ShieldCheck className="text-emerald-400" style={{ height: 16, width: 16 }} />
             </div>
@@ -87,6 +88,7 @@ export default function DashboardHeader({ actions }) {
             </button>
             <NavLink
               to="/settings"
+              viewTransition
               aria-label="Settings"
               title="Settings"
               className={({ isActive }) =>

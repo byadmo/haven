@@ -62,11 +62,11 @@ export default function CourseOutline({ course }) {
         <p className="text-[10px] uppercase tracking-widest text-white/50">Course outline</p>
         {course?.outline_file_url && (
           <div className="flex items-center gap-2">
-            <button onClick={summarize} disabled={summarizing} className="inline-flex items-center gap-1 text-[10px] text-emerald-300/80 hover:text-emerald-200 disabled:opacity-50" title="Summarize the outline with AI">
+            <button onClick={summarize} disabled={summarizing} className="inline-flex items-center gap-1 text-[10px] text-emerald-300/80 hover:text-emerald-200 disabled:opacity-50 transition-all duration-200 ease-out" title="Summarize the outline with AI">
               {summarizing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
               {summarizing ? "Summarizing…" : "Summarize"}
             </button>
-            <button onClick={remove} disabled={busy} className="text-white/40 hover:text-rose-300 disabled:opacity-50" title="Remove outline"><Trash2 className="h-3.5 w-3.5" /></button>
+            <button onClick={remove} disabled={busy} className="text-white/40 hover:text-rose-300 disabled:opacity-50 transition-all duration-200 ease-out" title="Remove outline"><Trash2 className="h-3.5 w-3.5" /></button>
           </div>
         )}
       </div>

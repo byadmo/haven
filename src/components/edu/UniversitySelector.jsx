@@ -147,7 +147,7 @@ export default function UniversitySelector({ value, onChange, compact = false })
           </div>
           <div className="flex gap-2">
             <button type="button" onClick={() => setManual(false)} className="text-[11px] text-white/40 hover:text-white px-2 py-1">Back to search</button>
-            <button type="button" onClick={commitManual} className="ml-auto rounded bg-emerald-500 text-black text-[11px] font-medium px-3 py-1 hover:bg-emerald-400">Save university</button>
+            <button type="button" onClick={commitManual} className="ml-auto rounded bg-emerald-500 text-black text-[11px] font-medium px-3 py-1 hover:bg-emerald-400 transition-all duration-200 ease-out">Save university</button>
           </div>
         </div>
       )}

@@ -236,7 +236,7 @@ Return JSON: { "sections": [ { "title": string, "icon": one of graduation|clock|
       <div className="flex items-center gap-2 px-3 py-2 border-b border-white/10 shrink-0">
         <Sparkles className="h-4 w-4 text-emerald-300 shrink-0" />
         <p className="text-sm font-semibold text-zinc-50 flex-1">EduSync AI</p>
-        <button onClick={clearChat} disabled={!messages.length} className="text-white/40 hover:text-rose-300 disabled:opacity-30 p-1" title="Clear chat"><Trash2 className="h-3.5 w-3.5" /></button>
+        <button onClick={clearChat} disabled={!messages.length} className="text-white/40 hover:text-rose-300 disabled:opacity-30 p-1 transition-all duration-200 ease-out" title="Clear chat"><Trash2 className="h-3.5 w-3.5" /></button>
         <button onClick={() => setCollapsed(true)} className="text-white/40 hover:text-white/70 p-1" title="Minimize"><ChevronDown className="h-3.5 w-3.5" /></button>
       </div>
 

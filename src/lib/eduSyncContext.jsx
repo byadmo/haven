@@ -367,9 +367,9 @@ function EduShell({ children }) {
 
 export function HavenEduLogo({ to = "/" }) {
   return (
-    <Link to={to} title="Back to Haven Hub" className="flex items-center gap-2 shrink-0 group rounded-md px-1.5 -mx-1.5 py-1 hover:bg-white/5 transition-colors">
+    <Link to={to} viewTransition title="Back to Haven Hub" className="flex items-center gap-2 shrink-0 group rounded-md px-1.5 -mx-1.5 py-1 hover:bg-white/5 transition-colors">
       <ArrowLeft className="h-3.5 w-3.5 text-white/40 group-hover:text-emerald-300 transition-colors" strokeWidth={2} />
-      <div className="flex items-center justify-center rounded-xl border border-emerald-400/30 bg-emerald-500/10 transition-colors group-hover:border-emerald-400/50" style={{ height: 30, width: 30 }}>
+      <div className="flex items-center justify-center rounded-xl border border-emerald-400/30 bg-emerald-500/10 transition-colors group-hover:border-emerald-400/50" style={{ height: 30, width: 30, viewTransitionName: "haven-logo" }}>
         <GraduationCap className="text-emerald-400" style={{ height: 16, width: 16 }} />
       </div>
       <span className="text-sm font-semibold tracking-tight text-white">Haven <span className="text-emerald-400">Education</span></span>

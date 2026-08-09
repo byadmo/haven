@@ -110,7 +110,7 @@ export default function CourseDetailDialog({ course, open, onOpenChange, onEditC
                 type="button"
                 onClick={generateFromWeb}
                 disabled={generatingDesc || !course?.code}
-                className="inline-flex items-center gap-1 text-[10px] text-emerald-300/80 hover:text-emerald-200 disabled:opacity-50"
+                className="inline-flex items-center gap-1 text-[10px] text-emerald-300/80 hover:text-emerald-200 disabled:opacity-50 transition-all duration-200 ease-out"
                 title="Research description, prerequisites & difficulty from the web"
               >
                 {generatingDesc ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}

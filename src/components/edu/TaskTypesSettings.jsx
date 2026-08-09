@@ -62,7 +62,7 @@ export default function TaskTypesSettings() {
               <>
                 <input type="color" value={editColor} onChange={(e) => setEditColor(e.target.value)} className="h-5 w-5 rounded bg-transparent border border-white/10 cursor-pointer" />
                 <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="flex-1 h-7 bg-black border-white/10 text-sm" autoFocus />
-                <button onClick={commitEdit} className="text-emerald-300 hover:text-emerald-200 p-1" title="Save"><Check className="h-4 w-4" /></button>
+                <button onClick={commitEdit} className="text-emerald-300 hover:text-emerald-200 p-1 transition-all duration-200 ease-out" title="Save"><Check className="h-4 w-4" /></button>
                 <button onClick={() => setEditIdx(null)} className="text-white/40 hover:text-white p-1" title="Cancel"><X className="h-4 w-4" /></button>
               </>
             ) : (

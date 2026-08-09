@@ -628,7 +628,7 @@ export default function AssistantChat({ accounts, debts, transactions, debtPayme
               </div>
               <button
                 onClick={removePending}
-                className="p-1 text-white/40 hover:text-white"
+                className="p-1 text-white/40 hover:text-white transition-all duration-200 ease-out"
                 aria-label="Remove attachment"
               >
                 <X className="h-4 w-4" />
