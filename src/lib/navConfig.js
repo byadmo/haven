@@ -8,14 +8,13 @@
 
 import {
   LayoutDashboard, CreditCard, PiggyBank, PieChart, Activity, Briefcase,
-  TrendingUp, Gauge, Wallet, ArrowLeftRight, Sparkles, CalendarClock,
+  TrendingUp, Gauge, Wallet, ArrowLeftRight, Sparkles,
   Settings as SettingsIcon,
   BookOpen, CalendarDays, Timer, GraduationCap, BarChart3,
 } from "lucide-react";
 
 export const FINANCE_PAGES = [
   { id: "overview", to: "/overview", label: "Overview", icon: LayoutDashboard, end: true, locked: true },
-  { id: "recurring", to: "/recurring-bills", label: "Bills", icon: CalendarClock },
   { id: "debts", to: "/debts", label: "Debts", icon: CreditCard },
   { id: "budgets", to: "/budgeting", label: "Budgets", icon: PiggyBank },
   { id: "insights", to: "/insights", label: "Insights", icon: PieChart },
@@ -28,7 +27,7 @@ export const FINANCE_PAGES = [
 ];
 
 export const FINANCE_DEFAULT_NAV = [
-  "overview", "recurring", "budgets", "cashflow", "forecast", "credit-utilization", "insights",
+  "overview", "budgets", "cashflow", "forecast", "credit-utilization", "insights",
 ];
 export const FINANCE_LOCKED = ["overview"];
 
