@@ -15,8 +15,8 @@ export const GCALENDAR_CONNECTOR_ID = "6a70ef7e9f47c094588c220b";
 
 export const EDU_NAV = [
   { to: "/education", label: "Home", icon: LayoutDashboard, end: true },
-  { to: "/education/focus", label: "Focus Hub", icon: Timer },
   { to: "/education/vault", label: "Vault", icon: BookOpen },
+  { to: "/education/focus", label: "Focus Hub", icon: Timer },
   { to: "/education/settings", label: "Settings", icon: Settings },
 ];
 

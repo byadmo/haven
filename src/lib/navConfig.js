@@ -1,38 +1,35 @@
-// Canonical navigation catalogs + resolution helpers shared by the
-// customizable nav bars in both Haven Finance and Haven Education.
-//
-// A user's nav config is just an array of page-id strings in display order
-// (stored on UserFinancialProfile.nav_items / EduSettings.nav_items). Pages
-// omitted from that array fall into the "More" dropdown. The locked page
-// (overview / dashboard) is always force-included at the front if missing.
-
 import {
-  LayoutDashboard, CreditCard, PiggyBank, PieChart, Activity, Briefcase,
-  TrendingUp, Gauge, Wallet, ArrowLeftRight, Sparkles,
+  LayoutDashboard, CreditCard, PieChart,
+  TrendingUp, Gauge, Target,
   Settings as SettingsIcon,
-  BookOpen, CalendarDays, Timer, GraduationCap, BarChart3,
+  BookOpen, Timer, GraduationCap, BarChart3, CalendarDays,
 } from "lucide-react";
 
 export const FINANCE_PAGES = [
   { id: "overview", to: "/overview", label: "Overview", icon: LayoutDashboard, end: true, locked: true },
   { id: "allocation", to: "/allocation", label: "Allocation", icon: PieChart },
   { id: "debts", to: "/debts", label: "Debts", icon: CreditCard },
+  { id: "goals", to: "/allocation?tab=goals", label: "Goals", icon: Target },
+    { id: "credit-health", to: "/allocation?tab=credit", label: "Credit", icon: Gauge },
   { id: "settings", to: "/settings", label: "Settings", icon: SettingsIcon },
 ];
 
 export const FINANCE_DEFAULT_NAV = [
-  "overview", "allocation", "debts",
+  "overview", "allocation", "debts", "goals", "credit-health",
 ];
 export const FINANCE_LOCKED = ["overview"];
 
 export const EDU_PAGES = [
   { id: "home", to: "/education", label: "Home", icon: LayoutDashboard, end: true, locked: true },
+  { id: "courses", to: "/education/vault#courses", label: "Courses", icon: BookOpen },
   { id: "focus", to: "/education/focus", label: "Focus Hub", icon: Timer },
-  { id: "vault", to: "/education/vault", label: "Academic Vault", icon: BookOpen },
+  { id: "schedule", to: "/education/focus#schedule", label: "Schedule", icon: CalendarDays },
+  { id: "grades", to: "/education/vault#grades", label: "Grades", icon: GraduationCap },
+  { id: "analytics", to: "/education/vault#analytics", label: "Analytics", icon: BarChart3 },
   { id: "settings", to: "/education/settings", label: "Settings", icon: SettingsIcon },
 ];
 
-export const EDU_DEFAULT_NAV = ["home", "focus", "vault", "settings"];
+export const EDU_DEFAULT_NAV = ["home", "courses", "focus", "schedule", "grades", "analytics"];
 export const EDU_LOCKED = ["home"];
 
 // Turn a stored config array + a page catalog into { primary, more } nav lists.

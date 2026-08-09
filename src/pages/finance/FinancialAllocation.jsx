@@ -1,4 +1,5 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { PieChart, Target, Gauge, TrendingUp, Briefcase, BarChart3 } from "lucide-react";
 import { useFinanceData } from "@/lib/FinanceDataContext";
 import BudgetVsActual from "@/components/finance/BudgetVsActual";
@@ -18,6 +19,17 @@ function sum(arr, key) {
 
 export default function FinancialAllocation() {
   const { transactions, accounts, categories, goals, debts } = useFinanceData();
+  const [searchParams] = useSearchParams();
+  const tab = searchParams.get("tab");
+
+  // Scroll to section based on query param
+  useEffect(() => {
+    if (tab === "goals") {
+      setTimeout(() => document.getElementById("section-goals")?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+    } else if (tab === "credit") {
+      setTimeout(() => document.getElementById("section-credit")?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+    }
+  }, [tab]);
 
   const totalIncome = useMemo(() => {
     const now = new Date();
@@ -82,7 +94,7 @@ export default function FinancialAllocation() {
       {/* Budget + Credit */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {/* Credit Health Ring */}
-        <div className="rounded-2xl border border-white/10 bg-black p-5 sm:p-6 flex flex-col items-center">
+        <div id="section-credit" className="rounded-2xl border border-white/10 bg-black p-5 sm:p-6 flex flex-col items-center">
           <div className="flex items-center gap-2 mb-4">
             <Gauge className="h-4 w-4 text-purple-400" />
             <h2 className="text-sm font-semibold text-white">Credit Health</h2>
@@ -131,7 +143,7 @@ export default function FinancialAllocation() {
       </div>
 
       {/* Goal Planner */}
-      <div className="rounded-2xl border border-white/10 bg-black p-5 sm:p-6">
+      <div id="section-goals" className="rounded-2xl border border-white/10 bg-black p-5 sm:p-6">
         <div className="flex items-center gap-2 mb-4">
           <Target className="h-4 w-4 text-amber-400" />
           <h2 className="text-sm font-semibold text-white">Goal Planner</h2>

@@ -137,8 +137,8 @@ export default function FinancialDashboard() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           { label: "Allocation", icon: PieChart, to: "/allocation", color: "emerald" },
-          { label: "Goals", icon: Target, to: "/allocation#goals", color: "blue" },
-          { label: "Credit Health", icon: Gauge, to: "/allocation#credit", color: "purple" },
+          { label: "Goals", icon: Target, to: "/allocation?tab=goals", color: "blue" },
+          { label: "Credit Health", icon: Gauge, to: "/allocation?tab=credit", color: "purple" },
           { label: "Quick Add", icon: Plus, onClick: () => setQuickAddOpen(true), color: "amber" },
         ].map((b) => {
           const colorMap = { emerald: "border-emerald-400/30 text-emerald-300 hover:bg-emerald-500/10", blue: "border-blue-400/30 text-blue-300 hover:bg-blue-500/10", purple: "border-purple-400/30 text-purple-300 hover:bg-purple-500/10", amber: "border-amber-400/30 text-amber-300 hover:bg-amber-500/10" };
