@@ -1,11 +1,12 @@
 import React, { useState } from "react";
 import { Flame, ArrowRight, Target, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { THEMES, DEFAULT_THEME } from "@/lib/themes";
+import { THEMES } from "@/lib/themes";
 
-export default function GrowthSplash({ onComplete, theme }) {
+export default function GrowthSplash({ onComplete }) {
   const [leaving, setLeaving] = useState(false);
-  const t = THEMES[theme] || THEMES[DEFAULT_THEME];
+  // Locked to the orange "sunset" palette to match the Growth module's amber brand.
+  const t = THEMES.sunset;
 
   const handleStart = () => {
     setLeaving(true);

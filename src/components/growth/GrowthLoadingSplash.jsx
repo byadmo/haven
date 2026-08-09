@@ -1,11 +1,11 @@
 import React from "react";
 import { Flame } from "lucide-react";
-import { THEMES, DEFAULT_THEME, getStoredTheme } from "@/lib/themes";
+import { THEMES } from "@/lib/themes";
 
 // Loading splash for Haven Growth, shown while the Growth module's data loads.
-// Colors follow the user's chosen Haven Growth theme.
+// Locked to the orange "sunset" palette to match the Growth module's amber brand.
 export default function GrowthLoadingSplash() {
-  const t = THEMES[getStoredTheme("growth")] || THEMES[DEFAULT_THEME];
+  const t = THEMES.sunset;
 
   return (
     <div
