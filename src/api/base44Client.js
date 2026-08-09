@@ -1,38 +1,42 @@
 /**
- * Base44 Client Dispatcher
+ * Base44 Client
  *
- * Default to Base44 SDK (safe for deployments — OAuth works). Falls back
- * to the local Express backend when VITE_HAVEN_BACKEND=local in .env.
+ * In live deployments (Base44 builder) this file is bundled with the
+ * Base44 SDK so OAuth providers (Google, Apple) work correctly.
+ *
+ * For LOCAL development with the Express backend, swap this file with
+ * src/api/base44Client.local.js before starting the dev server.
+ *    cp src/api/base44Client.local.js src/api/base44Client.js
+ *
+ * The .env entry VITE_HAVEN_BACKEND controls only the Vite dev proxy
+ * target, not which client is imported — the build system cannot handle
+ * two different import graphs behind a runtime flag.
  */
 
-const BACKEND = import.meta.env.VITE_HAVEN_BACKEND;
+import { createClient } from '@base44/sdk';
+import { appParams } from '@/lib/app-params';
+
+const { appId, token, functionsVersion, appBaseUrl } = appParams;
+
+export const base44 = createClient({
+  appId,
+  token,
+  functionsVersion,
+  serverUrl: '',
+  requiresAuth: false,
+  appBaseUrl,
+});
+
 const TOKEN_KEY = 'base44_access_token';
 
-// Token helpers — shared by both modes, read/write localStorage.
-function readToken() {
+export function getToken() {
   if (typeof window === 'undefined') return null;
   return window.localStorage.getItem(TOKEN_KEY) || null;
 }
 
-function writeToken(token) {
+export function setToken(val) {
   if (typeof window === 'undefined') return;
-  if (token) {
-    window.localStorage.setItem(TOKEN_KEY, token);
-  } else {
-    window.localStorage.removeItem(TOKEN_KEY);
-  }
+  val
+    ? window.localStorage.setItem(TOKEN_KEY, val)
+    : window.localStorage.removeItem(TOKEN_KEY);
 }
-
-let base44;
-
-if (BACKEND === 'local') {
-  // ---- LOCAL MODE: Express + SQLite ----
-  const mod = await import('./base44Client.local.js');
-  base44 = mod.base44;
-} else {
-  // ---- BASE44 MODE: hosted backend + real OAuth ----
-  const mod = await import('./base44Client.base44.js');
-  base44 = mod.base44;
-}
-
-export { base44, readToken as getToken, writeToken as setToken };

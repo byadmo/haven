@@ -1,3 +1,4 @@
+import base44Plugin from '@base44/vite-plugin';
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import path from 'node:path'
@@ -7,9 +8,14 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   plugins: [
+    base44Plugin({
+      legacySDKImports: false,
+      hmrNotifier: true,
+      navigationNotifier: true,
+      analyticsTracker: true,
+      visualEditAgent: true,
+    }),
     react(),
-    // Base44 plugin loads for dev; won't interfere with local mode
-    // To fully disable, use vite.config.local.js
   ],
   resolve: {
     alias: {
@@ -18,9 +24,6 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      // API proxy always goes to Base44 hosted backend on port 4400
-      // In local mode your Express server runs here
-      // Just change the target when switching modes
       '/api': {
         target: 'http://localhost:4400',
         changeOrigin: true,
