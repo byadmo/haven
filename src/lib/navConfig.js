@@ -2,7 +2,7 @@ import {
   LayoutDashboard, CreditCard, PieChart,
   TrendingUp, Gauge, Target,
   Settings as SettingsIcon,
-  BookOpen, Timer, GraduationCap, BarChart3, CalendarDays,
+  BookOpen, Timer,
 } from "lucide-react";
 
 export const FINANCE_PAGES = [
@@ -21,15 +21,12 @@ export const FINANCE_LOCKED = ["overview"];
 
 export const EDU_PAGES = [
   { id: "home", to: "/education", label: "Home", icon: LayoutDashboard, end: true, locked: true },
-  { id: "courses", to: "/education", label: "Courses", icon: BookOpen },
-    { id: "focus", to: "/education", label: "Focus Hub", icon: Timer },
-    { id: "schedule", to: "/education", label: "Schedule", icon: CalendarDays },
-    { id: "grades", to: "/education", label: "Grades", icon: GraduationCap },
-    { id: "analytics", to: "/education", label: "Analytics", icon: BarChart3 },
+  { id: "vault", to: "/education/vault", label: "Vault", icon: BookOpen },
+    { id: "focus", to: "/education/focus", label: "Focus Hub", icon: Timer },
   { id: "settings", to: "/education/settings", label: "Settings", icon: SettingsIcon },
 ];
 
-export const EDU_DEFAULT_NAV = ["home", "courses", "focus", "schedule", "grades", "analytics"];
+export const EDU_DEFAULT_NAV = ["home", "vault", "focus"];
 export const EDU_LOCKED = ["home"];
 
 // Turn a stored config array + a page catalog into { primary, more } nav lists.

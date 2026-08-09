@@ -23,8 +23,6 @@ export default function FinancialHeader() {
   const { navConfig, settings } = useFinanceData();
   const location = useLocation();
   const navigate = useNavigate();
-  const [cmdOpen, setCmdOpen] = useState(false);
-  const [backupOpen, setBackupOpen] = useState(false);
   const [customizeOpen, setCustomizeOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
 
@@ -78,12 +76,8 @@ export default function FinancialHeader() {
 
           {/* Right actions */}
           <div className="flex items-center gap-1 ml-auto">
-            <button
-              onClick={(e) => { e.stopPropagation(); setCmdOpen(true); }}
-              className="hidden sm:flex items-center gap-1.5 px-2.5 h-8 rounded-md text-[10px] text-white/40 border border-white/10 hover:text-white hover:border-white/20 transition-colors"
-            >
-              <span className="font-mono">⌘K</span>
-            </button>
+            <CommandPalette />
+            <BackupModal />
             <button
               onClick={() => setCustomizeOpen(true)}
               className="h-8 w-8 grid place-items-center rounded-md text-white/40 hover:text-white hover:bg-white/5 transition-colors"
@@ -160,9 +154,6 @@ export default function FinancialHeader() {
         </DrawerContent>
       </Drawer>
 
-      {/* Modals */}
-      <CommandPalette open={cmdOpen} onOpenChange={setCmdOpen} />
-      <BackupModal open={backupOpen} onOpenChange={setBackupOpen} />
       {customizeOpen && (
         <CustomizeNavModal
           open={customizeOpen}
