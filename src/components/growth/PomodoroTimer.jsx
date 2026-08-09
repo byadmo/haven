@@ -1,18 +1,18 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Play, Pause, RotateCcw, X, Timer, Brain } from "lucide-react";
+import { Play, Pause, RotateCcw, Brain } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const POMODORO_MIN = 25;
 const POMODORO_SEC = POMODORO_MIN * 60;
 
-export default function PomodoroTimer({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
-  const [state, setState] = useState<PomodoroState>("idle");
-  const [timeLeft, setTimeLeft] = useState(POMODORO_SEC);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const startRef = useRef<number>(0);
-  const elapsedRef = useRef<number>(0);
+export default function PomodoroTimer({ open, onOpenChange }) {
+  const [state, setState] = useState("idle");
+    const [timeLeft, setTimeLeft] = useState(POMODORO_SEC);
+    const intervalRef = useRef(null);
+    const startRef = useRef(0);
+    const elapsedRef = useRef(0);
 
   const clearTimer = useCallback(() => {
     if (intervalRef.current) {

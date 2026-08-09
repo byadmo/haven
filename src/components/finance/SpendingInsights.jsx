@@ -5,6 +5,8 @@ import { base44 } from "@/api/base44Client";
 import { isWithinInterval, parseISO } from "date-fns";
 import { useCurrency } from "@/lib/currency-context";
 import { AGENTS } from "@/lib/agentPrompts";
+import { buildInsightPrompt } from "@/lib/promptBuilder";
+import { checkRateLimit, recordCall } from "@/lib/rateLimiter";
 
 const SCHEMA = {
   type: "object",
@@ -79,26 +81,44 @@ export default function SpendingInsights({ monthLabel, start, end, transactions 
   async function generate() {
     setLoading(true);
     try {
+      const rl = checkRateLimit("Ask Sno for spending insights");
+      if (!rl.ok) {
+        setData({
+          headline: "Rate limited",
+          summary: rl.reason,
+          top_category: "",
+          top_category_amount: 0,
+          top_category_pct: 0,
+          points: [{ icon: "check", title: "Try again later", detail: rl.reason }],
+        });
+        setLoading(false);
+        return;
+      }
+
       const catLines = Object.entries(monthSpend.cats)
         .sort((a, b) => b[1] - a[1])
         .slice(0, 12)
         .map(([k, v]) => `- ${k}: $${v.toFixed(2)}`)
         .join("\n");
 
-      const prompt = `${AGENTS.SNO.systemPrompt}
+      const contextBlock = `TOTAL SPEND THIS MONTH: $${monthSpend.total.toFixed(2)}\nTOP CATEGORIES:\n${catLines || "(no spending recorded)"}`;
 
-Analyze this user's spending for the month of ${monthLabel} and give actionable, personalized feedback on their spending habits, the top categories they overspent on, and concrete suggestions to save. Use bullet points with emojis (🔎, 📈, 📉, 💡) in each insight.
+      const taskDirective = `Analyze this user's spending for the month of ${monthLabel} and give actionable, personalized feedback on their spending habits, the top categories they overspent on, and concrete suggestions to save. Use bullet points with emojis (🔎, 📈, 📉, 💡) in each insight.
 
-Return JSON with: headline, summary (1-2 sentences), top_category (name), top_category_amount (number), top_category_pct (number 0-100 of total spend), and 3-5 points (icon in trending-up|dollar|target|alert|check|activity, title, detail). Be specific and reference real numbers and category names.
+Return JSON with: headline, summary (1-2 sentences), top_category (name), top_category_amount (number), top_category_pct (number 0-100 of total spend), and 3-5 points (icon in trending-up|dollar|target|alert|check|activity, title, detail). Be specific and reference real numbers and category names.`;
 
-TOTAL SPEND THIS MONTH: $${monthSpend.total.toFixed(2)}
-TOP CATEGORIES:
-${catLines || "(no spending recorded)"}`;
+      const prompt = buildInsightPrompt({
+        agent: AGENTS.SNO,
+        sectionName: "Insights",
+        contextBlock,
+        taskDirective,
+      });
 
       const result = await base44.integrations.Core.InvokeLLM({
         prompt,
         response_json_schema: SCHEMA,
       });
+      recordCall("Ask Sno for spending insights");
       const parsed = typeof result === "string" ? JSON.parse(result) : (result?.response || result);
       setData(parsed);
       try { localStorage.setItem(storageKey, JSON.stringify(parsed)); } catch {}

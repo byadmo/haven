@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Target, Flame, BookOpen, TrendingUp, ArrowRight, Timer, CalendarDays } from "lucide-react";
+import { Target, Flame, BookOpen, TrendingUp, ArrowRight } from "lucide-react";
 import { useSI } from "@/lib/SIContext";
 import { SI_PAGES } from "@/lib/SILayout";
 import { StatGridSkeleton } from "@/components/ui/skeleton-presets";

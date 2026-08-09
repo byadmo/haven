@@ -9,7 +9,7 @@ function getMonthGrid(year, month) {
   const first = new Date(year, month, 1);
   const last = new Date(year, month + 1, 0);
   const startPad = first.getDay(); // 0=Sun
-  const days: (number | null)[] = [];
+  const days = [];
   for (let i = 0; i < startPad; i++) days.push(null);
   for (let d = 1; d <= last.getDate(); d++) days.push(d);
   return days;
@@ -25,7 +25,7 @@ export default function GrowthCalendar() {
 
   const monthLabel = `${MONTHS[month]} ${year}`;
 
-  const getEntriesForDay = (day: number) => {
+  const getEntriesForDay = (day) => {
     const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
     return entries.filter((e) => e.date === dateStr);
   };
@@ -33,7 +33,7 @@ export default function GrowthCalendar() {
   const prevMonth = () => { if (month === 0) { setYear((y) => y - 1); setMonth(11); } else setMonth((m) => m - 1); };
   const nextMonth = () => { if (month === 11) { setYear((y) => y + 1); setMonth(0); } else setMonth((m) => m + 1); };
 
-  const isToday = (day: number) => {
+  const isToday = (day) => {
     return day === today.getDate() && month === today.getMonth() && year === today.getFullYear();
   };
 

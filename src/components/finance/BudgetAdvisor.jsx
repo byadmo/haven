@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Sparkles, Loader2, Activity, AlertTriangle } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { AGENTS } from "@/lib/agentPrompts";
+import { buildInsightPrompt } from "@/lib/promptBuilder";
+import { checkRateLimit, recordCall } from "@/lib/rateLimiter";
 
 const SCHEMA = {
   type: "object",
@@ -47,13 +49,28 @@ ${bills.map((b) => `- ${b.name}: ${fmt(b.amount)}`).join("\n") || "(none)"}
 TOTAL SPENDING (this timeframe): ${fmt(spendingTotal)}
 LEFTOVER (this timeframe): ${fmt(leftover)}`;
 
-      const prompt = `${AGENTS.CLU.systemPrompt}
+      const rl = checkRateLimit("Ask Clu for budget analysis");
+      if (!rl.ok) {
+        setData({
+          headline: "Rate limited",
+          summary: rl.reason,
+          on_track: leftover >= 0,
+          directives: [],
+          cutbacks: [],
+        });
+        setLoading(false);
+        return;
+      }
 
-Review the user's ${timeframeLabel} budget below. Use the Trailing 3-Month Minimum Income concept if income looks variable. Issue hard dollar-amount directives for transfers, buffers, or debt, and name exact cutbacks per bill category. Use bullet points with emojis (⚡, 📊, 🎯, 💰) in each insight. Return JSON only.
-
-${ctx}`;
+      const prompt = buildInsightPrompt({
+        agent: AGENTS.CLU,
+        sectionName: "Budgeting",
+        contextBlock: ctx,
+        taskDirective: `Review the user's ${timeframeLabel} budget below. Use the Trailing 3-Month Minimum Income concept if income looks variable. Issue hard dollar-amount directives for transfers, buffers, or debt, and name exact cutbacks per bill category. Use bullet points with emojis (⚡, 📊, 🎯, 💰) in each insight. Return JSON only.`,
+      });
 
       const res = await base44.integrations.Core.InvokeLLM({ prompt, response_json_schema: SCHEMA });
+      recordCall("Ask Clu for budget analysis");
       const d = typeof res === "string" ? JSON.parse(res) : res?.response || res;
       setData(d);
     } catch {

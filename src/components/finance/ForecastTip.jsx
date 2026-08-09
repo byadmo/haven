@@ -5,6 +5,8 @@ import { Sparkles, Loader2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useFinanceData } from "@/lib/FinanceDataContext";
 import { AGENTS } from "@/lib/agentPrompts";
+import { buildInsightPrompt } from "@/lib/promptBuilder";
+import { checkRateLimit, recordCall } from "@/lib/rateLimiter";
 
 export default function ForecastTip({ series, extra, method }) {
   const { debts, accounts, transactions } = useFinanceData();
@@ -33,25 +35,24 @@ export default function ForecastTip({ series, extra, method }) {
       const highestAPR = Math.max(...debts.filter(d => d.current_balance > 0).map(d => d.interest_rate || 0));
       const smallestBalance = Math.min(...debts.filter(d => d.current_balance > 0).map(d => d.current_balance || 0));
 
-      const prompt = `${AGENTS.CLU.systemPrompt}
+      const contextBlock = `User's debts:\n${debtList.join("\n")}\n\nHighest APR: ${highestAPR}%, Smallest balance: $${smallestBalance.toFixed(2)}\nCurrently using: ${method}\nTotal debt: $${totalDebt.toFixed(2)}, Min payments: $${totalMin.toFixed(2)}/mo, Extra: $${extra.toFixed(2)}/mo\nMonthly income: $${recIn.toFixed(2)}, Monthly expenses: $${recOut.toFixed(2)}, Surplus: $${(recIn - recOut).toFixed(2)}/mo\nCash on hand: $${totalCash.toFixed(2)}, Projected debt-free: ${debtFreeDate}`;
 
-Give a concise, straight-to-the-point cash-flow recommendation. Exactly 2 sentences. No fluff.
+      const rl = checkRateLimit("Ask Clu for forecast tip");
+      if (!rl.ok) {
+        setTip(`⛔ ${rl.reason}`);
+        setLoading(false);
+        return;
+      }
 
-Sentence 1: Recommend Avalanche or Snowball strategy and say why based on their debts.
-Sentence 2: One specific action to take (e.g. "Add $X more per month to [debt name]" or "Your surplus of $Y is enough to pay off by [date] — just keep going").
-
-User's debts:
-${debtList.join("\n")}
-
-Highest APR: ${highestAPR}%, Smallest balance: $${smallestBalance.toFixed(2)}
-Currently using: ${method}
-Total debt: $${totalDebt.toFixed(2)}, Min payments: $${totalMin.toFixed(2)}/mo, Extra: $${extra.toFixed(2)}/mo
-Monthly income: $${recIn.toFixed(2)}, Monthly expenses: $${recOut.toFixed(2)}, Surplus: $${(recIn - recOut).toFixed(2)}/mo
-Cash on hand: $${totalCash.toFixed(2)}, Projected debt-free: ${debtFreeDate}
-
-Format: Two sentences only. Start with the strategy recommendation.`;
+      const prompt = buildInsightPrompt({
+        agent: AGENTS.CLU,
+        sectionName: "Forecast",
+        contextBlock,
+        taskDirective: "Give a concise, straight-to-the-point cash-flow recommendation. Exactly 2 sentences. No fluff.\n\nSentence 1: Recommend Avalanche or Snowball strategy and say why based on their debts.\nSentence 2: One specific action to take (e.g. \"Add $X more per month to [debt name]\" or \"Your surplus of $Y is enough to pay off by [date] — just keep going\").\n\nFormat: Two sentences only. Start with the strategy recommendation.",
+      });
 
       const result = await base44.integrations.Core.InvokeLLM({ prompt });
+      recordCall("Ask Clu for forecast tip");
       const text = typeof result === "string" ? result : result?.response || result?.text || JSON.stringify(result);
       setTip(text);
     } catch (e) {

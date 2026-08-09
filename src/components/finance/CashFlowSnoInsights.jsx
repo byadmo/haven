@@ -5,6 +5,8 @@ import { Sparkles, Loader2, Stethoscope } from "lucide-react";
 import { startOfMonth, endOfMonth, isWithinInterval, parseISO, subMonths, format } from "date-fns";
 import { useFinanceData } from "@/lib/FinanceDataContext";
 import { AGENTS } from "@/lib/agentPrompts";
+import { buildInsightPrompt } from "@/lib/promptBuilder";
+import { checkRateLimit, recordCall } from "@/lib/rateLimiter";
 
 const fmt = (v) =>
   (v || 0).toLocaleString(undefined, {
@@ -104,10 +106,7 @@ function buildMonthContext(anchor, transactions, accounts) {
     "TOP EXPENSES (this month):",
     topExp || "- (none)",
     "",
-    "PRIOR MONTH COMPARISON:",
-    `- Last month (${format(p, "MMM")}): income ${fmt(pInc)} · outflow ${fmt(pExp)} · net ${fmt(pInc - pExp)}`,
-    `- Month-over-month income change: ${fmt(inc - pInc)}`,
-    `- Month-over-month outflow change: ${fmt(exp - pExp)}`,
+    `- Last month (${format(p, "MMMM yyyy")}): income ${fmt(pInc)} · outflow ${fmt(pExp)}`,
   ].join("\n");
 }
 
@@ -136,10 +135,24 @@ export default function CashFlowSnoInsights({ anchor }) {
     setErr(false);
     setOut("");
     try {
-      const prompt =
-       `${AGENTS.SNO.systemPrompt}\n\nYou are reviewing ONE specific month. Below is the user's data scoped to that month.\n\n${ctx}\n\n` +
-       `Provide a tight monthly diagnostic for ${monthLabel}. Format as bullet points with emojis (🔎, 📈, 📉, 💡, ⚡). Lead with headline numbers (income, outflow, net, savings rate), then period-over-period vs last month, then savings leaks (non-essential categories that blew past baseline, with exact figures), then a prioritized action plan. Keep it skimmable, no walls of text, no legal advice.`;
+      const rl = checkRateLimit("Ask Sno for monthly diagnostic");
+      if (!rl.ok) {
+        setOut(`⛔ ${rl.reason}`);
+        setBusy(false);
+        return;
+      }
+
+      const taskDirective = `Provide a tight monthly diagnostic for ${monthLabel}. Format as bullet points with emojis (🔎, 📈, 📉, 💡, ⚡). Lead with headline numbers (income, outflow, net, savings rate), then period-over-period vs last month, then savings leaks (non-essential categories that blew past baseline, with exact figures), then a prioritized action plan. Keep it skimmable, no walls of text, no legal advice.`;
+
+      const prompt = buildInsightPrompt({
+        agent: AGENTS.SNO,
+        sectionName: "CashFlow",
+        contextBlock: ctx,
+        taskDirective,
+      });
+
       const res = await base44.integrations.Core.InvokeLLM({ prompt });
+      recordCall("Ask Sno for monthly diagnostic");
       setOut(typeof res === "string" ? res : JSON.stringify(res));
     } catch {
       setErr(true);
@@ -177,7 +190,11 @@ export default function CashFlowSnoInsights({ anchor }) {
       ) : err ? (
         <p className="text-xs text-rose-400 py-3">Couldn't generate insights — try again.</p>
       ) : out ? (
-        <SnoMarkdown>{out}</SnoMarkdown>
+        out.startsWith("⛔") ? (
+          <p className="text-xs text-amber-400 py-3">{out}</p>
+        ) : (
+          <SnoMarkdown>{out}</SnoMarkdown>
+        )
       ) : (
         <p className="text-xs text-white/40 py-3">Click "Analyze month" for Sno's diagnostic on {monthLabel}.</p>
       )}

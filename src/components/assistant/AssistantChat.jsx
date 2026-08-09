@@ -8,6 +8,8 @@ import ApprovalModal from "@/components/assistant/ApprovalModal";
 import { adjustLinkedBalance, txEffect, balanceApplies } from "@/lib/accounts";
 import { AGENTS, AGENT_LIST } from "@/lib/agentPrompts";
 import { useFinanceData } from "@/lib/FinanceDataContext";
+import { buildPrompt } from "@/lib/promptBuilder";
+import { checkRateLimit, recordCall } from "@/lib/rateLimiter";
 
 const uid = () => Math.random().toString(36).slice(2);
 
@@ -404,7 +406,16 @@ export default function AssistantChat({ accounts, debts, transactions, debtPayme
       }
       const userText = text || "Please review the attached statement and propose operations to log any transactions found.";
 
-      let goalSection = "";
+            // ---- Rate limit check ----
+            const rl = checkRateLimit(userText);
+            if (!rl.ok) {
+              setMessages((s) => s.filter((m) => m.id !== thinking));
+              addMsg({ role: "assistant", kind: "text", text: `⛔ ${rl.reason}` });
+              setBusy(false);
+              return;
+            }
+
+            let goalSection = "";
       const targetDate = parseTargetDate(userText);
       if (targetDate) {
         const activeDebts = (ctxData.debts || []).filter((d) => (d.current_balance || 0) > 0.005);
@@ -433,8 +444,15 @@ export default function AssistantChat({ accounts, debts, transactions, debtPayme
         }
       }
 
-      const prompt = `${activeAgent.systemPrompt}\n\n${SHARED_CAPABILITIES}\n\n${buildContext({ ...ctxData, activeAgent })}${goalSection}\n\nUSER: ${userText}`;
-      const obj = await callLLM(prompt, fileUrls);
+      const prompt = buildPrompt({
+              agent: activeAgent,
+              sectionName: "Assistant",
+              userMessage: userText,
+              contextData: buildContext({ ...ctxData, activeAgent }),
+              goalAnalysis: goalSection,
+            });
+            const obj = await callLLM(prompt, fileUrls);
+            recordCall(userText);
       setMessages((s) => s.filter((m) => m.id !== thinking));
       if (obj?.message) addMsg({ role: "assistant", kind: "text", text: obj.message, agentId: activeAgentKey });
       const opsList = opsFromResponse(obj);
@@ -539,13 +557,17 @@ export default function AssistantChat({ accounts, debts, transactions, debtPayme
   }
 
   async function regenerateOps(priorOps, feedback) {
-    setOpsBusy(true);
-    try {
-      const slim = priorOps.map(({ summary, entity, action, targetId, data }) => ({ entity, action, targetId, summary, data }));
-      const prompt =
-        `${activeAgent.systemPrompt}\n\n${SHARED_CAPABILITIES}\n\n${buildContext({ ...ctxData, activeAgent })}\n\n` +
-        `PREVIOUS PROPOSALS (JSON):\n${JSON.stringify(slim, null, 0)}\n\n` +
-        `USER FEEDBACK: ${feedback}\n\nRevise the operations to satisfy the feedback. Return the same JSON shape (message + operations).`;
+      setOpsBusy(true);
+      try {
+        const slim = priorOps.map(({ summary, entity, action, targetId, data }) => ({ entity, action, targetId, summary, data }));
+        const ctx = buildContext({ ...ctxData, activeAgent });
+        const extra = `PREVIOUS PROPOSALS (JSON):\n${JSON.stringify(slim, null, 0)}\n\nUSER FEEDBACK: ${feedback}\n\nRevise the operations to satisfy the feedback. Return the same JSON shape (message + operations).`;
+        const prompt = buildPrompt({
+          agent: activeAgent,
+          sectionName: "Assistant",
+          userMessage: extra,
+          contextData: ctx,
+        });
       const obj = await callLLM(prompt);
       const opsList = opsFromResponse(obj);
       if (opsList.length) { setOps(opsList); setOpsOpen(true); }
