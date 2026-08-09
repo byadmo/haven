@@ -1,14 +1,9 @@
-import { createClient } from '@base44/sdk';
-import { appParams } from '@/lib/app-params';
+/**
+ * Base44 Client
+ * 
+ * Mode: local (Express backend on localhost:4400)
+ * To switch to Base44 hosted backend, set VITE_HAVEN_BACKEND=base44 in .env
+ */
 
-const { appId, token, functionsVersion, appBaseUrl } = appParams;
-
-//Create a client with authentication required
-export const base44 = createClient({
-  appId,
-  token,
-  functionsVersion,
-  serverUrl: '',
-  requiresAuth: false,
-  appBaseUrl
-});
+// Re-export everything from the local implementation
+export { base44, getToken, setToken } from './base44Client.local.js';
