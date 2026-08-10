@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
-import { TrendingUp, TrendingDown, CalendarClock, Plus, Target, Gauge, PieChart, BarChart3, Activity } from "lucide-react";
+import { TrendingUp, TrendingDown, CalendarClock, Plus, BarChart3, Activity } from "lucide-react";
 import { useFinanceData } from "@/lib/FinanceDataContext";
 import UpcomingRecurring from "@/components/finance/UpcomingRecurring";
 import QuickAddModal from "@/components/finance/QuickAddModal";
@@ -20,7 +19,6 @@ function sum(arr, key) {
 
 export default function FinancialDashboard() {
   const { transactions, accounts, debts, refresh } = useFinanceData();
-  const navigate = useNavigate();
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [showForecast, setShowForecast] = useState(false);
   const [showChart, setShowChart] = useState(false);
@@ -131,25 +129,6 @@ export default function FinancialDashboard() {
           <h2 className="text-sm font-semibold text-white">Cash Flow Analytics</h2>
         </div>
         <CashFlowAnalytics transactions={transactions} />
-      </div>
-
-      {/* Quick Action Buttons */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {[
-          { label: "Allocation", icon: PieChart, to: "/allocation", color: "emerald" },
-          { label: "Goals", icon: Target, to: "/goals", color: "blue" },
-          { label: "Credit Health", icon: Gauge, to: "/credit-utilization", color: "purple" },
-          { label: "Quick Add", icon: Plus, onClick: () => setQuickAddOpen(true), color: "amber" },
-        ].map((b) => {
-          const colorMap = { emerald: "border-emerald-400/30 text-emerald-300 hover:bg-emerald-500/10", blue: "border-blue-400/30 text-blue-300 hover:bg-blue-500/10", purple: "border-purple-400/30 text-purple-300 hover:bg-purple-500/10", amber: "border-amber-400/30 text-amber-300 hover:bg-amber-500/10" };
-          const Icon = b.icon;
-          return (
-            <button key={b.label} onClick={() => b.onClick ? b.onClick() : navigate(b.to, { viewTransition: true })}
-              className={`flex items-center gap-2.5 rounded-xl border bg-black px-4 py-3.5 text-left text-sm font-medium transition-colors ${colorMap[b.color]}`}>
-              <Icon className="h-4 w-4" strokeWidth={1.75} /> {b.label}
-            </button>
-          );
-        })}
       </div>
 
       {/* Forecast Modal */}
