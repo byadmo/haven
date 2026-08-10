@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { GraduationCap, ChevronLeft, ChevronRight, Check, Mail, Building2, Calendar, Target, Clock, Briefcase, ListChecks, ImageUp, FileText, Loader2, X, Sparkles } from "lucide-react";
-import { useEduSync } from "@/lib/eduSyncContext";
+import { useEduSync, detectTerm } from "@/lib/eduSyncContext";
 import FileDropzone from "@/components/edu/FileDropzone";
 import { base44 } from "@/api/base44Client";
 import { getProfile, saveProfile } from "@/lib/eduProfile";
@@ -55,7 +55,7 @@ function mergeDuplicateCourses(items) {
 
 export default function ProfileWizard({ open, onOpenChange, onCompleted }) {
   const navigate = useNavigate();
-  const { courses, settings, activeSemester, createCourse, updateSettings } = useEduSync();
+  const { courses, settings, activeSemester, createSemester, createCourse, updateSettings } = useEduSync();
   const connected = !!settings?.google_synced;
   const { toast } = useToast();
 
@@ -195,9 +195,27 @@ export default function ProfileWizard({ open, onOpenChange, onCompleted }) {
         }
         await updateSettings(settingsPatch);
       }
-      if (form.screenshot_courses?.length && activeSemester?.id && createCourse) {
-        for (const c of form.screenshot_courses) {
-          await createCourse({ semester_id: activeSemester.id, code: c.code || "NEW", title: c.title || "Course", schedule_days: c.schedule_days || [], schedule_time: c.schedule_time || "", location: c.location || "", credits: c.credits || 3, color: c.color || "emerald" });
+      if (form.screenshot_courses?.length && createCourse) {
+        // New users running the wizard for the first time have no semester
+        // yet — create one (auto-detected from today's date) so imported
+        // courses have somewhere to land.
+        let semesterId = activeSemester?.id;
+        if (!semesterId && createSemester) {
+          try { semesterId = (await createSemester(detectTerm()))?.id; } catch {}
+        }
+        if (semesterId) {
+          for (const c of form.screenshot_courses) {
+            await createCourse({ course: {
+              semester_id: semesterId,
+              code: c.code || "NEW",
+              title: c.title || "Course",
+              schedule_days: c.schedule_days || [],
+              schedule_time: c.schedule_time || "",
+              location: c.location || "",
+              credits: c.credits || 3,
+              color: c.color || "emerald",
+            }});
+          }
         }
       }
     } catch {}
