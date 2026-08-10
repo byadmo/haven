@@ -6,8 +6,6 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import EduTopBar from "@/components/edu/EduTopBar";
-import EduBottomNav from "@/components/edu/EduBottomNav";
 import PageTitle from "@/components/finance/PageTitle";
 import AmbientAudio from "@/components/edu/AmbientAudio";
 import TodaySessions from "@/components/edu/TodaySessions";
@@ -153,9 +151,8 @@ export default function EduTimer() {
   const selectedDeliv = courseDeliverables.find((d) => d.id === deliverableId);
 
   return (
-    <>
-      <EduTopBar />
-      <main className="max-w-3xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+    <div className="dd-page-enter space-y-6">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 space-y-6">
         <PageTitle title="Focus Timer" subtitle="Flowmodoro — study freely, break = 1/5" icon={Play} />
 
         {/* Mode selector */}
@@ -276,9 +273,8 @@ export default function EduTimer() {
           <p className="text-[10px] uppercase tracking-widest text-white/50 mb-3">Ambient audio</p>
           <AmbientAudio />
         </div>
-      </main>
-      <EduBottomNav />
-    </>
+      </div>
+    </div>
   );
 }
 

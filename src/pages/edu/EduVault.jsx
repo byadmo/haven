@@ -1,10 +1,11 @@
 import React, { useState, useMemo } from "react";
-import { BookOpen, BarChart3, GraduationCap, ExternalLink, Calculator, Brain } from "lucide-react";
+import { BookOpen, BarChart3, GraduationCap, ExternalLink, Calculator, Brain, Plus } from "lucide-react";
 import { useEduSync } from "@/lib/eduSyncContext";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, CartesianGrid } from "recharts";
 import CourseCard from "@/components/edu/CourseCard";
 import CourseOutline from "@/components/edu/CourseOutline";
 import CourseDetailDialog from "@/components/edu/CourseDetailDialog";
+import CourseFormModal from "@/components/edu/CourseFormModal";
 import EduAssistant from "@/components/edu/EduAssistant";
 
 function formatGrade(v) {
@@ -16,6 +17,7 @@ export default function EduVault() {
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [detailCourse, setDetailCourse] = useState(null);
   const [viewMode, setViewMode] = useState("list"); // "list" | "grid"
+  const [addOpen, setAddOpen] = useState(false);
 
   const courseList = useMemo(() => {
     return (courses || []).map((c) => {
@@ -51,6 +53,9 @@ export default function EduVault() {
           <p className="text-sm text-white/50 mt-1">Courses, grades, and performance analytics.</p>
         </div>
         <div className="flex items-center gap-2">
+          <button onClick={() => setAddOpen(true)} className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-emerald-500/10 border border-emerald-400/30 text-emerald-300 text-xs font-medium hover:bg-emerald-500/20 transition-colors">
+            <Plus className="h-3.5 w-3.5" /> Add Course
+          </button>
           <button onClick={() => setViewMode("grid")} className={`h-8 px-3 rounded-lg text-xs transition-colors ${viewMode === "grid" ? "bg-indigo-500/10 border border-indigo-400/30 text-indigo-300" : "border border-white/10 text-white/40 hover:text-white"}`}>
             Grid
           </button>
@@ -218,6 +223,14 @@ export default function EduVault() {
           onOpenChange={(o) => { if (!o) setDetailCourse(null); }}
         />
       )}
+
+      {/* Add Course */}
+      <CourseFormModal
+        open={addOpen}
+        onOpenChange={setAddOpen}
+        semesterId={activeSemester?.id}
+        semesterStart={activeSemester?.start_date}
+      />
     </div>
   );
 }

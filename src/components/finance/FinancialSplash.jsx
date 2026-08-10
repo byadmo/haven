@@ -1,11 +1,20 @@
 import React, { useState } from "react";
 import { Wallet, ArrowRight, TrendingUp, PiggyBank, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { THEMES } from "@/lib/themes";
+
+// Indigo brand palette — matches the Haven Financial Wallet icon and the
+// module's indigo (.finance-accent) identity.
+const t = {
+  primary: "#6366f1",
+  secondary: "#818cf8",
+  bg: "#080812",
+  surface: "#0d0d1f",
+  text: "#ffffff",
+  muted: "rgba(255, 255, 255, 0.5)",
+};
 
 export default function FinancialSplash({ onComplete }) {
   const [leaving, setLeaving] = useState(false);
-  const t = THEMES.wealthsimple;
 
   const handleStart = () => {
     setLeaving(true);

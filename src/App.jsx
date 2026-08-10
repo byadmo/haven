@@ -17,6 +17,8 @@ import EduHome from '@/pages/edu/EduHome';
 import EduFocusHub from '@/pages/edu/EduFocusHub';
 import EduVault from '@/pages/edu/EduVault';
 import EduSettings from '@/pages/edu/EduSettings';
+import EduTimer from '@/pages/edu/EduTimer';
+import RecurringBills from '@/pages/RecurringBills';
 import Goals from '@/pages/Goals';
 import Debts from '@/pages/Debts';
 import CreditUtilization from '@/pages/CreditUtilization';
@@ -81,7 +83,7 @@ const AuthenticatedApp = () => {
                   <Route path="/education/settings" element={<EduSettings />} />
                   <Route path="/education/courses" element={<Navigate to="/education/vault" replace />} />
                   <Route path="/education/schedule" element={<Navigate to="/education/focus" replace />} />
-                  <Route path="/education/timer" element={<Navigate to="/education/focus" replace />} />
+                  <Route path="/education/timer" element={<EduTimer />} />
                   <Route path="/education/grades" element={<Navigate to="/education/vault" replace />} />
                   <Route path="/education/analytics" element={<Navigate to="/education/vault" replace />} />
                 </Route>
@@ -95,6 +97,9 @@ const AuthenticatedApp = () => {
                         <Route path="/forecast" element={<Navigate to="/overview" replace />} />
                         <Route path="/budgeting" element={<Navigate to="/allocation" replace />} />
                         <Route path="/cashflow" element={<Navigate to="/overview" replace />} />
+                                    <Route path="/accounts" element={<Accounts />} />
+                                    <Route path="/transactions" element={<Transactions />} />
+                                    <Route path="/recurring-bills" element={<RecurringBills />} />
                                     <Route path="/credit-utilization" element={<CreditUtilization />} />
             <Route path="/settings" element={<Settings />} />
           </Route>

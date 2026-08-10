@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { ChevronLeft, ChevronRight, Timer } from "lucide-react";
 import { useEduSync } from "@/lib/eduSyncContext";
-import PomodoroTimer from "@/components/growth/PomodoroTimer";
+import { useNavigate } from "react-router-dom";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const HOURS = Array.from({ length: 12 }, (_, i) => i + 8); // 8 AM - 7 PM
@@ -15,8 +15,8 @@ function getWeekStart() {
 
 export default function EduFocusHub() {
   const { courses, tasks } = useEduSync();
+  const navigate = useNavigate();
   const [weekStart, setWeekStart] = useState(getWeekStart());
-  const [pomodoroOpen, setPomodoroOpen] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState(null);
 
   const weekDates = useMemo(() => {
@@ -92,7 +92,7 @@ export default function EduFocusHub() {
           <p className="text-sm text-white/50 mt-1">Schedule, classes, and study sessions — all in one view.</p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => setPomodoroOpen(true)}
+          <button onClick={() => navigate("/education/timer", { viewTransition: true })}
             className="flex items-center gap-1.5 h-9 px-4 rounded-xl bg-indigo-500/10 border border-indigo-400/30 text-indigo-300 text-xs font-medium hover:bg-indigo-500/20 transition-colors">
             <Timer className="h-3.5 w-3.5" /> Focus Timer
           </button>
@@ -166,7 +166,6 @@ export default function EduFocusHub() {
         </div>
       </div>
 
-      <PomodoroTimer open={pomodoroOpen} onOpenChange={setPomodoroOpen} />
     </div>
   );
 }

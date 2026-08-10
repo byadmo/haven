@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/use-toast";
-import DashboardHeader from "@/components/finance/DashboardHeader";
 import PageTitle from "@/components/finance/PageTitle";
 import Reveal from "@/components/finance/Reveal";
 import RecurringBillForm from "@/components/recurring/RecurringBillForm";
@@ -150,7 +149,6 @@ export default function RecurringBills() {
 
   return (
     <div className="dd-page-enter dark min-h-screen bg-black text-zinc-100 selection:bg-emerald-500/30">
-      <DashboardHeader />
       <main className="relative max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-6">
         <Reveal><PageTitle title="Recurring Bills & Subscriptions" subtitle="Manage every recurring bill, subscription, and scheduled payment in one place" icon={Receipt} /></Reveal>
 

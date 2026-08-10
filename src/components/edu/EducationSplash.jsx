@@ -1,11 +1,20 @@
 import React, { useState } from "react";
 import { GraduationCap, ArrowRight, BookOpen, Timer, Brain } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { THEMES } from "@/lib/themes";
+
+// Emerald brand palette — matches the Haven Education GraduationCap icon and
+// the module's emerald accent.
+const t = {
+  primary: "#10b981",
+  secondary: "#34d399",
+  bg: "#04120a",
+  surface: "#0a1f14",
+  text: "#ffffff",
+  muted: "rgba(255, 255, 255, 0.5)",
+};
 
 export default function EducationSplash({ onComplete }) {
   const [leaving, setLeaving] = useState(false);
-  const t = THEMES.midnight;
 
   const handleStart = () => {
     setLeaving(true);

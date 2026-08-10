@@ -1,5 +1,4 @@
 import React from "react";
-import DashboardHeader from "@/components/finance/DashboardHeader";
 import PageTitle from "@/components/finance/PageTitle";
 import Reveal from "@/components/finance/Reveal";
 import { useCategories } from "@/lib/categories";
@@ -93,8 +92,6 @@ export default function Settings() {
 
   return (
     <div className="dd-page-enter dark min-h-screen bg-black text-zinc-100 selection:bg-emerald-500/30">
-      <DashboardHeader />
-
       <div className="sm:hidden px-5 pt-4">
         <button onClick={() => navigate("/")} className="flex items-center gap-1 text-xs uppercase tracking-widest text-white/50 hover:text-white transition-colors">
           <ChevronLeft className="h-4 w-4" /> Back to Overview

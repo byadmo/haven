@@ -1,5 +1,4 @@
 import React from "react";
-import DashboardHeader from "@/components/finance/DashboardHeader";
 import PageTitle from "@/components/finance/PageTitle";
 import AccountsManager from "@/components/finance/AccountsManager";
 import { useFinanceData } from "@/lib/FinanceDataContext";
@@ -19,7 +18,6 @@ export default function Accounts() {
 
   return (
     <div className="dd-page-enter dark min-h-screen bg-black text-zinc-100 selection:bg-emerald-500/30">
-      <DashboardHeader />
       <ForecastProvider forecastData={forecastData}>
         <main className="relative max-w-6xl mx-auto px-5 sm:px-6 py-8 sm:py-6 space-y-6">
           <div className="flex items-center gap-4">

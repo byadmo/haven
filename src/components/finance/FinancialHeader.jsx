@@ -20,13 +20,13 @@ const isItemActive = (to, end, pathname) =>
   end ? pathname === to : pathname === to || pathname.startsWith(to + "/");
 
 export default function FinancialHeader() {
-  const { navConfig, settings } = useFinanceData();
+  const { navItems, saveNavItems } = useFinanceData();
   const location = useLocation();
   const navigate = useNavigate();
   const [customizeOpen, setCustomizeOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
 
-  const { primary, more } = resolveNav(navConfig ?? FINANCE_DEFAULT_NAV, FINANCE_PAGES, FINANCE_DEFAULT_NAV, FINANCE_LOCKED);
+  const { primary, more } = resolveNav(navItems, FINANCE_PAGES, FINANCE_DEFAULT_NAV, FINANCE_LOCKED);
   const icons = primary.slice(0, MAX_ICONS);
   const drawerItems = [...primary.slice(MAX_ICONS), ...more];
   const moreActive = drawerItems.some(s => isItemActive(s.to, s.end, location.pathname));
@@ -158,7 +158,13 @@ export default function FinancialHeader() {
         <CustomizeNavModal
           open={customizeOpen}
           onOpenChange={setCustomizeOpen}
-          context="finance"
+          pages={FINANCE_PAGES}
+          defaultNav={FINANCE_DEFAULT_NAV}
+          locked={FINANCE_LOCKED}
+          navItems={navItems}
+          onSave={saveNavItems}
+          accent="indigo"
+          title="Customize Finance Navigation"
         />
       )}
     </>

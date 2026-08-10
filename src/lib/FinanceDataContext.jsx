@@ -261,12 +261,14 @@ export function FinanceLayout() {
 
 function FinanceLayoutInner({ children }) {
   const { loading, theme } = useFinanceData();
+  // Splash shows only the FIRST time the user ever enters Haven Finance
+  // (localStorage, not sessionStorage) — never again on subsequent visits.
   const [showSplash, setShowSplash] = React.useState(() => {
-    try { return sessionStorage.getItem("fin_splash_shown") !== "1"; } catch { return true; }
+    try { return localStorage.getItem("haven:visited:finance") !== "1"; } catch { return true; }
   });
   const handleSplashComplete = React.useCallback(() => {
     setShowSplash(false);
-    try { sessionStorage.setItem("fin_splash_shown", "1"); } catch {}
+    try { localStorage.setItem("haven:visited:finance", "1"); } catch {}
   }, []);
 
   // Show splash overlay while loading AND on first session visit

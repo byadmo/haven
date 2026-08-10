@@ -321,14 +321,14 @@ export function useEduSync() {
 export const useEduSyncData = useEduSync;
 
 export function EduLayout() {
-  // Splash shows only on the first Education entry of the session (matches
-  // Haven Finance's sessionStorage-gated splash in Dashboard.jsx).
+  // Splash shows only the FIRST time the user ever enters Haven Education
+  // (localStorage, not sessionStorage) — never again on subsequent visits.
   const [showSplash, setShowSplash] = React.useState(() => {
-    try { return sessionStorage.getItem("edu_splash_shown") !== "1"; } catch { return true; }
+    try { return localStorage.getItem("haven:visited:education") !== "1"; } catch { return true; }
   });
   const handleEduSplashComplete = React.useCallback(() => {
     setShowSplash(false);
-    try { sessionStorage.setItem("edu_splash_shown", "1"); } catch {}
+    try { localStorage.setItem("haven:visited:education", "1"); } catch {}
   }, []);
   const [showWizard, setShowWizard] = React.useState(() => isProfileAddressed() ? false : true);
   return (

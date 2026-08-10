@@ -2,12 +2,15 @@ import {
   LayoutDashboard, CreditCard, PieChart,
   TrendingUp, Gauge, Target,
   Settings as SettingsIcon,
-  BookOpen, Timer,
+  BookOpen, Timer, Wallet, Receipt, Repeat, CalendarDays,
 } from "lucide-react";
 
 export const FINANCE_PAGES = [
   { id: "overview", to: "/overview", label: "Overview", icon: LayoutDashboard, end: true, locked: true },
+  { id: "accounts", to: "/accounts", label: "Accounts", icon: Wallet },
+  { id: "transactions", to: "/transactions", label: "Transactions", icon: Receipt },
   { id: "allocation", to: "/allocation", label: "Allocation", icon: PieChart },
+  { id: "bills", to: "/recurring-bills", label: "Bills", icon: Repeat },
   { id: "debts", to: "/debts", label: "Debts", icon: CreditCard },
   { id: "goals", to: "/goals", label: "Goals", icon: Target },
     { id: "credit-health", to: "/credit-utilization", label: "Credit", icon: Gauge },
@@ -15,18 +18,19 @@ export const FINANCE_PAGES = [
 ];
 
 export const FINANCE_DEFAULT_NAV = [
-  "overview", "allocation", "debts", "goals", "credit-health",
+  "overview", "accounts", "transactions", "allocation", "bills", "debts", "goals", "credit-health",
 ];
 export const FINANCE_LOCKED = ["overview"];
 
 export const EDU_PAGES = [
   { id: "home", to: "/education", label: "Home", icon: LayoutDashboard, end: true, locked: true },
   { id: "vault", to: "/education/vault", label: "Vault", icon: BookOpen },
-    { id: "focus", to: "/education/focus", label: "Focus Hub", icon: Timer },
+    { id: "focus", to: "/education/focus", label: "Focus Hub", icon: CalendarDays },
+  { id: "timer", to: "/education/timer", label: "Timer", icon: Timer },
   { id: "settings", to: "/education/settings", label: "Settings", icon: SettingsIcon },
 ];
 
-export const EDU_DEFAULT_NAV = ["home", "vault", "focus"];
+export const EDU_DEFAULT_NAV = ["home", "vault", "focus", "timer"];
 export const EDU_LOCKED = ["home"];
 
 // Turn a stored config array + a page catalog into { primary, more } nav lists.

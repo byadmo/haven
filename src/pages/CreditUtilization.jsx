@@ -3,7 +3,6 @@ import {
   CreditCard, Gauge, ShieldCheck, RefreshCw,
   TrendingDown, AlertTriangle, CheckCircle2,
 } from "lucide-react";
-import DashboardHeader from "@/components/finance/DashboardHeader";
 import PageTitle from "@/components/finance/PageTitle";
 import { invokeFunc, money, pct } from "@/lib/dashboard";
 import { Loader } from "@/components/dashboard/ui";
@@ -38,16 +37,16 @@ export default function CreditUtilization() {
 
   return (
     <div className="dd-page-enter dark min-h-screen bg-black text-zinc-100 selection:bg-emerald-500/30">
-      <DashboardHeader
-        actions={
-          <Button size="sm" variant="outline" onClick={load} disabled={loading}
-            className="border-white/10 text-white/70 hover:text-white hover:border-white/30">
-            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /> <span className="hidden sm:inline">Refresh</span>
-          </Button>
-        }
-      />
       <main className="relative max-w-6xl mx-auto px-5 sm:px-6 py-8 sm:py-6 space-y-6">
-        <Reveal><PageTitle title="Credit Utilization" subtitle="Track how much of your credit limit you're using — keep it under 30%" icon={Gauge} /></Reveal>
+        <Reveal>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <PageTitle title="Credit Utilization" subtitle="Track how much of your credit limit you're using — keep it under 30%" icon={Gauge} />
+            <Button size="sm" variant="outline" onClick={load} disabled={loading}
+              className="border-white/10 text-white/70 hover:text-white hover:border-white/30">
+              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /> <span className="hidden sm:inline">Refresh</span>
+            </Button>
+          </div>
+        </Reveal>
 
         {/* Overall */}
         <Reveal>

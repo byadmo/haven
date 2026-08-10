@@ -2,7 +2,6 @@ import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Clock, Timer, Target, TrendingUp, BookOpen, CalendarDays, Play, Brain, BarChart3 } from "lucide-react";
 import { useEduSync } from "@/lib/eduSyncContext";
-import PomodoroTimer from "@/components/growth/PomodoroTimer";
 import EduAssistant from "@/components/edu/EduAssistant";
 import WorkStudyBalance from "@/components/edu/WorkStudyBalance";
 import { Button } from "@/components/ui/button";
@@ -10,7 +9,6 @@ import { Button } from "@/components/ui/button";
 export default function EduHome() {
   const { activeSemester, courses, tasks, entries } = useEduSync();
   const navigate = useNavigate();
-  const [pomodoroOpen, setPomodoroOpen] = useState(false);
   const [showAssistant, setShowAssistant] = useState(false);
   const [showBalance, setShowBalance] = useState(false);
 
@@ -67,8 +65,8 @@ export default function EduHome() {
             <Timer className="h-6 w-6 text-indigo-300" />
           </div>
           <p className="text-sm font-semibold text-white">Start Focus Session</p>
-          <p className="text-xs text-white/40 mt-1 mb-4">25-min Pomodoro</p>
-          <Button onClick={() => setPomodoroOpen(true)} className="bg-indigo-500 hover:bg-indigo-400 text-white h-10 px-6 rounded-xl">
+          <p className="text-xs text-white/40 mt-1 mb-4">Flowmodoro · track every session</p>
+          <Button onClick={() => navigate("/education/timer", { viewTransition: true })} className="bg-indigo-500 hover:bg-indigo-400 text-white h-10 px-6 rounded-xl">
             <Play className="h-4 w-4 mr-1.5" /> Start Flow
           </Button>
         </div>
@@ -152,7 +150,6 @@ export default function EduHome() {
         </div>
       </div>
 
-      <PomodoroTimer open={pomodoroOpen} onOpenChange={setPomodoroOpen} />
     </div>
   );
 }
