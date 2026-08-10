@@ -9,6 +9,7 @@ import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { GraduationCap, ChevronLeft, ChevronRight, Check, Mail, Building2, Calendar, Target, Clock, Briefcase, ListChecks, ImageUp, FileText, Loader2, X, Sparkles } from "lucide-react";
 import { useEduSync, detectTerm } from "@/lib/eduSyncContext";
+import { researchCourse } from "@/lib/courseAutofill";
 import FileDropzone from "@/components/edu/FileDropzone";
 import { base44 } from "@/api/base44Client";
 import { getProfile, saveProfile } from "@/lib/eduProfile";
@@ -55,7 +56,7 @@ function mergeDuplicateCourses(items) {
 
 export default function ProfileWizard({ open, onOpenChange, onCompleted }) {
   const navigate = useNavigate();
-  const { courses, settings, activeSemester, createSemester, createCourse, updateSettings } = useEduSync();
+  const { courses, settings, activeSemester, createSemester, createCourse, updateCourse, setAiResearching, updateSettings } = useEduSync();
   const connected = !!settings?.google_synced;
   const { toast } = useToast();
 
@@ -204,8 +205,21 @@ export default function ProfileWizard({ open, onOpenChange, onCompleted }) {
           try { semesterId = (await createSemester(detectTerm()))?.id; } catch {}
         }
         if (semesterId) {
+          const uniObj = {
+            university_name: form.university_name || settings?.university_name,
+            university_domain: form.university_domain || settings?.university_domain,
+            university_course_catalog_url: form.university_course_catalog_url || settings?.university_course_catalog_url,
+            name: form.university_name || settings?.university_name,
+            domain: form.university_domain || settings?.university_domain,
+            catalogUrl: form.university_course_catalog_url || settings?.university_course_catalog_url,
+          };
+          const profileObj = {
+            degree_program: form.degree_program || settings?.degree_program,
+            specialization: form.specialization || settings?.specialization,
+            faculty: form.faculty || settings?.faculty,
+          };
           for (const c of form.screenshot_courses) {
-            await createCourse({ course: {
+            const created = await createCourse({ course: {
               semester_id: semesterId,
               code: c.code || "NEW",
               title: c.title || "Course",
@@ -215,6 +229,28 @@ export default function ProfileWizard({ open, onOpenChange, onCompleted }) {
               credits: c.credits || 3,
               color: c.color || "emerald",
             }});
+            // Auto-parse each imported course's description + difficulty from
+            // the web in the background (mirrors the regular Upload Schedule
+            // flow) so the course cards fill in after the wizard closes.
+            if (created?.id && setAiResearching && updateCourse) {
+              const cid = created.id;
+              setAiResearching(cid, true);
+              (async () => {
+                let out = null;
+                try { out = await researchCourse({ code: c.code, title: c.title, university: uniObj, profile: profileObj }); }
+                catch { out = null; }
+                try {
+                  if (out) {
+                    const patch = {};
+                    if (out.description?.trim()) patch.course_description = out.description.trim();
+                    if (out.prerequisites?.trim()) patch.prerequisites = out.prerequisites.trim();
+                    if (out.difficulty_ranking) patch.difficulty_ranking = out.difficulty_ranking;
+                    if (out.difficulty_reason) patch.difficulty_reason = out.difficulty_reason;
+                    if (Object.keys(patch).length) await updateCourse(cid, patch);
+                  }
+                } finally { setAiResearching(cid, false); }
+              })();
+            }
           }
         }
       }
