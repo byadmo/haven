@@ -21,6 +21,7 @@ function sum(arr, key) {
 
 export default function FinancialDashboard() {
   const { transactions, accounts, debts, refresh } = useFinanceData();
+  const navigate = useNavigate();
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [showForecast, setShowForecast] = useState(false);
   const [showChart, setShowChart] = useState(false);
@@ -134,9 +135,7 @@ export default function FinancialDashboard() {
         <CashFlowAnalytics transactions={transactions} />
       </div>
 
-<<<<<<< HEAD
-=======
-      {/* Quick Action Buttons */}
+            {/* Quick Action Buttons */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           { label: "Allocation", icon: PieChart, to: "/allocation", color: "emerald" },
@@ -156,8 +155,7 @@ export default function FinancialDashboard() {
         })}
       </div>
 
->>>>>>> 16a2cd5 (Unify fonts (Inter globally), rebuild Education layout to match Growth header+pill nav, cross-pollinate Pomodoro timer into Finance dashboard)
-      {/* Forecast Modal */}
+            {/* Forecast Modal */}
       <Dialog open={showForecast} onOpenChange={setShowForecast}>
         <DialogContent className="bg-zinc-950 border-white/10 text-zinc-100 max-w-lg">
           <DialogHeader>
