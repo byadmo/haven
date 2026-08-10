@@ -6,12 +6,7 @@ import { percentToGpa } from "@/lib/eduGrading";
 import EducationSplash from "@/components/edu/EducationSplash";
 import { useToast } from "@/components/ui/use-toast";
 import ProfileWizard from "@/components/edu/ProfileWizard";
-<<<<<<< HEAD
-import EduTopBar from "@/components/edu/EduTopBar";
-import EduBottomNav from "@/components/edu/EduBottomNav";
-=======
 import EduHeader, { EduMobileNav } from "@/components/edu/EduHeader";
->>>>>>> 16a2cd5 (Unify fonts (Inter globally), rebuild Education layout to match Growth header+pill nav, cross-pollinate Pomodoro timer into Finance dashboard)
 import { isProfileAddressed, markProfileSkipped } from "@/lib/eduProfile";
 import ThemeRoot from "@/components/ThemeRoot";
 import HavenLoadingSplash, { EDU_LOADING_PALETTE } from "@/components/shared/HavenLoadingSplash";
@@ -380,15 +375,7 @@ function EduShell({ children, skipLoadingSpinner = false }) {
   }
   return (
     <ThemeRoot theme={theme} app="education" className="dark min-h-screen relative">
-      <div className="flex flex-col min-h-screen selection:bg-emerald-500/30">
-        <EduTopBar />
-        <main className="flex-1">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
-            {children}
-          </div>
-        </main>
-        <EduBottomNav />
-      </div>
+      {children}
     </ThemeRoot>
   );
 }
