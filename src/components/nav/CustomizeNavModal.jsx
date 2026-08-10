@@ -94,6 +94,8 @@ export default function CustomizeNavModal({
   // .finance-accent CSS-var remap is not in scope — use explicit hex shades.
   const A = accent === "indigo"
     ? { text: "text-indigo-300", chip: "border-indigo-400/30 bg-indigo-500/10 text-indigo-200", dot: "bg-indigo-400", btn: "bg-indigo-600 hover:bg-indigo-500" }
+    : accent === "amber"
+    ? { text: "text-amber-300", chip: "border-amber-400/30 bg-amber-500/10 text-amber-200", dot: "bg-amber-400", btn: "bg-amber-600 hover:bg-amber-500" }
     : { text: "text-emerald-300", chip: "border-emerald-400/30 bg-emerald-500/10 text-emerald-200", dot: "bg-emerald-400", btn: "bg-emerald-600 hover:bg-emerald-500" };
 
   function NavRow({ page, index }) {

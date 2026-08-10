@@ -7,7 +7,6 @@ import {
 import { HavenEduLogo, useEduSync } from "@/lib/eduSyncContext";
 import { nextSemesterAfter } from "@/components/edu/SemesterDetectModal";
 import { useToast } from "@/components/ui/use-toast";
-import NavDropdown from "@/components/finance/NavDropdown";
 import CustomizeNavModal from "@/components/nav/CustomizeNavModal";
 import { resolveNav, EDU_PAGES, EDU_DEFAULT_NAV, EDU_LOCKED } from "@/lib/navConfig";
 
@@ -42,33 +41,30 @@ export default function EduTopBar() {
 
   return (
     <>
-      <header className="sticky top-0 z-30 bg-black border-b border-white/10" style={{ paddingTop: "env(safe-area-inset-top)" }}>
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-3">
+      <header className="sticky top-0 z-30 bg-black/80 backdrop-blur-xl border-b border-white/10" style={{ paddingTop: "env(safe-area-inset-top)" }}>
+        <div className="max-w-6xl mx-auto px-4 sm:px-8 h-16 flex items-center gap-3">
           <HavenEduLogo />
 
-          {/* Desktop tabs — customized */}
-          <nav className="hidden sm:flex items-center gap-1 ml-4 overflow-x-auto no-scrollbar">
-            {primary.map((n) => (
+          {/* Desktop nav */}
+          <nav className="hidden sm:flex items-center gap-1 ml-2 overflow-x-auto">
+            {primary.map(({ to, label, icon: Icon, end }) => (
               <NavLink
-                key={n.id}
-                to={n.to}
-                end={n.end}
+                key={to}
+                to={to}
+                end={end}
                 viewTransition
                 className={({ isActive }) =>
-                  `flex items-center gap-1.5 px-3 h-9 rounded-md text-xs font-medium transition-colors whitespace-nowrap shrink-0 ${
-                    isActive ? "bg-emerald-500/15 text-emerald-300 border border-emerald-400/30" : "text-white/50 hover:text-white hover:bg-white/5 border border-transparent"
+                  `flex items-center gap-1.5 px-3 h-9 rounded-md text-xs font-medium whitespace-nowrap shrink-0 transition-colors ${
+                    isActive
+                      ? "text-emerald-300 bg-emerald-500/10 border border-emerald-400/30"
+                      : "text-white/55 hover:text-white hover:bg-white/5 border border-transparent"
                   }`
                 }
               >
-                <n.icon className="h-3.5 w-3.5" strokeWidth={1.75} />
-                {n.label}
+                <Icon className="h-3.5 w-3.5" strokeWidth={1.75} />
+                {label}
               </NavLink>
             ))}
-            {more.length > 0 && (
-              <div className="shrink-0 ml-1">
-                <NavDropdown label="More" items={more} />
-              </div>
-            )}
           </nav>
 
           <div className="flex items-center gap-2 ml-auto">
