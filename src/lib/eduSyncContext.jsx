@@ -6,8 +6,12 @@ import { percentToGpa } from "@/lib/eduGrading";
 import EducationSplash from "@/components/edu/EducationSplash";
 import { useToast } from "@/components/ui/use-toast";
 import ProfileWizard from "@/components/edu/ProfileWizard";
+<<<<<<< HEAD
 import EduTopBar from "@/components/edu/EduTopBar";
 import EduBottomNav from "@/components/edu/EduBottomNav";
+=======
+import EduHeader, { EduMobileNav } from "@/components/edu/EduHeader";
+>>>>>>> 16a2cd5 (Unify fonts (Inter globally), rebuild Education layout to match Growth header+pill nav, cross-pollinate Pomodoro timer into Finance dashboard)
 import { isProfileAddressed, markProfileSkipped } from "@/lib/eduProfile";
 import ThemeRoot from "@/components/ThemeRoot";
 import HavenLoadingSplash, { EDU_LOADING_PALETTE } from "@/components/shared/HavenLoadingSplash";
@@ -335,18 +339,24 @@ export function EduLayout() {
   const [showWizard, setShowWizard] = React.useState(() => isProfileAddressed() ? false : true);
   return (
     <EduSyncProvider>
-      <EduShell skipLoadingSpinner={showSplash}>
-        {showSplash && <EducationSplash onComplete={handleEduSplashComplete} />}
-        {!showSplash && (
-          <ProfileWizard
-            open={showWizard}
-            onOpenChange={(o) => { setShowWizard(o); if (!o) markProfileSkipped(); }}
-            onCompleted={() => setShowWizard(false)}
-          />
-        )}
-        {!showSplash && <Outlet />}
-      </EduShell>
-    </EduSyncProvider>
+          <EduShell skipLoadingSpinner={showSplash}>
+            {showSplash && <EducationSplash onComplete={handleEduSplashComplete} />}
+            {!showSplash && (
+              <>
+                <EduHeader />
+                <main className="max-w-6xl mx-auto w-full px-4 sm:px-8 py-6 pb-24 sm:pb-8">
+                  <Outlet />
+                </main>
+                <EduMobileNav />
+                <ProfileWizard
+                  open={showWizard}
+                  onOpenChange={(o) => { setShowWizard(o); if (!o) markProfileSkipped(); }}
+                  onCompleted={() => setShowWizard(false)}
+                />
+              </>
+            )}
+          </EduShell>
+        </EduSyncProvider>
   );
 }
 

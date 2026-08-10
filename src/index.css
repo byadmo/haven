@@ -30,10 +30,10 @@
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
     --radius: 0.75rem;
-    --font-heading: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-    --font-body: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-    --font-display: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-    --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        --font-heading: 'Inter', system-ui, -apple-system, sans-serif;
+        --font-body: 'Inter', system-ui, -apple-system, sans-serif;
+        --font-display: 'Inter', system-ui, -apple-system, sans-serif;
+        --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
     --sidebar-primary: 240 5.9% 10%;
@@ -190,14 +190,8 @@
       html[data-theme="wealthsimple"] .backdrop-blur,
       html[data-theme="wealthsimple"] .backdrop-blur-sm { backdrop-filter: blur(8px) !important; -webkit-backdrop-filter: blur(8px) !important; }
       html[data-theme="wealthsimple"] .backdrop-blur-md { backdrop-filter: blur(12px) !important; -webkit-backdrop-filter: blur(12px) !important; }
-      /* WealthSimple: switch from monospace to Inter (clean fintech sans-serif) */
-      html[data-theme="wealthsimple"] {
-        --font-body: 'Inter', system-ui, -apple-system, sans-serif;
-        --font-heading: 'Inter', system-ui, -apple-system, sans-serif;
-        --font-display: 'Inter', system-ui, -apple-system, sans-serif;
-      }
 
-      /* surfaces → true black */
+            /* surfaces → true black */
   .bg-zinc-900, .bg-zinc-900\/60, .bg-zinc-900\/70, .bg-zinc-900\/80, .bg-zinc-950, .bg-zinc-950\/60, .bg-zinc-950\/70 { background-color: #000 !important; }
   /* borders → white/10 */
   .border-zinc-800, .border-zinc-800\/60, .border-zinc-800\/70 { border-color: rgb(255 255 255 / 0.10) !important; }

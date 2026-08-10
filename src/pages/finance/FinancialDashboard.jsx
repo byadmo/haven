@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from "react";
-import { TrendingUp, TrendingDown, CalendarClock, Plus, BarChart3, Activity } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { TrendingUp, TrendingDown, CalendarClock, Plus, Target, Gauge, PieChart, BarChart3, Activity, Timer } from "lucide-react";
 import { useFinanceData } from "@/lib/FinanceDataContext";
 import UpcomingRecurring from "@/components/finance/UpcomingRecurring";
 import QuickAddModal from "@/components/finance/QuickAddModal";
@@ -7,6 +8,7 @@ import IncomeVsSpendingChart from "@/components/finance/IncomeVsSpendingChart";
 import ForecastCharts from "@/components/finance/ForecastCharts";
 import FundFlows from "@/components/finance/FundFlows";
 import CashFlowAnalytics from "@/components/finance/CashFlowAnalytics";
+import PomodoroTimer from "@/components/growth/PomodoroTimer";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 function formatCurrency(v) {
@@ -22,6 +24,7 @@ export default function FinancialDashboard() {
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [showForecast, setShowForecast] = useState(false);
   const [showChart, setShowChart] = useState(false);
+  const [pomodoroOpen, setPomodoroOpen] = useState(false);
 
   const totalAssets = useMemo(() => sum(accounts, "balance"), [accounts]);
   const totalDebts = useMemo(() => sum(debts, "balance"), [debts]);
@@ -131,6 +134,29 @@ export default function FinancialDashboard() {
         <CashFlowAnalytics transactions={transactions} />
       </div>
 
+<<<<<<< HEAD
+=======
+      {/* Quick Action Buttons */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { label: "Allocation", icon: PieChart, to: "/allocation", color: "emerald" },
+          { label: "Goals", icon: Target, to: "/goals", color: "blue" },
+          { label: "Credit Health", icon: Gauge, to: "/credit-utilization", color: "purple" },
+          { label: "Quick Add", icon: Plus, onClick: () => setQuickAddOpen(true), color: "amber" },
+          { label: "Focus", icon: Timer, onClick: () => setPomodoroOpen(true), color: "indigo" },
+        ].map((b) => {
+          const colorMap = { emerald: "border-emerald-400/30 text-emerald-300 hover:bg-emerald-500/10", blue: "border-blue-400/30 text-blue-300 hover:bg-blue-500/10", purple: "border-purple-400/30 text-purple-300 hover:bg-purple-500/10", amber: "border-amber-400/30 text-amber-300 hover:bg-amber-500/10", indigo: "border-indigo-400/30 text-indigo-300 hover:bg-indigo-500/10" };
+          const Icon = b.icon;
+          return (
+            <button key={b.label} onClick={() => b.onClick ? b.onClick() : navigate(b.to, { viewTransition: true })}
+              className={`flex items-center gap-2.5 rounded-xl border bg-black px-4 py-3.5 text-left text-sm font-medium transition-colors ${colorMap[b.color]}`}>
+              <Icon className="h-4 w-4" strokeWidth={1.75} /> {b.label}
+            </button>
+          );
+        })}
+      </div>
+
+>>>>>>> 16a2cd5 (Unify fonts (Inter globally), rebuild Education layout to match Growth header+pill nav, cross-pollinate Pomodoro timer into Finance dashboard)
       {/* Forecast Modal */}
       <Dialog open={showForecast} onOpenChange={setShowForecast}>
         <DialogContent className="bg-zinc-950 border-white/10 text-zinc-100 max-w-lg">
@@ -142,6 +168,7 @@ export default function FinancialDashboard() {
       </Dialog>
 
       <QuickAddModal open={quickAddOpen} onOpenChange={setQuickAddOpen} onAdded={refresh} />
+      <PomodoroTimer open={pomodoroOpen} onOpenChange={setPomodoroOpen} />
     </div>
   );
 }
