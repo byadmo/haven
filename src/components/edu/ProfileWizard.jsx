@@ -25,6 +25,34 @@ const SUGGESTIONS = [
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const STEP_ICONS = [Mail, Building2, Calendar, Target, Clock, Briefcase, ListChecks];
 
+// When the AI parses a schedule image it often returns the same course code
+// once per section (e.g. "PCS 224" LEC + TUT + LAB as separate rows). Merge
+// those into a single course: union the days, join the distinct times and
+// locations so one course carries all its weekly meeting slots.
+function mergeDuplicateCourses(items) {
+  const groups = new Map();
+  let anon = 0;
+  for (const c of items) {
+    const key = (c.code || "").toUpperCase().replace(/\s+/g, " ").trim();
+    if (!key) { groups.set(`__anon_${anon++}`, c); continue; }
+    if (!groups.has(key)) groups.set(key, { ...c, schedule_days: [], _times: [], _locs: [] });
+    const g = groups.get(key);
+    if (!g.title && c.title) g.title = c.title;
+    (c.schedule_days || []).forEach((d) => { if (!g.schedule_days.includes(d)) g.schedule_days.push(d); });
+    if (c.schedule_time && !g._times.includes(c.schedule_time)) g._times.push(c.schedule_time);
+    if (c.location && !g._locs.includes(c.location)) g._locs.push(c.location);
+  }
+  return [...groups.values()].map((g) => ({
+    code: g.code,
+    title: g.title,
+    schedule_days: g.schedule_days,
+    schedule_time: g._times.join(", "),
+    location: g._locs.join(", "),
+    credits: g.credits || 3,
+    color: g.color || "emerald",
+  }));
+}
+
 export default function ProfileWizard({ open, onOpenChange, onCompleted }) {
   const navigate = useNavigate();
   const { courses, settings, activeSemester, createCourse, updateSettings } = useEduSync();
@@ -85,7 +113,8 @@ export default function ProfileWizard({ open, onOpenChange, onCompleted }) {
         },
       });
       const d = res?.data ?? res;
-      const list = (d?.courses || []).map((c) => ({ code: c.code || "", title: c.title || "", schedule_days: c.days || [], schedule_time: c.time || "", location: c.location || "", credits: 3, color: "emerald" }));
+      const raw = (d?.courses || []).map((c) => ({ code: c.code || "", title: c.title || "", schedule_days: c.days || [], schedule_time: c.time || "", location: c.location || "", credits: 3, color: "emerald" }));
+      const list = mergeDuplicateCourses(raw);
       set("screenshot_courses", list);
       set("import_choice", "screenshot");
       if (!list.length) setParseNote("We couldn't detect any courses — try a clearer image or add them manually.");
