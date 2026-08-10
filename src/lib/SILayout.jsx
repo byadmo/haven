@@ -10,6 +10,7 @@ import { useSI } from "@/lib/SIContext";
 import GrowthSplash from "@/components/growth/GrowthSplash";
 import GrowthSetupModal from "@/components/growth/GrowthSetupModal";
 import GrowthLoadingSplash from "@/components/growth/GrowthLoadingSplash";
+import { useMinLoadingDelay } from "@/lib/useMinLoadingDelay";
 
 // Nav config for Self-Improvement module
 export const SI_PAGES = [
@@ -34,6 +35,7 @@ export function SILayout({ children }) {
   const { settings, loaded, updateSettings } = useSI();
   const [showSplash, setShowSplash] = useState(false);
   const [showSetup, setShowSetup] = useState(false);
+  const minElapsed = useMinLoadingDelay(1200);
   const location = window.location;
   const navigate = useNavigate();
 
@@ -71,7 +73,7 @@ export function SILayout({ children }) {
   const iconClass = (isActive) =>
     `relative h-[18px] w-[18px] transition-colors duration-200 ${isActive ? "text-amber-300" : "text-white/45"}`;
 
-  if (!loaded) {
+  if (!loaded || !minElapsed) {
     return <GrowthLoadingSplash />;
   }
 

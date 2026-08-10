@@ -10,6 +10,8 @@ import EduTopBar from "@/components/edu/EduTopBar";
 import EduBottomNav from "@/components/edu/EduBottomNav";
 import { isProfileAddressed, markProfileSkipped } from "@/lib/eduProfile";
 import ThemeRoot from "@/components/ThemeRoot";
+import HavenLoadingSplash, { EDU_LOADING_PALETTE } from "@/components/shared/HavenLoadingSplash";
+import { useMinLoadingDelay } from "@/lib/useMinLoadingDelay";
 import { DEFAULT_THEME } from "@/lib/themes";
 
 // Workspace-registered per-user Google Calendar connector (app-user mode).
@@ -351,13 +353,19 @@ export function EduLayout() {
 function EduShell({ children, skipLoadingSpinner = false }) {
   const { loading, settings } = useEduSync();
   const theme = settings?.theme || DEFAULT_THEME;
-  // When the splash is active, render it immediately (even during loading).
-  // Only show the loading spinner when there's no splash to display.
-  if (loading && !skipLoadingSpinner) {
+  const minElapsed = useMinLoadingDelay(1200);
+  // When the first-time welcome splash is active, render it immediately (even
+  // during loading). Otherwise show the themed entering loading splash while
+  // data loads (or the min entrance elapses) — same style/speed as the other
+  // Havens.
+  if ((loading || !minElapsed) && !skipLoadingSpinner) {
     return (
-      <div className="dark min-h-screen bg-black flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-zinc-800 border-t-emerald-400 rounded-full animate-spin" />
-      </div>
+      <HavenLoadingSplash
+        icon={GraduationCap}
+        accent="Education"
+        motto="Your grades. Accelerated."
+        palette={EDU_LOADING_PALETTE}
+      />
     );
   }
   return (

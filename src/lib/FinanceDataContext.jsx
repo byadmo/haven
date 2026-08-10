@@ -8,6 +8,9 @@ import { computeCategoryUpdates } from "@/lib/categorizeAuto";
 import ThemeRoot from "@/components/ThemeRoot";
 import FinancialSplash from "@/components/finance/FinancialSplash";
 import FinancialHeader from "@/components/finance/FinancialHeader";
+import HavenLoadingSplash, { FINANCE_LOADING_PALETTE } from "@/components/shared/HavenLoadingSplash";
+import { useMinLoadingDelay } from "@/lib/useMinLoadingDelay";
+import { Wallet } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 
 const FinanceDataContext = React.createContext(null);
@@ -261,6 +264,7 @@ export function FinanceLayout() {
 
 function FinanceLayoutInner({ children }) {
   const { loading, theme } = useFinanceData();
+  const minElapsed = useMinLoadingDelay(1200);
   // Splash shows only the FIRST time the user ever enters Haven Finance
   // (localStorage, not sessionStorage) — never again on subsequent visits.
   const [showSplash, setShowSplash] = React.useState(() => {
@@ -271,12 +275,16 @@ function FinanceLayoutInner({ children }) {
     try { localStorage.setItem("haven:visited:finance", "1"); } catch {}
   }, []);
 
-  // Show splash overlay while loading AND on first session visit
-  if (loading && !showSplash) {
+  // Entering loading splash — themed, same style/speed as the other Havens.
+  // Shows on every entry while data loads (or the min entrance elapses).
+  if ((loading || !minElapsed) && !showSplash) {
     return (
-      <div className="dark min-h-screen bg-black flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-zinc-800 border-t-zinc-400 rounded-full animate-spin" />
-      </div>
+      <HavenLoadingSplash
+        icon={Wallet}
+        accent="Financial"
+        motto="Your net worth. Optimized."
+        palette={FINANCE_LOADING_PALETTE}
+      />
     );
   }
   return (
