@@ -21,6 +21,31 @@ function saveLocal(data) {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch {}
 }
 
+/** Inline persistence helper – reads current localStorage, patches habits, writes back.
+ *  Used inside addHabit to guarantee the habit is persisted immediately. */
+function persistHabitsImmediate(nextHabits, _entries, _reflections, _focusSessions) {
+  try {
+    const existing = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{"habits":[],"entries":[],"reflections":[],"focusSessions":[]}');
+    existing.habits = nextHabits;
+    existing.entries = _entries;
+    existing.reflections = _reflections;
+    existing.focusSessions = _focusSessions;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(existing));
+  } catch {}
+}
+
+/** Inline persistence helper – used inside toggleHabit to guarantee entries are persisted immediately. */
+function persistEntriesImmediate(nextEntries, _habits, _reflections, _focusSessions) {
+  try {
+    const existing = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{"habits":[],"entries":[],"reflections":[],"focusSessions":[]}');
+    existing.habits = _habits;
+    existing.entries = nextEntries;
+    existing.reflections = _reflections;
+    existing.focusSessions = _focusSessions;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(existing));
+  } catch {}
+}
+
 function loadSettingsLocal() {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
@@ -186,28 +211,37 @@ export function SIProvider({ children }) {
 
   // ── Habits ──
       const addHabit = useCallback(async (habit) => {
-        const newHabit = {
-          name: habit.name,
-          icon: habit.icon || "CheckCircle",
-          color: habit.color || "amber",
-          difficulty: habit.difficulty ?? 3,
-          target_frequency: habit.frequency || "daily",
-          cumulative_repetitions: 0,
-          misses: 0,
-          notes: habit.notes || "",
-          created_date: new Date().toISOString(),
-          ...habit,
-        };
-      try {
-        const saved = await base44.entities.Focus.create(newHabit);
-        setHabits(prev => [saved, ...prev]);
-        return saved;
-      } catch {
-        const local = { id: crypto.randomUUID?.() || String(Date.now()), ...newHabit };
-        setHabits(prev => [local, ...prev]);
-        return local;
-      }
-    }, []);
+              const newHabit = {
+                name: habit.name,
+                icon: habit.icon || "CheckCircle",
+                color: habit.color || "amber",
+                difficulty: habit.difficulty ?? 3,
+                target_frequency: habit.frequency || "daily",
+                cumulative_repetitions: 0,
+                misses: 0,
+                notes: habit.notes || "",
+                created_date: new Date().toISOString(),
+                ...habit,
+              };
+            try {
+              const saved = await base44.entities.Focus.create(newHabit);
+              setHabits(prev => {
+                const next = [saved, ...prev];
+                // Inline persist to guarantee save regardless of effect timing
+                persistHabitsImmediate(next, entries, reflections, focusSessions);
+                return next;
+              });
+              return saved;
+            } catch {
+              const local = { id: crypto.randomUUID?.() || String(Date.now()), ...newHabit };
+              setHabits(prev => {
+                const next = [local, ...prev];
+                persistHabitsImmediate(next, entries, reflections, focusSessions);
+                return next;
+              });
+              return local;
+            }
+          }, [entries, reflections, focusSessions]);
 
     // Keep cumulative_repetitions + misses in sync with actual entries
     useEffect(() => {
@@ -227,21 +261,33 @@ export function SIProvider({ children }) {
     }, [entries]);
 
     const toggleHabit = useCallback(async (habitId, date = todayKey()) => {
-      const existing = entries.find(e => e.focus_id === habitId && e.date === date);
-      if (existing) {
-        try { await base44.entities.StudySession.delete(existing.id); } catch {}
-        setEntries(prev => prev.filter(e => e.id !== existing.id));
-      } else {
-        const entry = { focus_id: habitId, date, completed: true, created_date: new Date().toISOString() };
-        try {
-          const saved = await base44.entities.StudySession.create(entry);
-          setEntries(prev => [saved, ...prev]);
-        } catch {
-          const local = { id: crypto.randomUUID?.() || String(Date.now()), ...entry };
-          setEntries(prev => [local, ...prev]);
-        }
-      }
-    }, [entries]);
+          const existing = entries.find(e => e.focus_id === habitId && e.date === date);
+          if (existing) {
+            try { await base44.entities.StudySession.delete(existing.id); } catch {}
+            setEntries(prev => {
+              const next = prev.filter(e => e.id !== existing.id);
+              persistEntriesImmediate(next, habits, reflections, focusSessions);
+              return next;
+            });
+          } else {
+            const entry = { focus_id: habitId, date, completed: true, created_date: new Date().toISOString() };
+            try {
+              const saved = await base44.entities.StudySession.create(entry);
+              setEntries(prev => {
+                const next = [saved, ...prev];
+                persistEntriesImmediate(next, habits, reflections, focusSessions);
+                return next;
+              });
+            } catch {
+              const local = { id: crypto.randomUUID?.() || String(Date.now()), ...entry };
+              setEntries(prev => {
+                const next = [local, ...prev];
+                persistEntriesImmediate(next, habits, reflections, focusSessions);
+                return next;
+              });
+            }
+          }
+        }, [entries, habits, reflections, focusSessions]);
 
     const editHabit = useCallback(async (id, updates) => {
       setHabits(prev => prev.map(h => {

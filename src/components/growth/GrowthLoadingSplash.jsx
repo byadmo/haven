@@ -1,5 +1,6 @@
 import React from "react";
 import { Flame } from "lucide-react";
+import { THEMES } from "@/lib/themes";
 import HavenLoadingSplash from "@/components/shared/HavenLoadingSplash";
 import { THEMES } from "@/lib/themes";
 
