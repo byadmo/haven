@@ -244,21 +244,26 @@ export function SIProvider({ children }) {
           }, [entries, reflections, focusSessions]);
 
     // Keep cumulative_repetitions + misses in sync with actual entries
-    useEffect(() => {
-      setHabits(prev => prev.map(h => {
-        const habitEntries = entries.filter(e => e.focus_id === h.id);
-        const reps = habitEntries.length;
-        // Misses = days since creation that have no entry, capped at total days
-        let misses = 0;
-        if (h.created_date && reps > 0) {
-          const created = new Date(h.created_date).getTime();
-          const today = Date.now();
-          const totalDays = Math.max(0, Math.floor((today - created) / 86400000));
-          misses = Math.max(0, totalDays - reps);
-        }
-        return { ...h, cumulative_repetitions: reps, misses };
-      }));
-    }, [entries]);
+        useEffect(() => {
+          setHabits(prev => {
+            const next = prev.map(h => {
+              const habitEntries = entries.filter(e => e.focus_id === h.id);
+              const reps = habitEntries.length;
+              // Misses = days since creation that have no entry, capped at total days
+              let misses = 0;
+              if (h.created_date && reps > 0) {
+                const created = new Date(h.created_date).getTime();
+                const today = Date.now();
+                const totalDays = Math.max(0, Math.floor((today - created) / 86400000));
+                misses = Math.max(0, totalDays - reps);
+              }
+              return { ...h, cumulative_repetitions: reps, misses };
+            });
+            // Persist the updated score data immediately
+            persistHabitsImmediate(next, entries, reflections, focusSessions);
+            return next;
+          });
+        }, [entries, reflections, focusSessions]);
 
     const toggleHabit = useCallback(async (habitId, date = todayKey()) => {
           const existing = entries.find(e => e.focus_id === habitId && e.date === date);
@@ -290,20 +295,27 @@ export function SIProvider({ children }) {
         }, [entries, habits, reflections, focusSessions]);
 
     const editHabit = useCallback(async (id, updates) => {
-      setHabits(prev => prev.map(h => {
-        if (h.id !== id) return h;
-        const updated = { ...h, ...updates };
-        // Persist to backend
-        base44.entities.Focus.update(id, updates).catch(() => {});
-        return updated;
-      }));
-    }, []);
+          setHabits(prev => {
+            const next = prev.map(h => {
+              if (h.id !== id) return h;
+              const updated = { ...h, ...updates };
+              base44.entities.Focus.update(id, updates).catch(() => {});
+              return updated;
+            });
+            persistHabitsImmediate(next, entries, reflections, focusSessions);
+            return next;
+          });
+        }, [entries, reflections, focusSessions]);
 
     const deleteHabit = useCallback(async (id) => {
-    try { await base44.entities.Focus.delete(id); } catch {}
-    setHabits(prev => prev.filter(h => h.id !== id));
-    setEntries(prev => prev.filter(e => e.focus_id !== id));
-  }, []);
+        try { await base44.entities.Focus.delete(id); } catch {}
+        setHabits(prev => {
+          const next = prev.filter(h => h.id !== id);
+          persistHabitsImmediate(next, entries, reflections, focusSessions);
+          return next;
+        });
+        setEntries(prev => prev.filter(e => e.focus_id !== id));
+      }, [entries, reflections, focusSessions]);
 
   // ── Reflections ──
   const addReflection = useCallback(async (reflection) => {
