@@ -1,10 +1,10 @@
-import React, { useState, useMemo, useCallback, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useState, useMemo, useCallback } from "react";
 import {
   Layers, Plus, ArrowLeft, RotateCcw, Lightbulb,
   CheckCircle2, XCircle, ChevronRight, BookOpen,
   Trash2, Edit3, Save, Hash, Clock,
 } from "lucide-react";
+import { sm2Calculate } from "@/lib/sm2";
 import { useEduSync } from "@/lib/eduSyncContext";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
@@ -19,56 +19,6 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-
-// ── SM-2 Spaced Repetition Algorithm ────────────────────────────────────────
-
-const SM2_EF_MIN = 1.3;
-const SM2_EF_MAX = 3.0;
-
-function sm2Schedule(quality, card) {
-  // quality ∈ {0, 1, 2, 3, 4, 5} mapped from review buttons
-  const q = Math.max(0, Math.min(5, Math.round(quality)));
-
-  let { easiness = 2.5, interval = 0, repetitions = 0 } = card;
-
-  // Update easiness factor
-  const ef = Math.max(
-    SM2_EF_MIN,
-    Math.min(
-      SM2_EF_MAX,
-      easiness + (0.1 - (5 - q) * (0.08 + (5 - q) * 0.02))
-    )
-  );
-
-  const passed = q >= 3;
-  let newInterval;
-  let newRepetitions;
-
-  if (!passed) {
-    newRepetitions = 0;
-    newInterval = 1;
-  } else {
-    newRepetitions = repetitions + 1;
-    if (repetitions === 0) {
-      newInterval = 1;
-    } else if (repetitions === 1) {
-      newInterval = 6;
-    } else {
-      newInterval = Math.round(interval * ef);
-    }
-  }
-
-  const nextReview = new Date();
-  nextReview.setDate(nextReview.getDate() + newInterval);
-
-  return {
-    easiness: +ef.toFixed(2),
-    interval: newInterval,
-    repetitions: newRepetitions,
-    next_review: nextReview.toISOString().slice(0, 10),
-    last_reviewed: new Date().toISOString(),
-  };
-}
 
 function dueCards(cards) {
   const today = new Date().toISOString().slice(0, 10);
@@ -115,8 +65,6 @@ function dueLabel(card) {
 
 export default function EduFlashcards() {
   const { courses } = useEduSync();
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const { toast } = useToast();
 
   // Screen state: "list" | "deck" | "review"
@@ -126,7 +74,6 @@ export default function EduFlashcards() {
   // Data
   const [decks, setDecks] = useState([]);
   const [cards, setCards] = useState([]);
-  const [loading, setLoading] = useState(true);
 
   // Deck form
   const [deckFormOpen, setDeckFormOpen] = useState(false);
@@ -143,6 +90,9 @@ export default function EduFlashcards() {
   const [flipped, setFlipped] = useState(false);
   const [showHint, setShowHint] = useState(false);
   const [reviewComplete, setReviewComplete] = useState(false);
+
+  // Delete confirmation
+  const [deleteDeckConfirm, setDeleteDeckConfirm] = useState(null);
 
   const courseById = useMemo(
     () => Object.fromEntries((courses || []).map((c) => [c.id, c])),
@@ -165,23 +115,6 @@ export default function EduFlashcards() {
       setCards((c || []).filter((card) => card.deck_id === deckId));
     } catch { setCards([]); }
   }, []);
-
-  useEffect(() => {
-    Promise.all([loadDecks()]).finally(() => setLoading(false));
-  }, [loadDecks]);
-
-  // If URL has ?deck=<id> param, auto-open that deck
-  useEffect(() => {
-    const deckId = searchParams.get("deck");
-    if (deckId && decks.length > 0) {
-      const exists = decks.find((d) => d.id === deckId);
-      if (exists) {
-        setSelectedDeckId(deckId);
-        loadCards(deckId);
-        setScreen("deck");
-      }
-    }
-  }, [searchParams, decks, loadCards]);
 
   // ── Deck CRUD ──
 
@@ -340,7 +273,7 @@ export default function EduFlashcards() {
     const card = reviewQueue[reviewIndex];
     if (!card) return;
 
-    const updates = sm2Schedule(quality, card);
+    const updates = sm2Calculate(quality, card);
     try {
       await base44.entities.Flashcard.update(card.id, updates);
     } catch {
@@ -579,6 +512,7 @@ export default function EduFlashcards() {
             <button
               onClick={backToList}
               className="h-8 w-8 grid place-items-center rounded-lg border border-white/10 text-white/50 hover:text-white transition-colors"
+              aria-label="Back to deck list"
             >
               <ArrowLeft className="h-4 w-4" />
             </button>
@@ -695,6 +629,7 @@ export default function EduFlashcards() {
                       onClick={() => openEditCard(card)}
                       className="h-7 w-7 grid place-items-center rounded-md border border-white/10 text-white/40 hover:text-white hover:border-white/30 transition-colors"
                       title="Edit card"
+                      aria-label="Edit card"
                     >
                       <Edit3 className="h-3 w-3" />
                     </button>
@@ -702,6 +637,7 @@ export default function EduFlashcards() {
                       onClick={() => deleteCard(card.id)}
                       className="h-7 w-7 grid place-items-center rounded-md border border-white/10 text-rose-400/60 hover:text-rose-300 hover:border-rose-400/30 transition-colors"
                       title="Delete card"
+                      aria-label="Delete card"
                     >
                       <Trash2 className="h-3 w-3" />
                     </button>
@@ -715,16 +651,42 @@ export default function EduFlashcards() {
         {/* Delete deck */}
         <div className="mt-8 pt-6 border-t border-white/5">
           <button
-            onClick={() => {
-              if (window.confirm(`Delete deck "${deck.name}" and all its cards?`)) {
-                deleteDeck(deck.id);
-              }
-            }}
+            onClick={() => setDeleteDeckConfirm(deck)}
             className="flex items-center gap-1.5 text-xs text-rose-400/60 hover:text-rose-300 transition-colors"
           >
             <Trash2 className="h-3.5 w-3.5" /> Delete this deck
           </button>
         </div>
+
+        {/* Delete Deck Confirmation Dialog */}
+        <Dialog open={!!deleteDeckConfirm} onOpenChange={() => setDeleteDeckConfirm(null)}>
+          <DialogContent className="bg-black border border-white/10 text-white max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-white">Delete Deck</DialogTitle>
+              <DialogDescription className="text-white/50 text-xs">
+                Are you sure you want to delete "{deleteDeckConfirm?.name}" and all its cards? This action cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setDeleteDeckConfirm(null)}
+                className="border-white/10 text-white/50"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  if (deleteDeckConfirm) deleteDeck(deleteDeckConfirm.id);
+                  setDeleteDeckConfirm(null);
+                }}
+                className="bg-rose-500 text-white hover:bg-rose-400"
+              >
+                <Trash2 className="h-4 w-4 mr-1.5" /> Delete Deck
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Add / Edit Card Dialog */}
         <Dialog open={cardFormOpen} onOpenChange={(o) => { if (!o) { setEditingCardId(null); setCardForm({ front: "", back: "", hint: "", tags: "" }); } setCardFormOpen(o); }}>
@@ -864,6 +826,7 @@ export default function EduFlashcards() {
             <button
               onClick={backToDeck}
               className="h-8 w-8 grid place-items-center rounded-lg border border-white/10 text-white/50 hover:text-white transition-colors shrink-0"
+              aria-label="Back to deck"
             >
               <ArrowLeft className="h-4 w-4" />
             </button>

@@ -13,7 +13,7 @@ function fmtPct(v) {
 }
 
 export default function EduAnalyticsPage() {
-  const { courses, deliverables, studySessions, streak, weeklyMinutes, cumulativeGpa, semesterGpa, hourlyBuckets, activeSemester } = useEduSync();
+  const { courses, studySessions, streak, cumulativeGpa, semesterGpa, hourlyBuckets } = useEduSync();
   const navigate = useNavigate();
 
   // ── Per-course grade analysis ──
@@ -26,9 +26,6 @@ export default function EduAnalyticsPage() {
       const needed80 = neededForTarget(dlvs, 80);
       const needed70 = neededForTarget(dlvs, 70);
       const graded = dlvs.filter((d) => d.graded && d.grade != null);
-      const remaining = dlvs.filter((d) => !(d.graded && d.grade != null));
-      const totalWeight = dlvs.reduce((s, d) => s + d.weight, 0);
-      const gradedWeight = graded.reduce((s, d) => s + d.weight, 0);
       return {
         ...c,
         current,
@@ -36,9 +33,7 @@ export default function EduAnalyticsPage() {
         needed90, needed80, needed70,
         gradedCount: graded.length,
         totalCount: dlvs.length,
-        totalWeight,
-        gradedWeight,
-        remainingWeight: totalWeight - gradedWeight,
+        remainingWeight: dlvs.reduce((s, d) => s + (d.weight || 0), 0) - graded.reduce((s, d) => s + (d.weight || 0), 0),
         riskLevel: current != null && current < 60 ? "high" : current != null && current < 70 ? "medium" : "low",
       };
     });
@@ -188,7 +183,7 @@ export default function EduAnalyticsPage() {
               <YAxis allowDecimals={false} tick={{ fill: "#71717a", fontSize: 9 }} axisLine={false} tickLine={false} />
               <Tooltip
                 formatter={(v) => [`${v} course${v !== 1 ? "s" : ""}`, "Count"]}
-                contentStyle={{ background: "#131D33", border: "1px solid rgba(255,255,255,0.10)", borderRadius: 8, fontSize: 12, color: "#fff" }}
+                contentStyle={{ background: "#000000", border: "1px solid rgba(255,255,255,0.10)", borderRadius: 8, fontSize: 12, color: "#fff" }}
               />
               <Bar dataKey="count" radius={[4, 4, 0, 0]}>
                 {gradeDist.map((entry, i) => (
@@ -221,7 +216,7 @@ export default function EduAnalyticsPage() {
                   </div>
                   <div className="text-right">
                     <p className={`text-lg font-semibold font-mono ${scoreColor}`}>{fmtPct(c.current)}</p>
-                    <p className="text-[9px] uppercase tracking-widest text-white/30">{percentToLetter(c.current)}</p>
+                    <p className="text-[10px] uppercase tracking-widest text-white/30">{percentToLetter(c.current)}</p>
                   </div>
                 </div>
 
@@ -285,7 +280,7 @@ export default function EduAnalyticsPage() {
               <Tooltip
                 formatter={(v, n) => [`${v} min`, n === "minutes" ? "Duration" : ""]}
                 labelFormatter={(l) => l}
-                contentStyle={{ background: "#131D33", border: "1px solid rgba(255,255,255,0.10)", borderRadius: 8, fontSize: 12, color: "#fff" }}
+                contentStyle={{ background: "#000000", border: "1px solid rgba(255,255,255,0.10)", borderRadius: 8, fontSize: 12, color: "#fff" }}
               />
               <Area type="monotone" dataKey="minutes" stroke="#34d399" strokeWidth={2} fill="url(#studyGrad)" dot={{ fill: "#34d399", r: 3 }} />
             </AreaChart>
@@ -309,7 +304,7 @@ export default function EduAnalyticsPage() {
                 <YAxis tick={{ fill: "#71717a", fontSize: 9 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}m`} />
                 <Tooltip
                   formatter={(v) => [`${v} min`, "Study time"]}
-                  contentStyle={{ background: "#131D33", border: "1px solid rgba(255,255,255,0.10)", borderRadius: 8, fontSize: 12, color: "#fff" }}
+                  contentStyle={{ background: "#000000", border: "1px solid rgba(255,255,255,0.10)", borderRadius: 8, fontSize: 12, color: "#fff" }}
                 />
                 <Bar dataKey="minutes" radius={[2, 2, 0, 0]}>
                   {hourlyData.map((entry, i) => (
@@ -354,7 +349,7 @@ function StatCard({ icon: Icon, label, value, color }) {
     <div className="rounded-xl border border-white/10 bg-black p-4">
       <Icon className={`h-4 w-4 ${color || "text-white/40"} mb-1.5`} />
       <p className={`text-xl font-semibold font-mono tabular-nums ${color || "text-white"}`}>{value}</p>
-      <p className="text-[9px] uppercase tracking-widest text-white/40 mt-0.5">{label}</p>
+      <p className="text-[10px] uppercase tracking-widest text-white/40 mt-0.5">{label}</p>
     </div>
   );
 }
