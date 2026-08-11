@@ -51,11 +51,12 @@ const DrawerContent = React.forwardRef(({ className, children, ...props }, ref) 
           {...props}
         >
           <motion.div
-            className={cn(
-              "fixed inset-x-0 bottom-0 z-50 mt-24 flex h-auto flex-col rounded-t-[10px] border bg-background",
-              className
-            )}
-            initial={reduceMotion
+                      className={cn(
+                        "fixed inset-x-0 bottom-0 z-50 mt-24 flex h-auto flex-col rounded-t-[10px] border bg-background",
+                        className
+                      )}
+                      style={{ willChange: "transform" }}
+                      initial={reduceMotion
               ? { opacity: 0 }
               : { opacity: 0, y: "100%" }
             }

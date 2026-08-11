@@ -69,7 +69,7 @@ const DialogContent = React.forwardRef(({ className, children, onKeyDown, ...pro
               "shadow-lg sm:rounded-lg max-h-[90dvh] overflow-y-auto overflow-x-hidden",
               className
             )}
-            style={{ x: "-50%", y: "-50%" }}
+            style={{ x: "-50%", y: "-50%", willChange: "transform" }}
             initial={reduceMotion
               ? { opacity: 0 }
               : { opacity: 0, scale: 0.96, x: "-50%", y: "-44%" }

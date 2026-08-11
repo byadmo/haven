@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { Target, Flame, BookOpen, TrendingUp, ArrowRight, Sparkles, Brain, Trophy, Clock, User } from "lucide-react";
 import { useSI } from "@/lib/SIContext";
@@ -57,11 +58,25 @@ export default function SIDashboard() {
   ];
 
   const colorMap = {
-    amber: "border-amber-400/30 bg-amber-500/10 text-amber-300",
-    orange: "border-orange-400/30 bg-orange-500/10 text-orange-300",
-    emerald: "border-emerald-400/30 bg-emerald-500/10 text-emerald-300",
-    blue: "border-blue-400/30 bg-blue-500/10 text-blue-300",
-  };
+      amber: "border-amber-400/30 bg-amber-500/10 text-amber-300",
+      orange: "border-orange-400/30 bg-orange-500/10 text-orange-300",
+      emerald: "border-emerald-400/30 bg-emerald-500/10 text-emerald-300",
+      blue: "border-blue-400/30 bg-blue-500/10 text-blue-300",
+    };
+
+    const staggerVariants = {
+      hidden: { opacity: 0, y: 20 },
+      show: (i) => ({
+        opacity: 1,
+        y: 0,
+        transition: { delay: i * 0.05, duration: 0.3, ease: "easeOut" },
+      }),
+    };
+
+    const containerVariants = {
+      hidden: {},
+      show: { transition: { staggerChildren: 0.05 } },
+    };
 
   return (
     <div className="dd-page-enter space-y-6">
@@ -147,21 +162,32 @@ export default function SIDashboard() {
       {!loaded ? (
         <StatGridSkeleton count={4} />
       ) : (
-        <div className="haven-fade-in grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          {stats.map((s) => {
-            const Icon = s.icon;
-            return (
-              <div key={s.label} className="rounded-2xl border border-white/10 bg-black p-4 sm:p-5 transition-all duration-200 hover:border-white/20">
-                <div className={`inline-flex items-center justify-center rounded-lg border h-9 w-9 mb-3 ${colorMap[s.color]}`}>
-                  <Icon className="h-4 w-4" strokeWidth={1.75} />
-                </div>
-                <p className="text-2xl sm:text-3xl font-semibold tracking-tight text-white">{s.value}</p>
-                <p className="text-xs text-white/50 mt-0.5">{s.label}</p>
-                <p className="text-[10px] text-white/30 mt-0.5">{s.sub}</p>
-              </div>
-            );
-          })}
-        </div>
+        <motion.div
+                  variants={containerVariants}
+                  initial="hidden"
+                  animate="show"
+                  className="haven-fade-in grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4"
+                >
+                  {stats.map((s, i) => {
+                    const Icon = s.icon;
+                    return (
+                      <motion.div
+                        key={s.label}
+                        layoutId={`stat-${s.label}`}
+                        variants={staggerVariants}
+                        custom={i}
+                        className="rounded-2xl border border-white/10 bg-black p-4 sm:p-5 transition-all duration-200 hover:border-white/20 hover:scale-[1.02] active:scale-[0.98] cursor-default"
+                      >
+                        <div className={`inline-flex items-center justify-center rounded-lg border h-9 w-9 mb-3 ${colorMap[s.color]}`}>
+                          <Icon className="h-4 w-4" strokeWidth={1.75} />
+                        </div>
+                        <p className="text-2xl sm:text-3xl font-semibold tracking-tight text-white">{s.value}</p>
+                        <p className="text-xs text-white/50 mt-0.5">{s.label}</p>
+                        <p className="text-[10px] text-white/30 mt-0.5">{s.sub}</p>
+                      </motion.div>
+                    );
+                  })}
+                </motion.div>
       )}
 
       {/* Weekly Summary */}
@@ -172,8 +198,13 @@ export default function SIDashboard() {
           </h2>
           <span className="text-[10px] text-white/30">This week</span>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div>
+        <motion.div
+                  variants={containerVariants}
+                  initial="hidden"
+                  animate="show"
+                  className="grid grid-cols-2 sm:grid-cols-4 gap-4"
+                >
+                  <motion.div variants={staggerVariants} custom={0}>
             <p className="text-2xl font-semibold text-white">{weeklyStats.thisWeekPct}%</p>
             <p className="text-[10px] text-white/40">Completion rate</p>
             <div className="flex items-center gap-1 mt-0.5">
@@ -182,20 +213,20 @@ export default function SIDashboard() {
               </span>
               <span className="text-[10px] text-white/20">vs last week</span>
             </div>
-          </div>
-          <div>
-            <p className="text-2xl font-semibold text-white">{weeklyStats.thisWeekDone}</p>
-            <p className="text-[10px] text-white/40">Check-ins</p>
-          </div>
-          <div>
-            <p className="text-2xl font-semibold text-white">{weeklyStats.thisWeekReflections}</p>
-            <p className="text-[10px] text-white/40">Journal entries</p>
-          </div>
-          <div>
-            <p className="text-2xl font-semibold text-white">{todayFocus > 0 ? `${todayFocus}m` : "0m"}</p>
-            <p className="text-[10px] text-white/40">Focus today</p>
-          </div>
-        </div>
+          </motion.div>
+                    <motion.div variants={staggerVariants} custom={1}>
+                      <p className="text-2xl font-semibold text-white">{weeklyStats.thisWeekDone}</p>
+                      <p className="text-[10px] text-white/40">Check-ins</p>
+                    </motion.div>
+                    <motion.div variants={staggerVariants} custom={2}>
+                      <p className="text-2xl font-semibold text-white">{weeklyStats.thisWeekReflections}</p>
+                      <p className="text-[10px] text-white/40">Journal entries</p>
+                    </motion.div>
+                    <motion.div variants={staggerVariants} custom={3}>
+                      <p className="text-2xl font-semibold text-white">{todayFocus > 0 ? `${todayFocus}m` : "0m"}</p>
+                      <p className="text-[10px] text-white/40">Focus today</p>
+                    </motion.div>
+                  </motion.div>
         {/* Mini progress bar */}
         <div className="h-1.5 rounded-full bg-white/5 overflow-hidden mt-3">
           <div
@@ -222,13 +253,23 @@ export default function SIDashboard() {
             </Link>
           </div>
         ) : (
-          <div className="space-y-2">
-            {habits.slice(0, 5).map(h => {
-              const done = getTodayStatus(h.id);
-              const streak = getStreak(h.id);
-              const habitColor = h.color || "amber";
-              return (
-                <div key={h.id} className="flex items-center justify-between rounded-lg border border-white/5 bg-white/5 px-3 py-2.5">
+          <motion.div
+                    variants={containerVariants}
+                    initial="hidden"
+                    animate="show"
+                    className="space-y-2"
+                  >
+                      {habits.slice(0, 5).map((h, hi) => {
+                        const done = getTodayStatus(h.id);
+                        const streak = getStreak(h.id);
+                        const habitColor = h.color || "amber";
+                        return (
+                          <motion.div
+                            key={h.id}
+                            variants={staggerVariants}
+                            custom={hi}
+                            className="flex items-center justify-between rounded-lg border border-white/5 bg-white/5 px-3 py-2.5 hover:scale-[1.01] active:scale-[0.99] transition-transform duration-200"
+                          >
                   <div className="flex items-center gap-2.5">
                     <div className={`h-2.5 w-2.5 rounded-full shrink-0 ${
                       { amber: "bg-amber-400", emerald: "bg-emerald-400", blue: "bg-blue-400", purple: "bg-purple-400", rose: "bg-rose-400", cyan: "bg-cyan-400" }[habitColor] || "bg-amber-400"
@@ -243,10 +284,10 @@ export default function SIDashboard() {
                     )}
                     <span className={`text-xs ${done ? "text-amber-300" : "text-white/30"}`}>{done ? "Done" : "Pending"}</span>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                </motion.div>
+                              );
+                            })}
+                          </motion.div>
         )}
       </div>
 
@@ -265,49 +306,60 @@ export default function SIDashboard() {
                     <Clock className="h-3 w-3 mr-1" /> Start Session
                   </Button>
                 </div>
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <p className="text-xl font-semibold text-white">
-                      {focusSessions.filter(s => (s.created_date || "").slice(0, 10) === new Date().toISOString().slice(0, 10)).length}
-                    </p>
-                    <p className="text-[10px] text-white/40">sessions</p>
-                  </div>
-                  <div>
-                    <p className="text-xl font-semibold text-white">{todayFocus > 0 ? `${todayFocus}m` : "0m"}</p>
-                    <p className="text-[10px] text-white/40">minutes</p>
-                  </div>
-                  <div>
-                    <p className="text-xl font-semibold text-white">
-                      {Math.floor(todayFocus / 25)}
-                    </p>
-                    <p className="text-[10px] text-white/40">XP earned</p>
-                  </div>
-                </div>
+                <motion.div
+                                  variants={containerVariants}
+                                  initial="hidden"
+                                  animate="show"
+                                  className="grid grid-cols-3 gap-3"
+                                >
+                                  <motion.div variants={staggerVariants} custom={0}>
+                                    <p className="text-xl font-semibold text-white">
+                                      {focusSessions.filter(s => (s.created_date || "").slice(0, 10) === new Date().toISOString().slice(0, 10)).length}
+                                    </p>
+                                    <p className="text-[10px] text-white/40">sessions</p>
+                                  </motion.div>
+                                  <motion.div variants={staggerVariants} custom={1}>
+                                    <p className="text-xl font-semibold text-white">{todayFocus > 0 ? `${todayFocus}m` : "0m"}</p>
+                                    <p className="text-[10px] text-white/40">minutes</p>
+                                  </motion.div>
+                                  <motion.div variants={staggerVariants} custom={2}>
+                                    <p className="text-xl font-semibold text-white">
+                                      {Math.floor(todayFocus / 25)}
+                                    </p>
+                                    <p className="text-[10px] text-white/40">XP earned</p>
+                                  </motion.div>
+                                </motion.div>
               </div>
             )}
 
             {/* Quick links */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-        {SI_PAGES.slice(1).filter(p => p.id !== "settings").map(p => {
-          const Icon = p.icon;
-          return (
-            <Link
-              key={p.id}
-              to={p.to}
-              className="group flex items-center gap-3 rounded-xl border border-white/10 bg-black p-4 hover:border-amber-400/30 transition-colors"
-            >
-              <div className="inline-flex items-center justify-center rounded-lg border border-amber-400/20 bg-amber-500/5 h-9 w-9">
-                <Icon className="h-4 w-4 text-amber-300" strokeWidth={1.75} />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-white">{p.label}</p>
-                <p className="text-xs text-white/40">View {p.label.toLowerCase()}</p>
-              </div>
-              <ArrowRight className="h-4 w-4 text-white/20 group-hover:text-amber-300 ml-auto transition-colors" />
-            </Link>
-          );
-        })}
-      </div>
+      <motion.div
+                variants={containerVariants}
+                initial="hidden"
+                animate="show"
+                className="grid grid-cols-1 sm:grid-cols-4 gap-3"
+              >
+              {SI_PAGES.slice(1).filter(p => p.id !== "settings").map((p, pi) => {
+                const Icon = p.icon;
+                return (
+                  <motion.div key={p.id} variants={staggerVariants} custom={pi}>
+                  <Link
+                    to={p.to}
+                    className="group flex items-center gap-3 rounded-xl border border-white/10 bg-black p-4 hover:border-amber-400/30 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
+                  >
+                    <div className="inline-flex items-center justify-center rounded-lg border border-amber-400/20 bg-amber-500/5 h-9 w-9">
+                      <Icon className="h-4 w-4 text-amber-300" strokeWidth={1.75} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-white">{p.label}</p>
+                      <p className="text-xs text-white/40">View {p.label.toLowerCase()}</p>
+                    </div>
+                    <ArrowRight className="h-4 w-4 text-white/20 group-hover:text-amber-300 ml-auto transition-colors" />
+                  </Link>
+                  </motion.div>
+                );
+              })}
+            </motion.div>
 
       {/* Pomodoro */}
       <PomodoroTimer open={showPomodoro} onOpenChange={setShowPomodoro} />
