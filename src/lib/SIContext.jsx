@@ -84,39 +84,45 @@ export function SIProvider({ children }) {
     });
     const [loaded, setLoaded] = useState(false);
 
-  // Load from backend or localStorage
+  // Load from backend or localStorage (per category — avoids all-or-nothing
+  // replacement that wipes habit-toggle entries stored locally).
   const load = useCallback(async () => {
-    // Try backend for habits/entries/reflections
-        try {
-          const [h, e, r, fs] = await Promise.all([
-            base44.entities.Focus.list("-created_date", 500).catch(() => []),
-            base44.entities.StudySession.list("-created_date", 500).catch(() => []),
-            base44.entities.NetWorthSnapshot.list("-created_date", 500).catch(() => []),
-            base44.entities.FocusSession.list?.("-created_date", 500).catch(() => []) || [],
-          ]);
-          if (h.length || e.length || r.length || fs.length) {
-            setHabits(h);
-            setEntries(e);
-            setReflections(r);
-            setFocusSessions(fs);
-          } else {
-            const local = loadLocal();
-            if (local) {
-              setHabits(local.habits || []);
-              setEntries(local.entries || []);
-              setReflections(local.reflections || []);
-              setFocusSessions(local.focusSessions || []);
-            }
-          }
-        } catch {
-          const local = loadLocal();
-          if (local) {
-            setHabits(local.habits || []);
-            setEntries(local.entries || []);
-            setReflections(local.reflections || []);
-            setFocusSessions(local.focusSessions || []);
-          }
-        }
+    const local = loadLocal();
+
+    // Habits (Focus entity) — backend primary, localStorage fallback.
+    try {
+      const h = await base44.entities.Focus.list("-created_date", 500).catch(() => []);
+      if (h && h.length) setHabits(h);
+      else if (local?.habits?.length) setHabits(local.habits);
+    } catch {
+      if (local?.habits?.length) setHabits(local.habits);
+    }
+
+    // Habit-toggle entries — localStorage ONLY. The StudySession schema has no
+    // focus_id/date fields, so the backend version can't represent a habit
+    // completion; we keep them local to preserve the habit↔toggle link across
+    // reloads (the original bug: backend StudySessions with no focus_id would
+    // overwrite localStorage entries on every reload).
+    setEntries(local?.entries || []);
+
+    // Reflections (stored as NetWorthSnapshot with type=reflection) — backend primary.
+    try {
+      const r = await base44.entities.NetWorthSnapshot.list("-created_date", 500).catch(() => []);
+      const ref = (r || []).filter(s => s.type === "reflection");
+      if (ref.length) setReflections(ref);
+      else if (local?.reflections?.length) setReflections(local.reflections);
+    } catch {
+      if (local?.reflections?.length) setReflections(local.reflections);
+    }
+
+    // Focus sessions — backend primary.
+    try {
+      const fs = await (base44.entities.FocusSession.list?.("-created_date", 500).catch(() => [])) || [];
+      if (fs && fs.length) setFocusSessions(fs);
+      else if (local?.focusSessions?.length) setFocusSessions(local.focusSessions);
+    } catch {
+      if (local?.focusSessions?.length) setFocusSessions(local.focusSessions);
+    }
 
     // Try backend for settings
     try {
@@ -268,29 +274,24 @@ export function SIProvider({ children }) {
     const toggleHabit = useCallback(async (habitId, date = todayKey()) => {
           const existing = entries.find(e => e.focus_id === habitId && e.date === date);
           if (existing) {
-            try { await base44.entities.StudySession.delete(existing.id); } catch {}
             setEntries(prev => {
               const next = prev.filter(e => e.id !== existing.id);
               persistEntriesImmediate(next, habits, reflections, focusSessions);
               return next;
             });
           } else {
-            const entry = { focus_id: habitId, date, completed: true, created_date: new Date().toISOString() };
-            try {
-              const saved = await base44.entities.StudySession.create(entry);
-              setEntries(prev => {
-                const next = [saved, ...prev];
-                persistEntriesImmediate(next, habits, reflections, focusSessions);
-                return next;
-              });
-            } catch {
-              const local = { id: crypto.randomUUID?.() || String(Date.now()), ...entry };
-              setEntries(prev => {
-                const next = [local, ...prev];
-                persistEntriesImmediate(next, habits, reflections, focusSessions);
-                return next;
-              });
-            }
+            const entry = {
+              id: crypto.randomUUID?.() || String(Date.now()),
+              focus_id: habitId,
+              date,
+              completed: true,
+              created_date: new Date().toISOString(),
+            };
+            setEntries(prev => {
+              const next = [entry, ...prev];
+              persistEntriesImmediate(next, habits, reflections, focusSessions);
+              return next;
+            });
           }
         }, [entries, habits, reflections, focusSessions]);
 
