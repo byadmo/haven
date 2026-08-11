@@ -210,7 +210,7 @@ export default function StreakCalendar({ studySessions = [], streak = {} }) {
       {/* ---- Tooltip ------------------------------------------------- */}
       {tooltip && (
         <div
-          className="fixed z-50 pointer-events-none px-2 py-1 rounded-md bg-[#1a1a2e] border border-white/10 shadow-lg text-xs text-white/90 whitespace-nowrap"
+          className="fixed z-50 pointer-events-none px-2 py-1 rounded-md bg-black border border-white/10 shadow-lg text-xs text-white/90 whitespace-nowrap"
           style={{
             left: tooltip.x,
             top: tooltip.y,

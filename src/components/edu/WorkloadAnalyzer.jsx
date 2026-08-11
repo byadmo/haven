@@ -15,14 +15,7 @@ function parseScheduleHours(c) {
   return Math.round(perSession * days.length * 10) / 10;
 }
 
-const LEVELS = [
-  { label: "Optimal", color: "emerald" },
-  { label: "Moderate", color: "amber" },
-  { label: "Stretched", color: "orange" },
-  { label: "Critical", color: "rose" },
-];
-
-export function calculateWorkload(courses, studySessions, weeklyMinutes, sleep = 8) {
+export function calculateWorkload(courses, weeklyMinutes, sleep = 8) {
   const totalCredits = courses.reduce((s, c) => s + (c.credits || 0), 0);
   const targetStudy = courses.reduce((s, c) => s + (c.target_weekly_hours || 0), 0);
   const classHours = courses.reduce((s, c) => {
@@ -75,10 +68,10 @@ export function calculateWorkload(courses, studySessions, weeklyMinutes, sleep =
 }
 
 export default function WorkloadAnalyzer() {
-  const { courses, studySessions, weeklyMinutes, settings } = useEduSync();
+  const { courses, weeklyMinutes, settings } = useEduSync();
   const sleep = settings?.weekly_sleep_hours ? Math.round(settings.weekly_sleep_hours / 7) : 8;
 
-  const wl = useMemo(() => calculateWorkload(courses, studySessions, weeklyMinutes, sleep), [courses, studySessions, weeklyMinutes, sleep]);
+  const wl = useMemo(() => calculateWorkload(courses, weeklyMinutes, sleep), [courses, weeklyMinutes, sleep]);
 
   const riskStyles = {
     low: { bg: "bg-emerald-500/10", border: "border-emerald-400/30", text: "text-emerald-300", dot: "bg-emerald-400", label: "Low Risk — Sustainable pace" },
@@ -178,7 +171,7 @@ function MetricBox({ icon: Icon, label, value, sub }) {
     <div className="rounded-lg border border-white/5 bg-white/[0.02] p-2.5">
       <Icon className="h-3.5 w-3.5 text-white/30 mb-1" />
       <p className="text-base font-semibold font-mono tabular-nums text-white">{value}</p>
-      <p className="text-[8px] uppercase tracking-widest text-white/30">{label} {sub && <span className="text-white/20">{sub}</span>}</p>
+      <p className="text-[10px] uppercase tracking-widest text-white/30">{label} {sub && <span className="text-white/20">{sub}</span>}</p>
     </div>
   );
 }

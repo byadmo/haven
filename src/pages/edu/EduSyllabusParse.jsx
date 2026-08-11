@@ -95,7 +95,7 @@ const STATUS_STYLE = {
 
 export default function EduSyllabusParse() {
   // ── Context ──
-  const { activeSemester, courses: existingCourses, createCourse, createDeliverable } = useEduSync();
+  const { activeSemester, courses: existingCourses, createCourse } = useEduSync();
   const { toast } = useToast();
 
   // ── State ──
@@ -104,7 +104,6 @@ export default function EduSyllabusParse() {
   const [parsedData, setParsedData] = useState([]); // normalized courses array
   const [error, setError] = useState("");
   const [expanded, setExpanded] = useState(new Set());
-  const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState({ current: 0, total: 0 });
 
   // ── Existing course codes for duplicate detection ──
@@ -378,7 +377,7 @@ export default function EduSyllabusParse() {
           <p className="text-sm font-medium text-rose-200">Parse failed</p>
           <p className="text-xs text-rose-300/80 mt-0.5">{error}</p>
         </div>
-        <button onClick={reset} className="shrink-0 text-rose-400 hover:text-rose-200 transition-colors">
+        <button onClick={reset} aria-label="Dismiss error" className="shrink-0 text-rose-400 hover:text-rose-200 transition-colors">
           <X className="h-4 w-4" />
         </button>
       </div>
@@ -441,6 +440,7 @@ export default function EduSyllabusParse() {
                 <div className="flex items-center gap-2 p-3 sm:p-4">
                   <button
                     onClick={() => toggleExpand(ci)}
+                    aria-label={isOpen ? "Collapse course" : "Expand course"}
                     className="shrink-0 text-white/30 hover:text-white transition-colors"
                   >
                     {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
