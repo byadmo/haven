@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { Target, Plus, Trash2, Check, Star, Filter, Copy, ListChecks } from "lucide-react";
+import { Target, Plus, Trash2, Check, Star, Filter, Copy, ListChecks, Pencil } from "lucide-react";
 import { useSI } from "@/lib/SIContext";
 import { calculateHabitScore } from "@/lib/useHabitScore";
 import { Button } from "@/components/ui/button";
@@ -35,7 +35,7 @@ const SCHEDULES = [
 ];
 
 export default function HabitsPage() {
-  const { habits, addHabit, toggleHabit, deleteHabit, getStreak, getTodayStatus } = useSI();
+  const { habits, addHabit, toggleHabit, deleteHabit, editHabit, getStreak, getTodayStatus } = useSI();
   const { toast } = useToast();
   const [showAdd, setShowAdd] = useState(false);
   const [name, setName] = useState("");
@@ -46,9 +46,11 @@ export default function HabitsPage() {
   const [sortBy, setSortBy] = useState("name");
   const [filterColor, setFilterColor] = useState("all");
   const [batchMode, setBatchMode] = useState(false);
-  const [selected, setSelected] = useState([]);
+    const [selected, setSelected] = useState([]);
+    const [showEdit, setShowEdit] = useState(false);
+    const [editingHabit, setEditingHabit] = useState(null);
 
-  const handleAdd = async (e) => {
+    const handleAdd = async (e) => {
     e?.preventDefault();
     if (!name.trim()) return;
     await addHabit({ name: name.trim(), icon, color, difficulty, frequency: schedule });
@@ -77,17 +79,47 @@ export default function HabitsPage() {
     toast({ title: "Habit cloned", description: `"${h.name}" duplicated.` });
   };
 
-  const handleBatchToggle = async () => {
-    for (const id of selected) {
-      const done = getTodayStatus(id);
-      if (!done) await toggleHabit(id);
-    }
-    toast({ title: "Batch complete", description: `${selected.length} habits marked done.` });
-    setSelected([]);
-    setBatchMode(false);
-  };
+    const handleOpenEdit = (h) => {
+      setEditingHabit(h);
+      setName(h.name);
+      setIcon(h.icon || 'CheckCircle');
+      setColor(h.color || 'amber');
+      setDifficulty(h.difficulty ?? 3);
+      setSchedule(h.frequency || 'daily');
+      setShowEdit(true);
+    };
 
-  const filtered = useMemo(() => {
+    const handleSaveEdit = async (e) => {
+      e?.preventDefault();
+      if (!editingHabit || !name.trim()) return;
+      await editHabit(editingHabit.id, {
+        name: name.trim(),
+        icon,
+        color,
+        difficulty,
+        frequency: schedule,
+      });
+      toast({ title: 'Habit updated', description: `"${name.trim()}" has been updated.` });
+      setName('');
+      setIcon('CheckCircle');
+      setColor('amber');
+      setDifficulty(3);
+      setSchedule('daily');
+      setShowEdit(false);
+      setEditingHabit(null);
+    };
+
+    const handleBatchToggle = async () => {
+        for (const id of selected) {
+          const done = getTodayStatus(id);
+          if (!done) await toggleHabit(id);
+        }
+        toast({ title: 'Batch complete', description: `${selected.length} habits marked done.` });
+        setSelected([]);
+        setBatchMode(false);
+      };
+
+      const filtered = useMemo(() => {
     let list = [...habits];
     if (filterColor !== "all") list = list.filter(h => (h.color || "amber") === filterColor);
     switch (sortBy) {
@@ -237,9 +269,12 @@ export default function HabitsPage() {
                   <Check className="h-4 w-4" strokeWidth={2.5} />
                 </button>
 
-                {/* Info */}
-                <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-medium truncate ${done ? "text-white" : "text-white/70"}`}>{h.name}</p>
+                {/* Info - clickable to edit */}
+                                <button
+                                  onClick={() => !batchMode && handleOpenEdit(h)}
+                                  className="flex-1 min-w-0 text-left"
+                                >
+                                  <p className={`text-sm font-medium truncate ${done ? "text-white" : "text-white/70"}`}>{h.name}</p>
                   <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                     <p className={`text-xs ${streak > 0 ? "text-orange-300" : "text-white/40"}`}>
                       {streak > 0 ? `🔥 ${streak} day streak` : "No streak yet"}
@@ -261,9 +296,9 @@ export default function HabitsPage() {
                       {scorePct}%
                     </span>
                   </div>
-                </div>
+                </button>
 
-                {/* Streak badge */}
+                                {/* Streak badge */}
                 {streak >= 3 && (
                   <div className="flex items-center gap-1 rounded-md bg-orange-500/10 border border-orange-400/20 px-2 py-1">
                     <span className="text-[10px] font-medium text-orange-300">{streak}</span>
@@ -273,7 +308,14 @@ export default function HabitsPage() {
 
                 {/* Actions */}
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                  <button
+                                  <button
+                                    onClick={() => handleOpenEdit(h)}
+                                    className="text-white/30 hover:text-amber-300 transition-colors p-1"
+                                    title="Edit habit"
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </button>
+                                  <button
                     onClick={() => handleClone(h)}
                     className="text-white/30 hover:text-amber-300 transition-colors p-1"
                     title="Clone habit"
@@ -394,6 +436,89 @@ export default function HabitsPage() {
           </form>
         </DialogContent>
       </Dialog>
-    </div>
-  );
-}
+
+            {/* Edit Habit Dialog */}
+            <Dialog open={showEdit} onOpenChange={setShowEdit}>
+              <DialogContent className="bg-zinc-950 border-white/10 text-zinc-100">
+                <DialogHeader>
+                  <DialogTitle className="text-white">Edit Habit</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleSaveEdit} className="space-y-4">
+                  <div>
+                    <label className="text-xs text-white/50 mb-1.5 block">Habit Name</label>
+                    <Input
+                      value={name}
+                      onChange={e => setName(e.target.value)}
+                      placeholder="e.g. Morning workout"
+                      autoFocus
+                      className="bg-black border-white/10 text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-white/50 mb-1.5 block">Color Tag</label>
+                    <div className="flex gap-2">
+                      {HABIT_COLORS.map(c => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => setColor(c.id)}
+                          className={`h-8 w-8 rounded-lg ${c.swatch} transition-all ${
+                            color === c.id ? "ring-2 ring-white/50 scale-105" : "opacity-50 hover:opacity-100"
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs text-white/50 mb-1.5 block">Difficulty</label>
+                    <div className="flex items-center gap-1">
+                      {[1, 2, 3, 4, 5].map(d => (
+                        <button
+                          key={d}
+                          type="button"
+                          onClick={() => setDifficulty(d)}
+                          className={`p-1.5 rounded-md transition-all ${
+                            d <= difficulty ? "text-amber-300" : "text-white/20 hover:text-white/40"
+                          }`}
+                        >
+                          <Star className="h-5 w-5 fill-current" />
+                        </button>
+                      ))}
+                      <span className="text-[10px] text-white/40 ml-2">
+                        {difficulty <= 2 ? "Easy" : difficulty === 3 ? "Moderate" : difficulty === 4 ? "Hard" : "Elite"}
+                      </span>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs text-white/50 mb-1.5 block">Schedule</label>
+                    <div className="grid grid-cols-4 gap-2">
+                      {SCHEDULES.map(s => (
+                        <button
+                          key={s.id}
+                          type="button"
+                          onClick={() => setSchedule(s.id)}
+                          className={`rounded-lg border p-2 text-[11px] font-medium transition-colors ${
+                            schedule === s.id
+                              ? "border-amber-400/40 bg-amber-500/10 text-amber-300"
+                              : "border-white/10 bg-black text-white/40 hover:border-white/20"
+                          }`}
+                        >
+                          {s.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex gap-2 justify-end pt-2">
+                    <Button type="button" variant="ghost" onClick={() => { setShowEdit(false); setEditingHabit(null); }} className="text-white/50">
+                      Cancel
+                    </Button>
+                    <Button type="submit" className="bg-amber-500/20 border border-amber-400/30 text-amber-200 hover:bg-amber-500/30">
+                      Save Changes
+                    </Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
+        );
+      }

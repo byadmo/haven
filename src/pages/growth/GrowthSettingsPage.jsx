@@ -141,6 +141,14 @@ export default function GrowthSettingsPage() {
             className="bg-black border-white/10 text-white"
           />
         </div>
+        {settings.identity_goal && (
+          <div>
+            <Label className="text-xs text-white/50 mb-1.5 block">Identity Goal</Label>
+            <div className="rounded-lg border border-amber-400/20 bg-amber-500/5 px-3 py-2 text-sm text-white/80">
+              {settings.identity_goal}
+            </div>
+          </div>
+        )}
         <Button
           onClick={handleSaveProfile}
           disabled={saving}

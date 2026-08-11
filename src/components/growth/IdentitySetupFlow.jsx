@@ -9,9 +9,9 @@ import { generateBlueprint } from "@/hooks/useIdentityBlueprint";
 import { useSI } from "@/lib/SIContext";
 
 export default function IdentitySetupFlow({ onComplete }) {
-  const { addHabit, updateSettings } = useSI();
+  const { addHabit, updateSettings, settings } = useSI();
   const [phase, setPhase] = useState("hook"); // hook | intake | processing | blueprint | handoff | done
-  const [theme, setTheme] = useState("sunset");
+  const [theme, setTheme] = useState(settings?.theme || "sunset");
   const [intakeData, setIntakeData] = useState(null);
   const [blueprint, setBlueprint] = useState(null);
   const [saving, setSaving] = useState(false);

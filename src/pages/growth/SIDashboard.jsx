@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { Target, Flame, BookOpen, TrendingUp, ArrowRight, Sparkles, Brain, Trophy } from "lucide-react";
+import { Target, Flame, BookOpen, TrendingUp, ArrowRight, Sparkles, Brain, Trophy, Clock, User } from "lucide-react";
 import { useSI } from "@/lib/SIContext";
 import { SI_PAGES } from "@/lib/SILayout";
 import { StatGridSkeleton } from "@/components/ui/skeleton-presets";
@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import PomodoroTimer from "@/components/growth/PomodoroTimer";
 
 export default function SIDashboard() {
-  const { habits, entries, reflections, focusSessions, getStreak, getTodayStatus, getWeeklyStats, loaded } = useSI();
+  const { habits, entries, reflections, focusSessions, settings, getStreak, getTodayStatus, getWeeklyStats, loaded } = useSI();
   const { totalXp, level, xpInLevel, xpForNext, unlockedThemes } = useGrowth();
   const [showConfetti, setShowConfetti] = useState(false);
   const [xpFlash, setXpFlash] = useState(0);
@@ -128,7 +128,22 @@ export default function SIDashboard() {
         </div>
       </div>
 
-      {/* Stats grid — skeleton while loading */}
+            {/* Identity goal banner */}
+            {loaded && (settings.identity_goal || settings.primary_focus_goal) && (
+              <div className="rounded-2xl border border-amber-400/15 bg-amber-500/5 p-3 sm:p-4 flex items-center gap-3">
+                <div className="grid place-items-center rounded-lg border border-amber-400/20 bg-amber-500/10 h-8 w-8 shrink-0">
+                  <User className="h-4 w-4 text-amber-300" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] text-amber-300/60 uppercase tracking-wider font-medium">Becoming</p>
+                  <p className="text-sm text-white/90 truncate">
+                    {settings.identity_goal || settings.primary_focus_goal}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Stats grid — skeleton while loading */}
       {!loaded ? (
         <StatGridSkeleton count={4} />
       ) : (
@@ -235,7 +250,43 @@ export default function SIDashboard() {
         )}
       </div>
 
-      {/* Quick links */}
+            {/* Today's Focus */}
+            {loaded && (
+              <div className="rounded-2xl border border-white/10 bg-black p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-sm font-semibold text-white flex items-center gap-1.5">
+                    <Brain className="h-4 w-4 text-amber-400" /> Today's Focus
+                  </h2>
+                  <Button
+                    onClick={() => setShowPomodoro(true)}
+                    variant="outline"
+                    className="border-amber-400/20 bg-amber-500/5 text-amber-300 hover:bg-amber-500/15 h-7 text-[10px] px-2.5 rounded-lg"
+                  >
+                    <Clock className="h-3 w-3 mr-1" /> Start Session
+                  </Button>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <p className="text-xl font-semibold text-white">
+                      {focusSessions.filter(s => (s.created_date || "").slice(0, 10) === new Date().toISOString().slice(0, 10)).length}
+                    </p>
+                    <p className="text-[10px] text-white/40">sessions</p>
+                  </div>
+                  <div>
+                    <p className="text-xl font-semibold text-white">{todayFocus > 0 ? `${todayFocus}m` : "0m"}</p>
+                    <p className="text-[10px] text-white/40">minutes</p>
+                  </div>
+                  <div>
+                    <p className="text-xl font-semibold text-white">
+                      {Math.floor(todayFocus / 25)}
+                    </p>
+                    <p className="text-[10px] text-white/40">XP earned</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Quick links */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
         {SI_PAGES.slice(1).filter(p => p.id !== "settings").map(p => {
           const Icon = p.icon;

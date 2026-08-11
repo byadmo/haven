@@ -185,47 +185,75 @@ export function SIProvider({ children }) {
   }, [updateSettings]);
 
   // ── Habits ──
-    const addHabit = useCallback(async (habit) => {
-      const newHabit = {
-        name: habit.name,
-        icon: habit.icon || "CheckCircle",
-        color: habit.color || "amber",
-        difficulty: habit.difficulty ?? 3,
-        target_frequency: habit.frequency || "daily",
-        cumulative_repetitions: 0,
-        misses: 0,
-        created_date: new Date().toISOString(),
-        ...habit,
-      };
-    try {
-      const saved = await base44.entities.Focus.create(newHabit);
-      setHabits(prev => [saved, ...prev]);
-      return saved;
-    } catch {
-      const local = { id: crypto.randomUUID?.() || String(Date.now()), ...newHabit };
-      setHabits(prev => [local, ...prev]);
-      return local;
-    }
-  }, []);
-
-  const toggleHabit = useCallback(async (habitId, date = todayKey()) => {
-    const existing = entries.find(e => e.focus_id === habitId && e.date === date);
-    if (existing) {
-      try { await base44.entities.StudySession.delete(existing.id); } catch {}
-      setEntries(prev => prev.filter(e => e.id !== existing.id));
-    } else {
-      const entry = { focus_id: habitId, date, completed: true, created_date: new Date().toISOString() };
+      const addHabit = useCallback(async (habit) => {
+        const newHabit = {
+          name: habit.name,
+          icon: habit.icon || "CheckCircle",
+          color: habit.color || "amber",
+          difficulty: habit.difficulty ?? 3,
+          target_frequency: habit.frequency || "daily",
+          cumulative_repetitions: 0,
+          misses: 0,
+          notes: habit.notes || "",
+          created_date: new Date().toISOString(),
+          ...habit,
+        };
       try {
-        const saved = await base44.entities.StudySession.create(entry);
-        setEntries(prev => [saved, ...prev]);
+        const saved = await base44.entities.Focus.create(newHabit);
+        setHabits(prev => [saved, ...prev]);
+        return saved;
       } catch {
-        const local = { id: crypto.randomUUID?.() || String(Date.now()), ...entry };
-        setEntries(prev => [local, ...prev]);
+        const local = { id: crypto.randomUUID?.() || String(Date.now()), ...newHabit };
+        setHabits(prev => [local, ...prev]);
+        return local;
       }
-    }
-  }, [entries]);
+    }, []);
 
-  const deleteHabit = useCallback(async (id) => {
+    // Keep cumulative_repetitions + misses in sync with actual entries
+    useEffect(() => {
+      setHabits(prev => prev.map(h => {
+        const habitEntries = entries.filter(e => e.focus_id === h.id);
+        const reps = habitEntries.length;
+        // Misses = days since creation that have no entry, capped at total days
+        let misses = 0;
+        if (h.created_date && reps > 0) {
+          const created = new Date(h.created_date).getTime();
+          const today = Date.now();
+          const totalDays = Math.max(0, Math.floor((today - created) / 86400000));
+          misses = Math.max(0, totalDays - reps);
+        }
+        return { ...h, cumulative_repetitions: reps, misses };
+      }));
+    }, [entries]);
+
+    const toggleHabit = useCallback(async (habitId, date = todayKey()) => {
+      const existing = entries.find(e => e.focus_id === habitId && e.date === date);
+      if (existing) {
+        try { await base44.entities.StudySession.delete(existing.id); } catch {}
+        setEntries(prev => prev.filter(e => e.id !== existing.id));
+      } else {
+        const entry = { focus_id: habitId, date, completed: true, created_date: new Date().toISOString() };
+        try {
+          const saved = await base44.entities.StudySession.create(entry);
+          setEntries(prev => [saved, ...prev]);
+        } catch {
+          const local = { id: crypto.randomUUID?.() || String(Date.now()), ...entry };
+          setEntries(prev => [local, ...prev]);
+        }
+      }
+    }, [entries]);
+
+    const editHabit = useCallback(async (id, updates) => {
+      setHabits(prev => prev.map(h => {
+        if (h.id !== id) return h;
+        const updated = { ...h, ...updates };
+        // Persist to backend
+        base44.entities.Focus.update(id, updates).catch(() => {});
+        return updated;
+      }));
+    }, []);
+
+    const deleteHabit = useCallback(async (id) => {
     try { await base44.entities.Focus.delete(id); } catch {}
     setHabits(prev => prev.filter(h => h.id !== id));
     setEntries(prev => prev.filter(e => e.focus_id !== id));
@@ -360,9 +388,9 @@ export function SIProvider({ children }) {
 
   return (
     <SIContext.Provider value={{
-          habits, entries, reflections, focusSessions, settings, loaded,
-          addHabit, toggleHabit, deleteHabit,
-          addReflection, deleteReflection,
+              habits, entries, reflections, focusSessions, settings, loaded,
+              addHabit, toggleHabit, deleteHabit, editHabit,
+              addReflection, deleteReflection,
           addTagToReflection, removeTagFromReflection,
           addFocusSession, deleteFocusSession,
           getStreak, getTodayStatus, getWeeklyStats,

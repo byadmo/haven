@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
+import { Link, NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import {
   ShieldCheck, Settings as SettingsIcon, ArrowLeft, Ellipsis, Pencil,
   LayoutDashboard, Target, Flame, BookOpen, TrendingUp, CalendarDays,
@@ -41,8 +41,8 @@ export function SILayout({ children }) {
   const [showSetup, setShowSetup] = useState(false);
   const [customizeOpen, setCustomizeOpen] = useState(false);
   const minElapsed = useMinLoadingDelay(1200);
-  const location = window.location;
-  const navigate = useNavigate();
+    const location = useLocation();
+    const navigate = useNavigate();
 
   // First-time flow detection — show identity setup if splash or setup not done
   useEffect(() => {
