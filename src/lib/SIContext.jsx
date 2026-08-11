@@ -375,6 +375,11 @@ export function SIProvider({ children }) {
 
 export function useSI() {
   const ctx = useContext(SIContext);
-  if (!ctx) throw new Error("useSI must be used within SIProvider");
+  if (!ctx) {
+    // Graceful fallback for components rendered outside SIProvider (e.g. the
+    // Focus timer surfaced on the Finance dashboard). Timer still works;
+    // habit-linking/persistence is simply skipped in that context.
+    return { habits: [], addFocusSession: async () => {} };
+  }
   return ctx;
 }
