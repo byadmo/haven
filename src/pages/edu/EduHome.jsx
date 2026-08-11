@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Clock, Timer, Target, TrendingUp, BookOpen, CalendarDays, Play, Brain, BarChart3, Flame, GraduationCap } from "lucide-react";
+import { Clock, Timer, Target, TrendingUp, BookOpen, CalendarDays, Play, Brain, BarChart3, Flame } from "lucide-react";
 import { useEduSync } from "@/lib/eduSyncContext";
 import EduAssistant from "@/components/edu/EduAssistant";
 import WorkStudyBalance from "@/components/edu/WorkStudyBalance";

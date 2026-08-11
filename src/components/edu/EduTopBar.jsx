@@ -39,6 +39,21 @@ export default function EduTopBar() {
     toast({ title: `Added ${next.term_label}` });
   }
 
+  const semProgress = React.useMemo(() => {
+    const sem = activeSemester;
+    if (!sem?.start_date || !sem?.end_date) return null;
+    const s = new Date(sem.start_date + "T00:00:00");
+    const e = new Date(sem.end_date + "T00:00:00");
+    const now = new Date();
+    if (now < s) return { pct: 0, week: 1, totalWeeks: 1 };
+    const totalDays = (e - s) / (24 * 3600 * 1000);
+    const elapsedDays = (now - s) / (24 * 3600 * 1000);
+    const pct = Math.min(100, Math.max(0, (elapsedDays / totalDays) * 100));
+    const totalWeeks = Math.round(totalDays / 7);
+    const week = Math.min(totalWeeks, Math.floor(elapsedDays / 7) + 1);
+    return { pct, week, totalWeeks: Math.max(1, totalWeeks) };
+  }, [activeSemester]);
+
   return (
     <>
       <header className="sticky top-0 z-30 bg-black/80 backdrop-blur-xl border-b border-white/10" style={{ paddingTop: "env(safe-area-inset-top)" }}>
@@ -124,6 +139,24 @@ export default function EduTopBar() {
             </NavLink>
           </div>
         </div>
+        {/* Semester progress bar */}
+        {semProgress && (
+          <div className="border-t border-white/5">
+            <div className="max-w-6xl mx-auto px-4 sm:px-8">
+              <div className="flex items-center gap-2 h-5">
+                <div className="flex-1 h-1 rounded-full bg-white/10 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-teal-300 transition-all duration-500"
+                    style={{ width: `${semProgress.pct}%` }}
+                  />
+                </div>
+                <span className="text-[9px] uppercase tracking-widest text-white/40 font-mono whitespace-nowrap shrink-0">
+                  Wk {semProgress.week}/{semProgress.totalWeeks}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
       </header>
 
       <CustomizeNavModal
