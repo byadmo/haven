@@ -39,7 +39,7 @@ export function FinanceDataProvider({ children }) {
   React.useEffect(() => {
     let cancelled = false;
     Promise.all([
-      base44.entities.Transaction.list("-date", 1000),
+      base44.entities.Transaction.list("-date", 1000).catch(() => []),
       base44.entities.Debt.list("-created_date").catch(() => []),
       base44.entities.Account.list("-created_date").catch(() => []),
       base44.entities.Stock.list("-created_date").catch(() => []),

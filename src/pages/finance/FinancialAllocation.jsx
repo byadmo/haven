@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { PieChart, Target, Gauge, TrendingUp, Briefcase, BarChart3, DollarSign, PiggyBank, ShoppingCart } from "lucide-react";
 import { useFinanceData } from "@/lib/FinanceDataContext";
 import BudgetVsActual from "@/components/finance/BudgetVsActual";
