@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { TrendingUp, TrendingDown, CalendarClock, Plus, Target, Gauge, PieChart, BarChart3, Activity, Timer, Sparkles } from "lucide-react";
 import { useFinanceData } from "@/lib/FinanceDataContext";
@@ -77,65 +78,84 @@ export default function FinancialDashboard() {
       .sort((a, b) => new Date(a.date) - new Date(b.date))[0];
   }, [transactions]);
 
-  return (
-    <div className="dd-page-enter space-y-6">
-      {/* Hero Bar */}
-      <div className="rounded-2xl border border-emerald-400/20 bg-gradient-to-br from-emerald-500/5 to-blue-500/5 p-5 sm:p-6">
-        <div className="flex items-center justify-between mb-4">
-          <p className="text-[10px] uppercase tracking-[0.2em] text-white/50">Command Center</p>
-          <div className="flex items-center gap-2">
-            <AskAI path="/overview" />
-            <div className="flex items-center gap-1.5 text-xs text-white/40">
-              <CalendarClock className="h-3 w-3" />
-              {new Date().toLocaleDateString("en-CA", { month: "long", day: "numeric", year: "numeric" })}
+  const staggerVariants = {
+      hidden: { opacity: 0, y: 20 },
+      show: (i) => ({
+        opacity: 1,
+        y: 0,
+        transition: { delay: i * 0.05, duration: 0.3, ease: "easeOut" },
+      }),
+    };
+
+    const containerVariants = {
+      hidden: {},
+      show: { transition: { staggerChildren: 0.05 } },
+    };
+
+    return (
+      <div className="dd-page-enter space-y-6">
+        {/* Hero Bar */}
+        <div className="rounded-2xl border border-emerald-400/20 bg-gradient-to-br from-emerald-500/5 to-blue-500/5 p-5 sm:p-6">
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-white/50">Command Center</p>
+            <div className="flex items-center gap-2">
+              <AskAI path="/overview" />
+              <div className="flex items-center gap-1.5 text-xs text-white/40">
+                <CalendarClock className="h-3 w-3" />
+                {new Date().toLocaleDateString("en-CA", { month: "long", day: "numeric", year: "numeric" })}
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-          <div>
+                <motion.div
+                  variants={containerVariants}
+                  initial="hidden"
+                  animate="show"
+                  className="grid grid-cols-1 sm:grid-cols-4 gap-4"
+                >
+                  <motion.div variants={staggerVariants} custom={0}>
             <p className="text-xs text-white/50 mb-1">Net Liquidity</p>
             <p className={`text-3xl sm:text-4xl font-semibold tracking-tight font-mono tabular-nums ${netLiquidity >= 0 ? "text-emerald-300" : "text-red-400"}`}>
               {formatCurrency(netLiquidity)}
             </p>
-          </div>
-          {/* Spendable Today */}
-          <div className="border-l border-white/10 pl-4 sm:pl-6">
-            <p className="text-xs text-white/50 mb-1">Spendable Today</p>
-            <p className={`text-2xl sm:text-3xl font-semibold tracking-tight font-mono tabular-nums ${spendableToday >= 0 ? "text-blue-300" : "text-amber-400"}`}>
-              {formatCurrency(spendableToday)}
-            </p>
-            <p className="text-[10px] text-white/40 mt-0.5">After upcoming bills</p>
-          </div>
-          <div className="border-l border-white/10 pl-4 sm:pl-6">
-            <p className="text-xs text-white/50 mb-1">Monthly Cash Flow</p>
-            <div className="flex items-center gap-3 text-sm">
-              <div className="flex items-center gap-1">
-                <TrendingUp className="h-3.5 w-3.5 text-emerald-400" />
-                <span className="text-emerald-300 font-mono">{formatCurrency(incomeTotal)}</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <TrendingDown className="h-3.5 w-3.5 text-red-400" />
-                <span className="text-red-300 font-mono">{formatCurrency(Math.abs(expenseTotal))}</span>
-              </div>
-            </div>
-            <p className={`text-xs mt-1 font-mono ${cashflow >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-              {cashflow >= 0 ? "+" : ""}{formatCurrency(cashflow)} net
-            </p>
-          </div>
-          <div className="border-l border-white/10 pl-4 sm:pl-6">
-            <p className="text-xs text-white/50 mb-1">30-Day Forecast</p>
-            <button onClick={() => setShowForecast(true)} className="w-full text-left">
-              <p className={`text-2xl font-semibold font-mono ${forecast30 >= 0 ? "text-emerald-300" : "text-red-400"}`}>
-                {formatCurrency(forecast30)}
-              </p>
-              <div className="h-1.5 rounded-full bg-white/5 mt-2 overflow-hidden">
-                <div className={`h-full rounded-full transition-all ${forecast30 >= 0 ? "bg-gradient-to-r from-emerald-500 to-blue-400" : "bg-gradient-to-r from-red-500 to-orange-400"}`}
-                  style={{ width: `${Math.min(Math.abs(forecast30 / totalAssets) * 100 || 0, 100)}%` }} />
-              </div>
-            </button>
-          </div>
-        </div>
+          </motion.div>
+                    {/* Spendable Today */}
+          <motion.div variants={staggerVariants} custom={1} className="border-l border-white/10 pl-4 sm:pl-6">
+                      <p className="text-xs text-white/50 mb-1">Spendable Today</p>
+                      <p className={`text-2xl sm:text-3xl font-semibold tracking-tight font-mono tabular-nums ${spendableToday >= 0 ? "text-blue-300" : "text-amber-400"}`}>
+                        {formatCurrency(spendableToday)}
+                      </p>
+                      <p className="text-[10px] text-white/40 mt-0.5">After upcoming bills</p>
+                    </motion.div>
+                    <motion.div variants={staggerVariants} custom={2} className="border-l border-white/10 pl-4 sm:pl-6">
+                      <p className="text-xs text-white/50 mb-1">Monthly Cash Flow</p>
+                      <div className="flex items-center gap-3 text-sm">
+                        <div className="flex items-center gap-1">
+                          <TrendingUp className="h-3.5 w-3.5 text-emerald-400" />
+                          <span className="text-emerald-300 font-mono">{formatCurrency(incomeTotal)}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <TrendingDown className="h-3.5 w-3.5 text-red-400" />
+                          <span className="text-red-300 font-mono">{formatCurrency(Math.abs(expenseTotal))}</span>
+                        </div>
+                      </div>
+                      <p className={`text-xs mt-1 font-mono ${cashflow >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                        {cashflow >= 0 ? "+" : ""}{formatCurrency(cashflow)} net
+                      </p>
+                    </motion.div>
+                    <motion.div variants={staggerVariants} custom={3} className="border-l border-white/10 pl-4 sm:pl-6">
+                      <p className="text-xs text-white/50 mb-1">30-Day Forecast</p>
+                      <button onClick={() => setShowForecast(true)} className="w-full text-left">
+                        <p className={`text-2xl font-semibold font-mono ${forecast30 >= 0 ? "text-emerald-300" : "text-red-400"}`}>
+                          {formatCurrency(forecast30)}
+                        </p>
+                        <div className="h-1.5 rounded-full bg-white/5 mt-2 overflow-hidden">
+                          <div className={`h-full rounded-full transition-all ${forecast30 >= 0 ? "bg-gradient-to-r from-emerald-500 to-blue-400" : "bg-gradient-to-r from-red-500 to-orange-400"}`}
+                            style={{ width: `${Math.min(Math.abs(forecast30 / totalAssets) * 100 || 0, 100)}%` }} />
+                        </div>
+                      </button>
+                    </motion.div>
+                  </motion.div>
 
         {/* Daily burn + next bill row */}
         <div className="flex flex-wrap items-center gap-4 mt-4 pt-4 border-t border-white/5">

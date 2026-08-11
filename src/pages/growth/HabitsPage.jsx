@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { motion } from "framer-motion";
 import { Target, Plus, Trash2, Check, Star, Filter, Copy, ListChecks, Pencil } from "lucide-react";
 import { useSI } from "@/lib/SIContext";
 import { calculateHabitScore } from "@/lib/useHabitScore";
@@ -150,7 +151,21 @@ export default function HabitsPage() {
     return found ? found.label : "Daily";
   };
 
-  return (
+    const staggerVariants = {
+      hidden: { opacity: 0, y: 20 },
+      show: (i) => ({
+        opacity: 1,
+        y: 0,
+        transition: { delay: i * 0.04, duration: 0.3, ease: "easeOut" },
+      }),
+    };
+
+    const containerVariants = {
+      hidden: {},
+      show: { transition: { staggerChildren: 0.04 } },
+    };
+
+    return (
     <div className="dd-page-enter space-y-6">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
@@ -230,21 +245,28 @@ export default function HabitsPage() {
           </Button>
         </div>
       ) : (
-        <div className="space-y-2">
-          {filtered.map(h => {
-            const done = getTodayStatus(h.id);
-            const streak = getStreak(h.id);
-            const score = calculateHabitScore({ habit: h });
-            const scorePct = Math.round(score * 100);
-            const habitColor = h.color || "amber";
-            return (
-              <div
-                key={h.id}
-                className={`group flex items-center gap-3 rounded-xl border p-4 transition-colors ${
-                  batchMode && selected.includes(h.id)
-                    ? "border-amber-400/50 bg-amber-500/10"
-                    : "border-white/10 bg-black hover:border-white/20"
-                }`}
+        <motion.div
+                  variants={containerVariants}
+                  initial="hidden"
+                  animate="show"
+                  className="space-y-2"
+                >
+                  {filtered.map((h, hi) => {
+                    const done = getTodayStatus(h.id);
+                    const streak = getStreak(h.id);
+                    const score = calculateHabitScore({ habit: h });
+                    const scorePct = Math.round(score * 100);
+                    const habitColor = h.color || "amber";
+                    return (
+                      <motion.div
+                        key={h.id}
+                        variants={staggerVariants}
+                        custom={hi}
+                        className={`group flex items-center gap-3 rounded-xl border p-4 transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] ${
+                          batchMode && selected.includes(h.id)
+                            ? "border-amber-400/50 bg-amber-500/10"
+                            : "border-white/10 bg-black hover:border-white/20"
+                        }`}
               >
                 {/* Color dot */}
                 <div className={`h-2.5 w-2.5 rounded-full shrink-0 ${
@@ -329,10 +351,10 @@ export default function HabitsPage() {
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              </motion.div>
+                          );
+                                    })}
+                                  </motion.div>
       )}
 
       {/* Add Habit Dialog */}

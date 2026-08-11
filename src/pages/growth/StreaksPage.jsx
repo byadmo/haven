@@ -1,4 +1,5 @@
 import React, { useMemo } from "react";
+import { motion } from "framer-motion";
 import { Flame, Trophy, TrendingUp, CalendarDays } from "lucide-react";
 import { useSI } from "@/lib/SIContext";
 
@@ -72,16 +73,30 @@ export default function StreaksPage() {
     if (pct < 0.67) return "bg-amber-500/50";
     if (pct < 1) return "bg-amber-500/75";
     return "bg-amber-400";
-  };
+      };
 
-  return (
-    <div className="dd-page-enter space-y-6">
-      <div>
-        <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-white">Streaks</h1>
-        <p className="text-sm text-white/50 mt-1">Consistency is the compound interest of self-improvement.</p>
-      </div>
+      const staggerVariants = {
+        hidden: { opacity: 0, y: 20 },
+        show: (i) => ({
+          opacity: 1,
+          y: 0,
+          transition: { delay: i * 0.04, duration: 0.3, ease: "easeOut" },
+        }),
+      };
 
-      {habits.length === 0 ? (
+      const containerVariants = {
+        hidden: {},
+        show: { transition: { staggerChildren: 0.04 } },
+      };
+
+      return (
+        <div className="dd-page-enter space-y-6">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-white">Streaks</h1>
+            <p className="text-sm text-white/50 mt-1">Consistency is the compound interest of self-improvement.</p>
+          </div>
+
+          {habits.length === 0 ? (
         <div className="text-center py-16 rounded-2xl border border-white/10 bg-black">
           <Flame className="h-10 w-10 text-white/20 mx-auto mb-3" />
           <p className="text-sm text-white/40">No streaks to track yet. Add habits first.</p>
@@ -177,18 +192,25 @@ export default function StreaksPage() {
           </div>
 
           {/* Leaderboard */}
-          <div className="space-y-2">
-            {sorted.map((h, i) => {
-              const streak = getStreak(h.id);
-              const medals = ["🥇", "🥈", "🥉"];
-              const nextMilestone = MILESTONES.find(m => m > streak) || 365;
-              const prev = MILESTONES.filter(m => m <= streak).pop() || 0;
-              const pct = streak > 0 ? Math.round(((streak - prev) / (nextMilestone - prev)) * 100) : 0;
+          <motion.div
+                    variants={containerVariants}
+                    initial="hidden"
+                    animate="show"
+                    className="space-y-2"
+                  >
+                      {sorted.map((h, i) => {
+                        const streak = getStreak(h.id);
+                        const medals = ["🥇", "🥈", "🥉"];
+                        const nextMilestone = MILESTONES.find(m => m > streak) || 365;
+                        const prev = MILESTONES.filter(m => m <= streak).pop() || 0;
+                        const pct = streak > 0 ? Math.round(((streak - prev) / (nextMilestone - prev)) * 100) : 0;
 
-              return (
-                <div
-                  key={h.id}
-                  className="flex items-center gap-4 rounded-xl border border-white/10 bg-black p-4"
+                        return (
+                          <motion.div
+                            key={h.id}
+                            variants={staggerVariants}
+                            custom={i}
+                            className="flex items-center gap-4 rounded-xl border border-white/10 bg-black p-4 hover:scale-[1.01] active:scale-[0.99] transition-all duration-200"
                 >
                   <div className="w-8 text-center">
                     {i < 3 && streak > 0 ? (
@@ -234,13 +256,13 @@ export default function StreaksPage() {
                   <div className="text-right">
                     <p className="text-xl font-semibold text-white">{streak}</p>
                     <p className="text-[10px] text-white/30">days</p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                                      </div>
+                                    </motion.div>
+                                  );
+                                })}
+                              </motion.div>
 
-          {/* Milestone badges */}
+                              {/* Milestone badges */}
           {sorted[0] && getStreak(sorted[0].id) > 0 && (
             <div className="rounded-2xl border border-white/10 bg-black p-5">
               <div className="flex items-center gap-2 mb-4">

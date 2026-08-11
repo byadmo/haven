@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { motion } from "framer-motion";
 import { BookOpen, Plus, Trash2, Calendar, Search, Tag, Filter, Sparkles, ListChecks } from "lucide-react";
 import { useSI } from "@/lib/SIContext";
 import { Button } from "@/components/ui/button";
@@ -120,14 +121,28 @@ export default function JournalPage() {
     return streak;
   }, [reflections]);
 
-  return (
-    <div className="dd-page-enter space-y-6">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-white">Reflection Journal</h1>
-          <p className="text-sm text-white/50 mt-1">
-            Capture thoughts, track your mood, reflect on progress.
-            {journalStreak > 0 && (
+  const staggerVariants = {
+      hidden: { opacity: 0, y: 20 },
+      show: (i) => ({
+        opacity: 1,
+        y: 0,
+        transition: { delay: i * 0.04, duration: 0.3, ease: "easeOut" },
+      }),
+    };
+
+    const containerVariants = {
+      hidden: {},
+      show: { transition: { staggerChildren: 0.04 } },
+    };
+
+    return (
+      <div className="dd-page-enter space-y-6">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-white">Reflection Journal</h1>
+            <p className="text-sm text-white/50 mt-1">
+              Capture thoughts, track your mood, reflect on progress.
+              {journalStreak > 0 && (
               <span className="text-orange-300 ml-2">🔥 {journalStreak} day journal streak</span>
             )}
           </p>
@@ -183,11 +198,18 @@ export default function JournalPage() {
           </Button>
         </div>
       ) : (
-        <div className="space-y-3">
-          {filtered.map(r => (
-            <div
-              key={r.id}
-              className="group rounded-2xl border border-white/10 bg-black p-5 hover:border-white/20 transition-colors"
+        <motion.div
+                  variants={containerVariants}
+                  initial="hidden"
+                  animate="show"
+                  className="space-y-3"
+                >
+                  {filtered.map((r, ri) => (
+                    <motion.div
+                      key={r.id}
+                      variants={staggerVariants}
+                      custom={ri}
+                      className="group rounded-2xl border border-white/10 bg-black p-5 hover:border-white/20 hover:scale-[1.01] active:scale-[0.99] transition-all duration-200"
             >
               <div className="flex items-start justify-between gap-3 mb-2">
                 <div className="flex items-center gap-2.5 flex-wrap">
@@ -215,9 +237,9 @@ export default function JournalPage() {
                 </div>
               </div>
               <p className="text-sm text-white/60 leading-relaxed whitespace-pre-wrap">{r.body}</p>
-            </div>
-          ))}
-        </div>
+                          </motion.div>
+                        ))}
+                      </motion.div>
       )}
 
       {/* Add Entry Dialog */}
