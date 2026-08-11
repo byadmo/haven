@@ -12,6 +12,7 @@ import GrowthSetupModal from "@/components/growth/GrowthSetupModal";
 import GrowthLoadingSplash from "@/components/growth/GrowthLoadingSplash";
 import WeeklyReviewModal from "@/components/growth/WeeklyReviewModal";
 import CustomizeNavModal from "@/components/nav/CustomizeNavModal";
+import IdentitySetupFlow from "@/components/growth/IdentitySetupFlow";
 import { useMinLoadingDelay } from "@/lib/useMinLoadingDelay";
 
 // Nav config for Self-Improvement module
@@ -37,35 +38,26 @@ const isItemActive = (to, end, pathname) =>
 export function SILayout({ children }) {
   const [moreOpen, setMoreOpen] = useState(false);
   const { settings, loaded, updateSettings } = useSI();
-  const [showSplash, setShowSplash] = useState(false);
   const [showSetup, setShowSetup] = useState(false);
   const [customizeOpen, setCustomizeOpen] = useState(false);
   const minElapsed = useMinLoadingDelay(1200);
   const location = window.location;
   const navigate = useNavigate();
 
-  // First-time splash detection
+  // First-time flow detection — show identity setup if splash or setup not done
   useEffect(() => {
     if (!loaded) return;
-    if (!settings.has_completed_splash) {
-      setShowSplash(true);
-    } else if (!settings.has_completed_setup) {
+    if (!settings.has_completed_splash || !settings.has_completed_setup) {
       setShowSetup(true);
     }
   }, [loaded, settings.has_completed_splash, settings.has_completed_setup]);
 
-  const handleSplashComplete = async () => {
-    setShowSplash(false);
-    await updateSettings({ has_completed_splash: true });
-    // If setup also not done, show it next
-    if (!settings.has_completed_setup) {
-      setShowSetup(true);
-    }
-  };
-
   const handleSetupComplete = async () => {
     setShowSetup(false);
-    await updateSettings({ has_completed_setup: true });
+    // Ensure both flags are set (IdentitySetupFlow should already do this)
+    if (!settings.has_completed_splash || !settings.has_completed_setup) {
+      await updateSettings({ has_completed_splash: true, has_completed_setup: true });
+    }
   };
 
   const { primary, more } = resolveNav(settings.nav_items, SI_PAGES, SI_DEFAULT_NAV, SI_LOCKED);
@@ -84,11 +76,10 @@ export function SILayout({ children }) {
 
   return (
     <div className="min-h-screen bg-[var(--th-bg)] text-[var(--th-text)]">
-      {/* First-time splash overlay */}
-      {showSplash && <GrowthSplash onComplete={handleSplashComplete} theme={settings.theme || "midnight"} />}
-
-      {/* First-time setup wizard */}
-            <GrowthSetupModal open={showSetup} onComplete={handleSetupComplete} />
+      {/* First-time setup — identity flow replaces splash + setup wizard */}
+                  {showSetup && (
+                    <IdentitySetupFlow onComplete={handleSetupComplete} />
+                  )}
 
             {/* Weekly Review */}
             <WeeklyReviewModal />
