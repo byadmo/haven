@@ -1,0 +1,35 @@
+{
+  "name": "FlashcardDeck",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Deck title, e.g. 'ECE 243 - Midterm Prep'"
+    },
+    "course_id": {
+      "type": "string",
+      "description": "Optional link to Course"
+    },
+    "description": {
+      "type": "string",
+      "description": "Optional description of the deck's focus"
+    },
+    "card_count": {
+      "type": "number",
+      "default": 0,
+      "description": "Number of cards in this deck (derived)"
+    },
+    "color": {
+      "type": "string",
+      "default": "indigo",
+      "description": "Theme color for the deck card"
+    }
+  },
+  "required": ["name"],
+  "rls": {
+    "read": { "created_by_id": "{{user.id}}" },
+    "create": { "created_by_id": "{{user.id}}" },
+    "update": { "created_by_id": "{{user.id}}" },
+    "delete": { "created_by_id": "{{user.id}}" }
+  }
+}

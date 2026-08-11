@@ -18,6 +18,9 @@ import EduFocusHub from '@/pages/edu/EduFocusHub';
 import EduVault from '@/pages/edu/EduVault';
 import EduSettings from '@/pages/edu/EduSettings';
 import EduTimer from '@/pages/edu/EduTimer';
+import EduFlashcards from '@/pages/edu/EduFlashcards';
+import EduSyllabusParse from '@/pages/edu/EduSyllabusParse';
+import EduAnalyticsPage from '@/pages/edu/EduAnalyticsPage';
 import RecurringBills from '@/pages/RecurringBills';
 import Goals from '@/pages/Goals';
 import Debts from '@/pages/Debts';
@@ -83,6 +86,9 @@ const AuthenticatedApp = () => {
                   <Route path="/education/focus" element={<EduFocusHub />} />
                   <Route path="/education/vault" element={<EduVault />} />
                   <Route path="/education/settings" element={<EduSettings />} />
+                  <Route path="/education/flashcards" element={<EduFlashcards />} />
+                  <Route path="/education/syllabus" element={<EduSyllabusParse />} />
+                  <Route path="/education/analytics" element={<EduAnalyticsPage />} />
                   <Route path="/education/courses" element={<Navigate to="/education/vault" replace />} />
                   <Route path="/education/schedule" element={<Navigate to="/education/focus" replace />} />
                   <Route path="/education/timer" element={<EduTimer />} />

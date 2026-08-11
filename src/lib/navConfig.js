@@ -2,7 +2,7 @@ import {
   LayoutDashboard, CreditCard, PieChart,
   TrendingUp, Gauge, Target,
   Settings as SettingsIcon,
-  BookOpen, Timer, Wallet, Receipt, Repeat, CalendarDays,
+  BookOpen, Timer, Wallet, Receipt, Repeat, CalendarDays, Sparkles,
 } from "lucide-react";
 
 export const FINANCE_PAGES = [
@@ -25,12 +25,15 @@ export const FINANCE_LOCKED = ["overview"];
 export const EDU_PAGES = [
   { id: "home", to: "/education", label: "Home", icon: LayoutDashboard, end: true, locked: true },
   { id: "vault", to: "/education/vault", label: "Vault", icon: BookOpen },
-    { id: "focus", to: "/education/focus", label: "Focus Hub", icon: CalendarDays },
+  { id: "analytics", to: "/education/analytics", label: "Analytics", icon: TrendingUp },
+  { id: "flashcards", to: "/education/flashcards", label: "Flashcards", icon: Target },
+  { id: "focus", to: "/education/focus", label: "Focus Hub", icon: CalendarDays },
   { id: "timer", to: "/education/timer", label: "Timer", icon: Timer },
+  { id: "syllabus", to: "/education/syllabus", label: "Syllabus", icon: Sparkles },
   { id: "settings", to: "/education/settings", label: "Settings", icon: SettingsIcon },
 ];
 
-export const EDU_DEFAULT_NAV = ["home", "vault", "focus", "timer"];
+export const EDU_DEFAULT_NAV = ["home", "vault", "analytics", "flashcards", "focus", "timer"];
 export const EDU_LOCKED = ["home"];
 
 // Turn a stored config array + a page catalog into { primary, more } nav lists.

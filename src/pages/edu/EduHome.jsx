@@ -1,10 +1,12 @@
 import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Clock, Timer, Target, TrendingUp, BookOpen, CalendarDays, Play, Brain, BarChart3, Flame } from "lucide-react";
+import { Clock, Timer, Target, TrendingUp, BookOpen, CalendarDays, Play, Brain, BarChart3, Flame, Sparkles, Layers } from "lucide-react";
 import { useEduSync } from "@/lib/eduSyncContext";
 import EduAssistant from "@/components/edu/EduAssistant";
-import WorkStudyBalance from "@/components/edu/WorkStudyBalance";
+import WorkloadAnalyzer from "@/components/edu/WorkloadAnalyzer";
+import StreakCalendar from "@/components/edu/StreakCalendar";
 import { Button } from "@/components/ui/button";
+import { calculateLevel, totalStudyXP, levelTitle, levelEmoji } from "@/lib/eduGamification";
 
 export default function EduHome() {
   const { activeSemester, courses, deliverables, studySessions, streak, weeklyMinutes, cumulativeGpa } = useEduSync();
@@ -29,6 +31,17 @@ export default function EduHome() {
 
   const exams = useMemo(() => (deliverables || []).filter((d) => d.is_exam && !d.completed), [deliverables]);
 
+  // ── XP & Leveling ──
+  const xpData = useMemo(() => calculateLevel(totalStudyXP(studySessions)), [studySessions]);
+  const dailyGoal = 120;
+  const todayMinutes = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    return (studySessions || [])
+      .filter((s) => s.completed_at?.slice(0, 10) === today)
+      .reduce((sum, s) => sum + (s.duration_minutes || 0), 0);
+  }, [studySessions]);
+  const dailyProgress = Math.min(100, Math.round((todayMinutes / dailyGoal) * 100));
+
   return (
     <div className="dd-page-enter space-y-6">
       <div className="mb-6">
@@ -36,6 +49,70 @@ export default function EduHome() {
         <p className="text-sm text-white/50 mt-1">
           {activeSemester ? `${activeSemester.term_label || "Current semester"} · ${totalCourses} courses` : "No active semester"}
         </p>
+      </div>
+
+      {/* ── XP & Level Bar ── */}
+      <div className="rounded-2xl border border-emerald-400/20 bg-gradient-to-r from-emerald-500/5 to-indigo-500/5 p-5 sm:p-6">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-3">
+            <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-emerald-400 to-indigo-500 grid place-items-center text-2xl shadow-lg shadow-emerald-500/20">
+              {levelEmoji(xpData.level)}
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-white">Level {xpData.level} · {levelTitle(xpData.level)}</p>
+              <p className="text-[10px] text-white/40 mt-0.5">{xpData.totalXP.toLocaleString()} total XP</p>
+            </div>
+          </div>
+          <div className="hidden sm:flex items-center gap-3">
+            <div className="flex items-center gap-1.5 text-amber-300">
+              <Flame className="h-4 w-4" />
+              <span className="text-sm font-semibold font-mono">{streak?.current || 0}<span className="text-xs text-amber-300/60">d</span></span>
+            </div>
+          </div>
+        </div>
+        <div className="space-y-1.5">
+          <div className="flex justify-between text-[10px]">
+            <span className="text-white/50">Level {xpData.level} → {xpData.level + 1}</span>
+            <span className="text-white/50 font-mono">{xpData.xpInLevel}/{xpData.xpForNext} XP</span>
+          </div>
+          <div className="h-2 rounded-full bg-white/5 overflow-hidden">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-indigo-400 transition-all duration-700"
+              style={{ width: `${xpData.progress}%` }}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* ── Daily Goal Ring ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="rounded-2xl border border-white/10 bg-black p-5 sm:p-6 flex items-center gap-4">
+          <div className="relative h-16 w-16 shrink-0">
+            <svg width="64" height="64" className="-rotate-90">
+              <circle cx="32" cy="32" r="26" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="5" />
+              <circle
+                cx="32" cy="32" r="26" fill="none" stroke="#34d399" strokeWidth="5" strokeLinecap="round"
+                strokeDasharray={2 * Math.PI * 26}
+                strokeDashoffset={2 * Math.PI * 26 * (1 - dailyProgress / 100)}
+                style={{ transition: "stroke-dashoffset 0.5s ease" }}
+              />
+            </svg>
+            <span className="absolute inset-0 grid place-items-center text-xs font-bold text-white font-mono">{dailyProgress}%</span>
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-white">Daily Goal</p>
+            <p className="text-[11px] text-white/40 mt-0.5">{todayMinutes} / {dailyGoal} min studied today</p>
+            <p className="text-[10px] text-white/30 mt-1">Complete {dailyGoal - todayMinutes > 0 ? `${dailyGoal - todayMinutes} more min` : "— done! 🎉"}</p>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-white/10 bg-black p-5 sm:p-6 flex items-center gap-4">
+          <div className="flex items-center gap-3 flex-wrap">
+            <StatMini icon={Target} label="Courses" value={totalCourses} color="text-indigo-300" />
+            <StatMini icon={BookOpen} label="Tasks" value={`${completedTasks}/${totalTasks}`} color="text-emerald-300" />
+            <StatMini icon={BarChart3} label="GPA" value={cumulativeGpa != null ? cumulativeGpa.toFixed(2) : "—"} color={cumulativeGpa >= 3.7 ? "text-emerald-400" : cumulativeGpa >= 3.0 ? "text-indigo-300" : "text-amber-300"} />
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -111,7 +188,7 @@ export default function EduHome() {
           </div>
         </div>
 
-        {/* Toggleable: AI Assistant & Work-Study */}
+        {/* AI Assistant */}
         <div className="rounded-2xl border border-white/10 bg-black p-5 sm:p-6">
           <div className="flex items-center gap-2 mb-3">
             <Brain className="h-4 w-4 text-emerald-400" />
@@ -124,22 +201,26 @@ export default function EduHome() {
           {showAssistant && <div className="mt-3"><EduAssistant scope="general" /></div>}
         </div>
 
+        {/* Workload & Streak */}
         <div className="rounded-2xl border border-white/10 bg-black p-5 sm:p-6">
           <div className="flex items-center gap-2 mb-3">
             <BarChart3 className="h-4 w-4 text-amber-400" />
-            <p className="text-xs font-semibold text-white/70 uppercase tracking-wider">Work-Study Balance</p>
+            <p className="text-xs font-semibold text-white/70 uppercase tracking-wider">Workload & Streak</p>
           </div>
           <button onClick={() => setShowBalance(!showBalance)}
             className="w-full rounded-lg border border-amber-400/30 bg-amber-500/10 px-3.5 py-2.5 text-xs text-amber-300 hover:bg-amber-500/20 transition-colors text-left">
-            {showBalance ? "Hide" : "View weekly workload"}
+            {showBalance ? "Hide" : "View workload analysis"}
           </button>
-          {showBalance && <div className="mt-3"><WorkStudyBalance /></div>}
+          {showBalance && <div className="mt-3"><WorkloadAnalyzer /></div>}
+          <div className="mt-3">
+            <StreakCalendar studySessions={studySessions} streak={streak} />
+          </div>
         </div>
 
         {/* Quick Nav Cards */}
         <div className="rounded-2xl border border-white/10 bg-black p-5 sm:p-6 lg:col-span-2">
           <p className="text-xs font-semibold text-white/70 uppercase tracking-wider mb-3">Navigate</p>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <button onClick={() => navigate("/education/focus", { viewTransition: true })}
               className="flex items-center gap-3 rounded-xl border border-indigo-400/30 bg-black px-4 py-4 text-left text-indigo-300 hover:bg-indigo-500/10 transition-colors">
               <CalendarDays className="h-5 w-5" strokeWidth={1.75} />
@@ -150,10 +231,41 @@ export default function EduHome() {
               <BookOpen className="h-5 w-5" strokeWidth={1.75} />
               <div><p className="text-sm font-medium text-white">Academic Vault</p><p className="text-[10px] text-white/40">Courses, grades & more</p></div>
             </button>
+            <button onClick={() => navigate("/education/analytics", { viewTransition: true })}
+              className="flex items-center gap-3 rounded-xl border border-emerald-400/30 bg-black px-4 py-4 text-left text-emerald-300 hover:bg-emerald-500/10 transition-colors">
+              <BarChart3 className="h-5 w-5" strokeWidth={1.75} />
+              <div><p className="text-sm font-medium text-white">Analytics</p><p className="text-[10px] text-white/40">Grades & performance</p></div>
+            </button>
+            <button onClick={() => navigate("/education/flashcards", { viewTransition: true })}
+              className="flex items-center gap-3 rounded-xl border border-amber-400/30 bg-black px-4 py-4 text-left text-amber-300 hover:bg-amber-500/10 transition-colors">
+              <Layers className="h-5 w-5" strokeWidth={1.75} />
+              <div><p className="text-sm font-medium text-white">Flashcards</p><p className="text-[10px] text-white/40">Spaced repetition</p></div>
+            </button>
+            <button onClick={() => navigate("/education/syllabus", { viewTransition: true })}
+              className="flex items-center gap-3 rounded-xl border border-sky-400/30 bg-black px-4 py-4 text-left text-sky-300 hover:bg-sky-500/10 transition-colors">
+              <Sparkles className="h-5 w-5" strokeWidth={1.75} />
+              <div><p className="text-sm font-medium text-white">Syllabus Parser</p><p className="text-[10px] text-white/40">AI extracts due dates</p></div>
+            </button>
+            <button onClick={() => navigate("/education/timer", { viewTransition: true })}
+              className="flex items-center gap-3 rounded-xl border border-rose-400/30 bg-black px-4 py-4 text-left text-rose-300 hover:bg-rose-500/10 transition-colors">
+              <Timer className="h-5 w-5" strokeWidth={1.75} />
+              <div><p className="text-sm font-medium text-white">Focus Timer</p><p className="text-[10px] text-white/40">Pomodoro & flowmodoro</p></div>
+            </button>
           </div>
         </div>
       </div>
+    </div>
+  );
+}
 
+function StatMini({ icon: Icon, label, value, color }) {
+  return (
+    <div className="flex items-center gap-2 min-w-[100px]">
+      <Icon className={`h-4 w-4 ${color || "text-white/40"}`} strokeWidth={1.75} />
+      <div>
+        <p className={`text-sm font-semibold font-mono tabular-nums ${color || "text-white"}`}>{value}</p>
+        <p className="text-[9px] uppercase tracking-widest text-white/40">{label}</p>
+      </div>
     </div>
   );
 }
