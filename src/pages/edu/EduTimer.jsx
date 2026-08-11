@@ -1,6 +1,6 @@
 import React from "react";
 import { useSearchParams } from "react-router-dom";
-import { Play, Pause, SkipForward, RotateCcw, Bell, Coffee } from "lucide-react";
+import { Play, Pause, SkipForward, RotateCcw, Bell, Coffee, Timer as TimerIcon } from "lucide-react";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -13,8 +13,13 @@ import { useEduSync } from "@/lib/eduSyncContext";
 
 const MODES = [
   { id: "flowmodoro", label: "Flowmodoro" },
+  { id: "pomodoro", label: "Pomodoro" },
   { id: "custom", label: "Custom" },
 ];
+
+const POMODORO_MIN = 25;
+const BREAK_MIN = 5;
+const LONG_BREAK_MIN = 15;
 
 export default function EduTimer() {
   const { courses, deliverablesByCourse, logStudySession, updateStudySession, updateFocus } = useEduSync();
@@ -23,7 +28,7 @@ export default function EduTimer() {
   const [customMin, setCustomMin] = React.useState(60);
 
   const [phase, setPhase] = React.useState("study"); // study | break
-  const [studySeconds, setStudySeconds] = React.useState(0); // counts up
+  const [studySeconds, setStudySeconds] = React.useState(0); // counts up (flowmodoro/custom) or down (pomodoro)
   const [breakSecondsLeft, setBreakSecondsLeft] = React.useState(0); // counts down
   const [breakTotal, setBreakTotal] = React.useState(0);
   const [running, setRunning] = React.useState(false);
@@ -44,34 +49,49 @@ export default function EduTimer() {
 
   const courseDeliverables = deliverablesByCourse[courses.find((c) => c.id === courseId)?.id] || [];
 
+  const isPomodoro = modeId === "pomodoro";
+  const pomodoroTotal = POMODORO_MIN * 60;
+
   // Tick
   React.useEffect(() => {
     if (!running) return;
     const t = setInterval(() => {
-      if (phase === "study") setStudySeconds((s) => s + 1);
-      else setBreakSecondsLeft((s) => s - 1);
+      if (phase === "study") {
+        setStudySeconds((s) => isPomodoro ? Math.max(0, s - 1) : s + 1);
+      } else {
+        setBreakSecondsLeft((s) => Math.max(0, s - 1));
+      }
     }, 1000);
     return () => clearInterval(t);
-  }, [running, phase]);
+  }, [running, phase, isPomodoro]);
 
-  // Break ends → auto-start a new study session
+  // Break ends → auto-start a new session
   React.useEffect(() => {
     if (phase !== "break" || breakSecondsLeft > 0) return;
     setPhase("study");
-    setStudySeconds(0);
+    setStudySeconds(isPomodoro ? pomodoroTotal : 0);
     setBreakSecondsLeft(0);
     setBlockLogged(false);
     setCycle((c) => c + 1);
     notify("Break over — new focus session started 📚");
-     
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, breakSecondsLeft]);
+
+  // Pomodoro study complete (reached 0)
+  React.useEffect(() => {
+    if (!isPomodoro || phase !== "study" || studySeconds > 0) return;
+    // Only auto-log once when it first hits 0
+    if (blockLogged) return;
+    logPomodoroComplete();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPomodoro, phase, studySeconds]);
 
   // Custom target reached
   React.useEffect(() => {
     if (modeId === "custom" && phase === "study" && running && customMin > 0 && studySeconds === customMin * 60) {
       notify(`Target reached — ${customMin}m studied. Take a break when ready.`);
     }
-     
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [studySeconds]);
 
   // Tab title
@@ -85,9 +105,9 @@ export default function EduTimer() {
     return () => { document.title = "Haven Education"; };
   }, [running, studySeconds, breakSecondsLeft, phase]);
 
-  async function endStudy() {
-    if (blockLogged || studySeconds < 10) return;
-    const minutes = Math.max(1, Math.round(studySeconds / 60));
+  async function logSession(durationMinutes) {
+    if (blockLogged) return null;
+    const minutes = Math.max(1, durationMinutes);
     try {
       const s = await logStudySession({
         course_id: courseId === "__free__" ? null : courseId,
@@ -99,38 +119,87 @@ export default function EduTimer() {
       setLastSession(s);
       setNotesOpen(true);
       setNotesDraft("");
-    } catch {}
+    } catch { return null; }
     if (focusId) { try { updateFocus(focusId, { status: "completed", completed_at: new Date().toISOString() }); } catch {} setFocusId(""); }
     setBlockLogged(true);
+    return minutes;
   }
 
-  function takeBreak() {
-    if (phase !== "study" || studySeconds < 10) return;
-    endStudy();
-    const brkSec = Math.floor(studySeconds / 5); // 1/5th of study time
+  async function endStudy() {
+    if (isPomodoro) {
+      const elapsed = pomodoroTotal - studySeconds;
+      if (elapsed < 10) return;
+      await logSession(Math.round(elapsed / 60));
+    } else {
+      if (studySeconds < 10) return;
+      const minutes = Math.max(1, Math.round(studySeconds / 60));
+      await logSession(minutes);
+    }
+  }
+
+  async function logPomodoroComplete() {
+    await logSession(POMODORO_MIN);
+    const isLongBreak = cycle > 0 && (cycle % 4 === 0);
+    const brkSec = (isLongBreak ? LONG_BREAK_MIN : BREAK_MIN) * 60;
     setBreakTotal(brkSec);
     setBreakSecondsLeft(brkSec);
     setPhase("break");
     setRunning(true);
-    notify(`Break started — ${fmt(brkSec)} to recharge ☕`);
+    notify(`Pomodoro complete! ${isLongBreak ? "Long break" : "Break"} — ${fmt(brkSec)} ☕`);
+  }
+
+  function takeBreak() {
+    if (phase !== "study") return;
+    if (isPomodoro) {
+      const elapsed = pomodoroTotal - studySeconds;
+      if (elapsed < 10) return;
+      endStudy();
+      const brkSec = BREAK_MIN * 60;
+      setBreakTotal(brkSec);
+      setBreakSecondsLeft(brkSec);
+      setPhase("break");
+      setRunning(true);
+      notify(`Break started — ${fmt(brkSec)} to recharge ☕`);
+    } else {
+      if (studySeconds < 10) return;
+      endStudy();
+      const brkSec = Math.floor(studySeconds / 5);
+      setBreakTotal(brkSec);
+      setBreakSecondsLeft(brkSec);
+      setPhase("break");
+      setRunning(true);
+      notify(`Break started — ${fmt(brkSec)} to recharge ☕`);
+    }
   }
 
   function requestNotify() { if ("Notification" in window) Notification.requestPermission(); }
   function notify(msg) { try { if ("Notification" in window && Notification.permission === "granted") new Notification("EduSync", { body: msg }); } catch {} }
-  function start() { setRunning(true); requestNotify(); }
+  function start() {
+    setRunning(true);
+    if (isPomodoro && studySeconds === 0) setStudySeconds(pomodoroTotal);
+    requestNotify();
+  }
   function pause() { setRunning(false); }
   function skip() {
     if (phase === "study") {
-      if (studySeconds >= 10) takeBreak();
-      else { setRunning(false); setPhase("break"); setBreakSecondsLeft(0); }
+      if (isPomodoro) {
+        const elapsed = pomodoroTotal - studySeconds;
+        if (elapsed >= 10) takeBreak();
+        else { setRunning(false); setPhase("break"); setBreakSecondsLeft(0); }
+      } else {
+        if (studySeconds >= 10) takeBreak();
+        else { setRunning(false); setPhase("break"); setBreakSecondsLeft(0); }
+      }
     } else {
-      // skip remaining break → new study
-      setPhase("study"); setStudySeconds(0); setBreakSecondsLeft(0); setBlockLogged(false);
+      setPhase("study");
+      setStudySeconds(isPomodoro ? pomodoroTotal : 0);
+      setBreakSecondsLeft(0);
+      setBlockLogged(false);
       setCycle((c) => c + 1);
     }
   }
   function reset() {
-    if (phase === "study" && studySeconds >= 10 && !blockLogged) endStudy();
+    if (phase === "study") endStudy();
     setRunning(false);
     setPhase("study");
     setStudySeconds(0);
@@ -141,11 +210,10 @@ export default function EduTimer() {
 
   const R = 130, C = 2 * Math.PI * R;
   const isBreak = phase === "break";
-  const total = isBreak ? breakTotal : (modeId === "custom" ? customMin * 60 : 0);
-  const display = isBreak ? breakSecondsLeft : studySeconds;
-  const pct = total > 0 ? Math.min(100, (isBreak ? breakSecondsLeft / total : studySeconds / total) * 100) : 0;
+  const total = isBreak ? breakTotal : (isPomodoro ? pomodoroTotal : (modeId === "custom" ? customMin * 60 : 0));
+  const pct = total > 0 ? Math.min(100, (isBreak ? breakSecondsLeft / total : (isPomodoro ? studySeconds / total : studySeconds / total)) * 100) : 0;
   const strokeOffset = total > 0 ? C - (pct / 100) * C : 0;
-  const ringColor = isBreak ? "#38bdf8" : (phase === "study" && !running && studySeconds === 0 ? "#34d399" : "#34d399");
+  const ringColor = isBreak ? "#38bdf8" : "#34d399";
 
   const selectedCourse = courses.find((c) => c.id === courseId);
   const selectedDeliv = courseDeliverables.find((d) => d.id === deliverableId);
@@ -153,12 +221,13 @@ export default function EduTimer() {
   return (
     <div className="dd-page-enter space-y-6">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-        <PageTitle title="Focus Timer" subtitle="Flowmodoro — study freely, break = 1/5" icon={Play} />
+        <PageTitle title="Focus Timer" icon={TimerIcon} />
 
         {/* Mode selector */}
         <div className="flex flex-wrap items-center gap-2">
           {MODES.map((m) => (
-            <button key={m.id} onClick={() => setModeId(m.id)} className={`px-3 h-9 rounded-md border text-xs transition-colors ${modeId === m.id ? "border-emerald-400/40 bg-emerald-500/15 text-emerald-300" : "border-white/10 text-white/50 hover:text-white"}`}>{m.label}</button>
+            <button key={m.id} onClick={() => { setModeId(m.id); if (!running) reset(); }}
+              className={`px-3 h-9 rounded-md border text-xs transition-colors ${modeId === m.id ? "border-emerald-400/40 bg-emerald-500/15 text-emerald-300" : "border-white/10 text-white/50 hover:text-white"}`}>{m.label}</button>
           ))}
           {modeId === "custom" && (
             <div className="flex items-center gap-2 ml-1">
@@ -168,6 +237,9 @@ export default function EduTimer() {
           )}
           {modeId === "flowmodoro" && (
             <span className="text-[10px] uppercase tracking-widest text-white/40 ml-1">No preset · break = 20% of study</span>
+          )}
+          {modeId === "pomodoro" && (
+            <span className="text-[10px] uppercase tracking-widest text-white/40 ml-1">{POMODORO_MIN}m focus · {BREAK_MIN}m break · {LONG_BREAK_MIN}m after 4</span>
           )}
         </div>
 
@@ -179,15 +251,17 @@ export default function EduTimer() {
               <circle cx="150" cy="150" r={R} fill="none" stroke={ringColor} strokeWidth="10" strokeLinecap="round" strokeDasharray={C} strokeDashoffset={strokeOffset} style={{ transition: "stroke-dashoffset 1s linear" }} />
             </svg>
             <div className="absolute text-center">
-              <p className="text-[10px] uppercase tracking-widest text-white/40">Study Time</p>
+              <p className="text-[10px] uppercase tracking-widest text-white/40">{isBreak ? "Break" : isPomodoro ? "Focus" : "Study Time"}</p>
               <p className="text-5xl font-bold font-mono tabular-nums text-zinc-50">{fmt(studySeconds)}</p>
               {isBreak ? (
                 <>
-                  <p className="text-[10px] uppercase tracking-widest text-sky-400/70 mt-2">Break</p>
+                  <p className="text-[10px] uppercase tracking-widest text-sky-400/70 mt-2">Remaining</p>
                   <p className="text-2xl font-mono tabular-nums text-sky-300">{fmt(breakSecondsLeft)}</p>
                 </>
               ) : (
-                studySeconds > 0 ? (
+                isPomodoro && studySeconds > 0 ? (
+                  <p className="text-[10px] text-white/30 mt-1 font-mono">of {fmt(pomodoroTotal)}</p>
+                ) : !isPomodoro && studySeconds > 0 ? (
                   <p className="text-[10px] text-white/30 mt-1 font-mono">break will be {fmt(Math.floor(studySeconds / 5))}</p>
                 ) : null
               )}
@@ -195,7 +269,7 @@ export default function EduTimer() {
           </div>
 
           {isBreak ? (
-            <p className="mt-4 text-[11px] text-white/40 font-mono">Break: {fmt(breakTotal)} (1/5 of {fmt(breakTotal * 5)} study)</p>
+            <p className="mt-4 text-[11px] text-white/40 font-mono">Break: {fmt(breakTotal)}{isPomodoro ? "" : ` (1/5 of ${fmt(breakTotal * 5)} study)`}</p>
           ) : null}
 
           {/* Task */}
@@ -217,7 +291,7 @@ export default function EduTimer() {
               <Button onClick={pause} variant="outline" className="border-white/10 text-white/70"><Pause className="h-4 w-4 mr-1" /> Pause</Button>
             )}
             {phase === "study" && (
-              <Button onClick={takeBreak} variant="outline" className="border-sky-400/30 text-sky-300 hover:bg-sky-500/10" disabled={studySeconds < 10}>
+              <Button onClick={takeBreak} variant="outline" className="border-sky-400/30 text-sky-300 hover:bg-sky-500/10" disabled={isPomodoro ? (pomodoroTotal - studySeconds < 10) : (studySeconds < 10)}>
                 <Coffee className="h-4 w-4 mr-1" /> Take Break
               </Button>
             )}

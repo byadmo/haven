@@ -1,15 +1,35 @@
 import React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Search, Home, PlusCircle, CornerDownLeft, Activity, Briefcase, ShieldCheck } from "lucide-react";
+import {
+  Search, Home, PlusCircle, CornerDownLeft, Activity, Briefcase, ShieldCheck,
+  Target, CreditCard, Gauge, PieChart, Wallet, Receipt, Repeat, Settings,
+  LayoutDashboard, TrendingUp, Sparkles,
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-const ACTIONS = [
+const NAV_ACTIONS = [
   { id: "hub", label: "Go to Haven Hub", hint: "Choose workspace", icon: ShieldCheck, to: "/" },
-  { id: "overview", label: "Go to Overview", hint: "Dashboard", icon: Home, to: "/overview" },
-  { id: "cashflow", label: "Go to Cash Flow", hint: "Income & expenses", icon: Activity, to: "/cashflow" },
-  { id: "portfolio", label: "Go to Portfolio", hint: "Holdings & P&L", icon: Briefcase, to: "/portfolio" },
-  { id: "add-txn", label: "Add Transaction", hint: "Quick add", icon: PlusCircle, action: "add-txn" },
+  { id: "overview", label: "Go to Overview", hint: "Command center", icon: LayoutDashboard, to: "/overview" },
+  { id: "accounts", label: "Go to Accounts", hint: "Bank accounts & balances", icon: Wallet, to: "/accounts" },
+  { id: "transactions", label: "Go to Transactions", hint: "All transactions", icon: Receipt, to: "/transactions" },
+  { id: "allocation", label: "Go to Allocation", hint: "Budget & spending", icon: PieChart, to: "/allocation" },
+  { id: "bills", label: "Go to Bills", hint: "Recurring bills", icon: Repeat, to: "/recurring-bills" },
+  { id: "debts", label: "Go to Debts", hint: "Payoff & projection", icon: CreditCard, to: "/debts" },
+  { id: "goals", label: "Go to Goals", hint: "Savings & milestones", icon: Target, to: "/goals" },
+  { id: "credit", label: "Go to Credit", hint: "Utilization & health", icon: Gauge, to: "/credit-utilization" },
+  { id: "settings", label: "Go to Settings", hint: "Preferences & theme", icon: Settings, to: "/settings" },
+  { id: "growth", label: "Go to Growth", hint: "Habits & streaks", icon: TrendingUp, to: "/growth" },
+  { id: "education", label: "Go to Education", hint: "Courses & focus", icon: Activity, to: "/education" },
 ];
+
+const QUICK_ACTIONS = [
+  { id: "add-txn", label: "Add Transaction", hint: "Quick log a transaction", icon: PlusCircle, action: "add-txn" },
+  { id: "add-debt", label: "Add Debt", hint: "Log a new liability", icon: CreditCard, action: "add-debt" },
+  { id: "add-goal", label: "Add Goal", hint: "Create a savings goal", icon: Target, action: "add-goal" },
+  { id: "log-payment", label: "Log Payment", hint: "Record a debt payment", icon: Sparkles, action: "log-payment" },
+];
+
+const ALL_ACTIONS = [...NAV_ACTIONS, ...QUICK_ACTIONS];
 
 export default function CommandPalette() {
   const [open, setOpen] = React.useState(false);
@@ -36,7 +56,7 @@ export default function CommandPalette() {
     }
   }, [open]);
 
-  const filtered = ACTIONS.filter((a) =>
+  const filtered = ALL_ACTIONS.filter((a) =>
     a.label.toLowerCase().includes(query.toLowerCase().trim()) ||
     a.hint.toLowerCase().includes(query.toLowerCase().trim())
   );
@@ -53,6 +73,15 @@ export default function CommandPalette() {
       } else {
         navigate("/overview?add=1");
       }
+    }
+    if (action.action === "add-debt") {
+      navigate("/debts?add=1");
+    }
+    if (action.action === "add-goal") {
+      navigate("/goals?add=1");
+    }
+    if (action.action === "log-payment") {
+      navigate("/debts?log=1");
     }
   }
 
@@ -109,11 +138,30 @@ export default function CommandPalette() {
                       setOpen(false);
                     }
                   }}
-                  placeholder="Jump to a screen or log a transaction…"
+                  placeholder="Jump to a screen or quick-add…"
                   className="flex-1 bg-transparent text-sm text-zinc-100 placeholder:text-zinc-600 outline-none"
                 />
                 <kbd className="rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-500">esc</kbd>
               </div>
+
+              {/* Quick Actions row */}
+              {query.length === 0 && (
+                <div className="flex gap-1.5 px-3 pt-3 pb-1.5 border-b border-zinc-800/50">
+                  {QUICK_ACTIONS.map((qa) => {
+                    const Icon = qa.icon;
+                    return (
+                      <button
+                        key={qa.id}
+                        onClick={() => run(qa)}
+                        className="flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900/50 px-2.5 py-1.5 text-[11px] text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 transition-colors"
+                      >
+                        <Icon className="h-3 w-3" /> {qa.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
               <div className="max-h-72 overflow-y-auto p-2">
                 {filtered.length === 0 ? (
                   <p className="px-3 py-6 text-center text-sm text-zinc-600">No matches.</p>

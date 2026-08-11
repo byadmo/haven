@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
   ShieldCheck, Settings as SettingsIcon, ArrowLeft, Ellipsis, Pencil,
-  LayoutDashboard, Target, Flame, BookOpen, TrendingUp,
+  LayoutDashboard, Target, Flame, BookOpen, TrendingUp, CalendarDays,
 } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { resolveNav } from "@/lib/navConfig";
@@ -10,6 +10,7 @@ import { useSI } from "@/lib/SIContext";
 import GrowthSplash from "@/components/growth/GrowthSplash";
 import GrowthSetupModal from "@/components/growth/GrowthSetupModal";
 import GrowthLoadingSplash from "@/components/growth/GrowthLoadingSplash";
+import WeeklyReviewModal from "@/components/growth/WeeklyReviewModal";
 import CustomizeNavModal from "@/components/nav/CustomizeNavModal";
 import { useMinLoadingDelay } from "@/lib/useMinLoadingDelay";
 
@@ -19,11 +20,13 @@ export const SI_PAGES = [
   { id: "habits", to: "/growth/habits", label: "Habits", icon: Target },
   { id: "streaks", to: "/growth/streaks", label: "Streaks", icon: Flame },
   { id: "journal", to: "/growth/journal", label: "Journal", icon: BookOpen },
+  { id: "calendar", to: "/growth/calendar", label: "Calendar", icon: CalendarDays },
   { id: "analytics", to: "/growth/analytics", label: "Analytics", icon: TrendingUp },
+  { id: "deep-analytics", to: "/growth/deep-analytics", label: "Deep Analytics", icon: TrendingUp },
   { id: "settings", to: "/growth/settings", label: "Settings", icon: SettingsIcon },
 ];
 
-export const SI_DEFAULT_NAV = ["dashboard", "habits", "streaks", "journal", "analytics", "settings"];
+export const SI_DEFAULT_NAV = ["dashboard", "habits", "streaks", "journal", "calendar", "analytics", "settings"];
 export const SI_LOCKED = ["dashboard"];
 
 const MAX_ICONS = 4;
@@ -85,7 +88,10 @@ export function SILayout({ children }) {
       {showSplash && <GrowthSplash onComplete={handleSplashComplete} theme={settings.theme || "midnight"} />}
 
       {/* First-time setup wizard */}
-      <GrowthSetupModal open={showSetup} onComplete={handleSetupComplete} />
+            <GrowthSetupModal open={showSetup} onComplete={handleSetupComplete} />
+
+            {/* Weekly Review */}
+            <WeeklyReviewModal />
 
       {/* Top nav */}
       <header

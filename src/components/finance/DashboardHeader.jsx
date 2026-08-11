@@ -102,9 +102,7 @@ export default function DashboardHeader({ actions }) {
               <SettingsIcon className="h-4 w-4" strokeWidth={1.75} />
             </NavLink>
             <BackupModal />
-            <div className="hidden xl:block">
-              <CommandPalette />
-            </div>
+            <CommandPalette />
             {actions && <div className="flex gap-2">{actions}</div>}
           </div>
         </div>

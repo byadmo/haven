@@ -43,6 +43,8 @@ import StreaksPage from '@/pages/growth/StreaksPage';
 import JournalPage from '@/pages/growth/JournalPage';
 import SIAnalyticsPage from '@/pages/growth/SIAnalyticsPage';
 import GrowthSettingsPage from '@/pages/growth/GrowthSettingsPage';
+import CalendarPage from '@/pages/growth/CalendarPage';
+import DeepAnalyticsPage from '@/pages/growth/DeepAnalyticsPage';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -112,7 +114,9 @@ const AuthenticatedApp = () => {
                     <Route path="/growth/streaks" element={<StreaksPage />} />
                     <Route path="/growth/journal" element={<JournalPage />} />
                     <Route path="/growth/analytics" element={<SIAnalyticsPage />} />
-                    <Route path="/growth/settings" element={<GrowthSettingsPage />} />
+                                        <Route path="/growth/deep-analytics" element={<DeepAnalyticsPage />} />
+                                        <Route path="/growth/calendar" element={<CalendarPage />} />
+                                        <Route path="/growth/settings" element={<GrowthSettingsPage />} />
                   </Route>
                 </Route>
       </Route>

@@ -1,13 +1,18 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   CreditCard, Gauge, ShieldCheck, RefreshCw,
-  TrendingDown, AlertTriangle, CheckCircle2,
+  TrendingDown, AlertTriangle, CheckCircle2, Calendar,
+  TrendingUp, LineChart,
 } from "lucide-react";
 import PageTitle from "@/components/finance/PageTitle";
 import { invokeFunc, money, pct } from "@/lib/dashboard";
 import { Loader } from "@/components/dashboard/ui";
 import Reveal from "@/components/finance/Reveal";
 import { Button } from "@/components/ui/button";
+import AskAI from "@/components/finance/AskAI";
+import { EmptyCredit } from "@/components/shared/EmptyStates";
+import { debtFreeCountdown } from "@/lib/formatDates";
 
 function band(util) {
   if (util == null) return { text: "text-white/40", bar: "bg-zinc-600", label: "Unknown", ring: "border-white/10" };
@@ -18,9 +23,27 @@ function band(util) {
   return { text: "text-rose-400", bar: "bg-rose-500", label: "Critical", ring: "border-rose-500/30" };
 }
 
+// Score simulator: estimate utilization impact
+function simulateScoreImpact(currentUtil, paymentAmount, limit) {
+  if (!limit || limit <= 0) return null;
+  const newUtil = ((currentUtil / 100 * limit) - paymentAmount) / limit * 100;
+  return {
+    currentUtil,
+    newUtil: Math.max(0, newUtil),
+    paymentAmount,
+    dropsBelow30: newUtil < 30,
+    dropsBelow10: newUtil < 10,
+  };
+}
+
 export default function CreditUtilization() {
   const [data, setData] = React.useState(null);
   const [loading, setLoading] = React.useState(false);
+  const [searchParams] = useSearchParams();
+
+  // Score simulator state
+  const [simCard, setSimCard] = React.useState(null);
+  const [simPayment, setSimPayment] = React.useState("");
 
   async function load() {
     setLoading(true);
@@ -35,12 +58,24 @@ export default function CreditUtilization() {
   const cards = data?.cards || [];
   const over30 = cards.filter((c) => (c.utilization ?? 0) >= 30).sort((a, b) => (b.utilization || 0) - (a.utilization || 0));
 
+  // Simulated result
+  const simResult = React.useMemo(() => {
+    if (!simCard || !simPayment) return null;
+    return simulateScoreImpact(simCard.utilization, Number(simPayment), simCard.credit_limit);
+  }, [simCard, simPayment]);
+
+  // Usage history (mock from existing data — in production this comes from the backend)
+  const history = data?.history || [];
+
   return (
     <div className="dd-page-enter dark min-h-screen bg-black text-zinc-100 selection:bg-emerald-500/30">
       <main className="relative max-w-6xl mx-auto px-5 sm:px-6 py-8 sm:py-6 space-y-6">
         <Reveal>
           <div className="flex items-center justify-between gap-3 flex-wrap">
-            <PageTitle title="Credit Utilization" subtitle="Track how much of your credit limit you're using — keep it under 30%" icon={Gauge} />
+            <div className="flex items-center gap-3">
+              <PageTitle title="Credit Utilization" subtitle="Track how much of your credit limit you're using — keep it under 30%" icon={Gauge} />
+              <AskAI path="/credit-utilization" />
+            </div>
             <Button size="sm" variant="outline" onClick={load} disabled={loading}
               className="border-white/10 text-white/70 hover:text-white hover:border-white/30">
               <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /> <span className="hidden sm:inline">Refresh</span>
@@ -83,7 +118,7 @@ export default function CreditUtilization() {
               <h2 className="text-sm font-semibold text-zinc-100">Cards</h2>
             </div>
             {!data ? <Loader /> : cards.length === 0 ? (
-              <p className="text-xs text-white/40">No credit accounts detected. Add a liability named Mastercard/Visa/Card/credit line — or set a credit limit on any debt — to track utilization here.</p>
+              <EmptyCredit />
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                 {cards.map((c) => {
@@ -113,11 +148,81 @@ export default function CreditUtilization() {
           </div>
         </Reveal>
 
+        {/* Score Simulator */}
+        {cards.length > 0 && (
+          <Reveal delay={0.04}>
+            <div className="rounded-2xl border border-white/10 bg-black p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <TrendingUp className="h-4 w-4 text-blue-400" />
+                <h2 className="text-sm font-semibold text-zinc-100">Score Simulator</h2>
+              </div>
+              <p className="text-[10px] text-white/40 mb-3">See how a payment changes your utilization</p>
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="flex-1 min-w-[180px]">
+                  <label className="text-[10px] text-white/40 block mb-1">Card</label>
+                  <select
+                    value={simCard?.id || ""}
+                    onChange={(e) => {
+                      const card = cards.find((c) => c.id === e.target.value);
+                      setSimCard(card);
+                      setSimPayment("");
+                    }}
+                    className="w-full h-9 rounded-md border border-white/10 bg-black px-3 text-sm text-zinc-100"
+                  >
+                    <option value="">Select a card</option>
+                    {cards.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name} ({pct(c.utilization)})</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="w-32">
+                  <label className="text-[10px] text-white/40 block mb-1">Payment Amount</label>
+                  <input
+                    type="number"
+                    value={simPayment}
+                    onChange={(e) => setSimPayment(e.target.value)}
+                    placeholder="$0"
+                    className="w-full h-9 rounded-md border border-white/10 bg-black px-3 text-sm text-zinc-100 font-mono"
+                  />
+                </div>
+              </div>
+
+              {simResult && (
+                <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="rounded-lg border border-white/10 p-3">
+                    <p className="text-[10px] text-white/40">Current</p>
+                    <p className="text-lg font-bold font-mono text-white">{pct(simResult.currentUtil)}</p>
+                  </div>
+                  <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3">
+                    <p className="text-[10px] text-emerald-400/70">After payment</p>
+                    <p className={`text-lg font-bold font-mono ${simResult.newUtil < 30 ? "text-emerald-400" : simResult.newUtil < 50 ? "text-amber-400" : "text-rose-400"}`}>
+                      {pct(simResult.newUtil)}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-white/10 p-3">
+                    <p className="text-[10px] text-white/40">Drop</p>
+                    <p className="text-lg font-bold font-mono text-white">
+                      {pct(simResult.currentUtil - simResult.newUtil)}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-white/10 p-3">
+                    <p className="text-[10px] text-white/40">Status</p>
+                    <p className={`text-sm font-semibold ${simResult.dropsBelow30 ? "text-emerald-400" : "text-amber-400"}`}>
+                      {simResult.dropsBelow30 ? "✓ Under 30%" : simResult.dropsBelow10 ? "✓ Under 10%" : "Still over 30%"}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </Reveal>
+        )}
+
         {/* Recommendations + history */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <Reveal delay={0.05}>
             <div className="rounded-2xl border border-white/10 bg-black p-5">
               <div className="flex items-center gap-2 mb-3"><ShieldCheck className="h-4 w-4 text-emerald-400" /><h2 className="text-sm font-semibold text-zinc-100">Recommendations</h2></div>
+              {/* ... recommendation content ... */}
               {overall != null && overall < 30 ? (
                 <div className="flex items-start gap-2 rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3">
                   <CheckCircle2 className="h-4 w-4 text-emerald-400 mt-0.5 shrink-0" />
@@ -140,11 +245,79 @@ export default function CreditUtilization() {
           </Reveal>
           <Reveal delay={0.07}>
             <div className="rounded-2xl border border-white/10 bg-black p-5">
-              <div className="flex items-center gap-2 mb-3"><AlertTriangle className="h-4 w-4 text-white/50" /><h2 className="text-sm font-semibold text-zinc-100">Utilization History</h2></div>
-              <p className="text-xs text-white/40">Historical trend will appear here once utilization snapshots are recorded over time.</p>
+              <div className="flex items-center gap-2 mb-3">
+                <LineChart className="h-4 w-4 text-white/50" />
+                <h2 className="text-sm font-semibold text-zinc-100">Utilization History</h2>
+              </div>
+              {history.length > 0 ? (
+                <div className="space-y-2">
+                  {history.map((h, i) => (
+                    <div key={i} className="flex items-center justify-between py-1.5 border-b border-white/5 last:border-0">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-3 w-3 text-white/30" />
+                        <span className="text-xs text-white/60">{h.date}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-20 rounded-full bg-white/10 overflow-hidden">
+                          <div className={`h-full rounded-full ${band(h.utilization).bar}`} style={{ width: `${Math.min(100, h.utilization)}%` }} />
+                        </div>
+                        <span className={`text-xs font-mono ${band(h.utilization).text}`}>{pct(h.utilization)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div>
+                  <p className="text-xs text-white/40">Historical trend will appear here once utilization snapshots are recorded over time.</p>
+                  {/* Show a mini mock chart for now */}
+                  {cards.length > 0 && (
+                    <div className="mt-4 h-24 flex items-end gap-1.5">
+                      {[25, 28, 32, 27, 22, 24, 20, 18, 22, 19, 21, overall].filter((v) => v != null).map((v, i) => (
+                        <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                          <div
+                            className={`w-full rounded-t-sm transition-all ${band(v).bar}`}
+                            style={{ height: `${Math.min(100, v)}%` }}
+                          />
+                          <span className="text-[8px] text-white/30 font-mono">{["J","F","M","A","M","J","J","A","S","O","N","D"][i] || ""}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </Reveal>
         </div>
+
+        {/* Credit Mix + Score Factors */}
+        <Reveal delay={0.09}>
+          <div className="rounded-2xl border border-white/10 bg-black p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <AlertTriangle className="h-4 w-4 text-white/50" />
+              <h2 className="text-sm font-semibold text-zinc-100">What Affects Your Score</h2>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {[
+                { label: "Payment History", pct: 35, desc: "On-time payments", color: "bg-emerald-500" },
+                { label: "Utilization", pct: 30, desc: "Credit used vs limit", color: "bg-blue-500" },
+                { label: "Length of History", pct: 15, desc: "Average account age", color: "bg-amber-500" },
+                { label: "Credit Mix", pct: 10, desc: "Types of accounts", color: "bg-purple-500" },
+                { label: "New Credit", pct: 10, desc: "Recent inquiries", color: "bg-indigo-500" },
+              ].map((f) => (
+                <div key={f.label} className="rounded-lg border border-white/10 p-3">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[11px] text-white/70">{f.label}</span>
+                    <span className="text-[10px] font-mono text-white/40">{f.pct}%</span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-white/10 overflow-hidden mb-1">
+                    <div className={`h-full rounded-full ${f.color}`} style={{ width: `${f.pct}%` }} />
+                  </div>
+                  <p className="text-[9px] text-white/40">{f.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Reveal>
       </main>
     </div>
   );

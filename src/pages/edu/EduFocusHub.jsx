@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from "react";
-import { ChevronLeft, ChevronRight, Timer } from "lucide-react";
+import { ChevronLeft, ChevronRight, Timer, CalendarDays } from "lucide-react";
 import { useEduSync } from "@/lib/eduSyncContext";
 import { useNavigate } from "react-router-dom";
+import ScheduleTaskModal from "@/components/edu/ScheduleTaskModal";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const HOURS = Array.from({ length: 12 }, (_, i) => i + 8); // 8 AM - 7 PM
@@ -13,11 +14,17 @@ function getWeekStart() {
   return new Date(now.getFullYear(), now.getMonth(), diff);
 }
 
+function localKey(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 export default function EduFocusHub() {
-  const { courses, tasks } = useEduSync();
+  const { courses, deliverables } = useEduSync();
   const navigate = useNavigate();
   const [weekStart, setWeekStart] = useState(getWeekStart());
-  const [selectedSlot, setSelectedSlot] = useState(null);
+  const [taskModal, setTaskModal] = useState(null); // null | { date } | { deliverable }
+
+  const courseById = useMemo(() => Object.fromEntries((courses || []).map((c) => [c.id, c])), [courses]);
 
   const weekDates = useMemo(() => {
     return DAYS.map((_, i) => {
@@ -50,19 +57,21 @@ export default function EduFocusHub() {
         }
       }
     }
-    for (const t of tasks || []) {
-      if (t.due_date && t.scheduled_time) {
-        const due = new Date(t.due_date + "T" + (t.scheduled_time || "09:00"));
+    for (const t of deliverables || []) {
+      if (t.due_date && t.due_time) {
+        const due = new Date(t.due_date + "T" + (t.due_time || "09:00"));
         const dayDiff = Math.round((due - weekStart) / (24 * 60 * 60 * 1000));
         if (dayDiff >= 0 && dayDiff < 7) {
+          const c = courseById[t.course_id];
           items.push({
             id: `task-${t.id}`,
             type: "task",
+            deliverableId: t.id,
             title: t.title || t.name,
-            subtitle: t.course_name || "",
+            subtitle: c?.code || "",
             day: dayDiff,
-            start: parseInt(t.scheduled_time?.split(":")[0] || "9"),
-            end: parseInt(t.scheduled_time?.split(":")[0] || "9") + 1,
+            start: parseInt(t.due_time?.split(":")[0] || "9"),
+            end: parseInt(t.due_time?.split(":")[0] || "9") + 1,
             courseId: t.course_id,
             completed: t.completed,
             color: t.completed ? "emerald" : "amber",
@@ -71,7 +80,7 @@ export default function EduFocusHub() {
       }
     }
     return items.sort((a, b) => a.start - b.start);
-  }, [courses, tasks, weekStart]);
+  }, [courses, deliverables, weekStart, courseById]);
 
   const prevWeek = () => {
     const d = new Date(weekStart);
@@ -83,6 +92,7 @@ export default function EduFocusHub() {
     d.setDate(d.getDate() + 7);
     setWeekStart(d);
   };
+  const goToday = () => setWeekStart(getWeekStart());
 
   return (
     <div className="dd-page-enter">
@@ -112,6 +122,10 @@ export default function EduFocusHub() {
             <ChevronRight className="h-4 w-4" />
           </button>
         </div>
+        <button onClick={goToday}
+          className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-white/10 text-white/50 hover:text-white hover:bg-white/5 text-xs font-medium transition-colors">
+          <CalendarDays className="h-3.5 w-3.5" /> Today
+        </button>
       </div>
 
       {/* Calendar Grid */}
@@ -142,8 +156,11 @@ export default function EduFocusHub() {
                 return (
                   <div
                     key={dayIdx}
-                    className="relative border-l border-white/5 p-1"
-                    onClick={() => setSelectedSlot({ day: dayIdx, hour })}
+                    className="relative border-l border-white/5 p-1 cursor-pointer transition-colors hover:bg-white/[0.02]"
+                    onClick={() => {
+                      const date = new Date(weekDates[dayIdx]);
+                      setTaskModal({ date: localKey(date) });
+                    }}
                   >
                     {items.map((item) => (
                       <div
@@ -153,6 +170,13 @@ export default function EduFocusHub() {
                           item.color === "emerald" ? "bg-emerald-500/20 border border-emerald-400/30 text-emerald-200" :
                           "bg-amber-500/20 border border-amber-400/30 text-amber-200"
                         }`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (item.type === "task") {
+                            const d = deliverables.find((d) => d.id === item.deliverableId);
+                            if (d) setTaskModal({ deliverable: d });
+                          }
+                        }}
                       >
                         <p className="font-medium truncate">{item.title}</p>
                         {item.subtitle && <p className="text-[8px] opacity-70 truncate">{item.subtitle}</p>}
@@ -166,6 +190,13 @@ export default function EduFocusHub() {
         </div>
       </div>
 
+      {/* Schedule Task Modal */}
+      <ScheduleTaskModal
+        open={!!taskModal}
+        onOpenChange={(o) => { if (!o) setTaskModal(null); }}
+        defaultDate={taskModal?.date}
+        deliverable={taskModal?.deliverable}
+      />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { TrendingUp, TrendingDown, CalendarClock, Plus, Target, Gauge, PieChart, BarChart3, Activity, Timer } from "lucide-react";
+import { TrendingUp, TrendingDown, CalendarClock, Plus, Target, Gauge, PieChart, BarChart3, Activity, Timer, Sparkles } from "lucide-react";
 import { useFinanceData } from "@/lib/FinanceDataContext";
 import UpcomingRecurring from "@/components/finance/UpcomingRecurring";
 import QuickAddModal from "@/components/finance/QuickAddModal";
@@ -9,7 +9,10 @@ import ForecastCharts from "@/components/finance/ForecastCharts";
 import FundFlows from "@/components/finance/FundFlows";
 import CashFlowAnalytics from "@/components/finance/CashFlowAnalytics";
 import PomodoroTimer from "@/components/growth/PomodoroTimer";
+import AskAI from "@/components/finance/AskAI";
+import useFinanceShortcuts from "@/lib/useFinanceShortcuts";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { relativeDate } from "@/lib/formatDates";
 
 function formatCurrency(v) {
   return new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v ?? 0);
@@ -26,6 +29,7 @@ export default function FinancialDashboard() {
   const [showForecast, setShowForecast] = useState(false);
   const [showChart, setShowChart] = useState(false);
   const [pomodoroOpen, setPomodoroOpen] = useState(false);
+  const { ShortcutsHelp } = useFinanceShortcuts();
 
   const totalAssets = useMemo(() => sum(accounts, "balance"), [accounts]);
   const totalDebts = useMemo(() => sum(debts, "balance"), [debts]);
@@ -48,24 +52,60 @@ export default function FinancialDashboard() {
     return netLiquidity + (avgIncome - avgExpense) * 30;
   }, [incomeTotal, expenseTotal, netLiquidity]);
 
+  // Spendable Today: net liquidity minus upcoming bills in the next 14 days
+  const spendableToday = useMemo(() => {
+    const now = new Date();
+    const twoWeeks = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString();
+    const upcomingBills = transactions.filter((t) => {
+      const d = new Date(t.date);
+      return d >= now && d <= new Date(twoWeeks) && t.amount < 0;
+    });
+    const totalUpcoming = sum(upcomingBills, "amount");
+    return netLiquidity + totalUpcoming; // totalUpcoming is negative, so this subtracts
+  }, [transactions, netLiquidity]);
+
+  // Daily burn rate
+  const daysElapsed = new Date().getDate();
+  const dailyBurn = daysElapsed > 0 ? Math.abs(expenseTotal) / daysElapsed : 0;
+  const projectedMonthEnd = dailyBurn * new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
+
+  // Next upcoming bill
+  const nextBill = useMemo(() => {
+    const now = new Date();
+    return transactions
+      .filter((t) => t.amount < 0 && new Date(t.date) >= now)
+      .sort((a, b) => new Date(a.date) - new Date(b.date))[0];
+  }, [transactions]);
+
   return (
     <div className="dd-page-enter space-y-6">
       {/* Hero Bar */}
       <div className="rounded-2xl border border-emerald-400/20 bg-gradient-to-br from-emerald-500/5 to-blue-500/5 p-5 sm:p-6">
         <div className="flex items-center justify-between mb-4">
           <p className="text-[10px] uppercase tracking-[0.2em] text-white/50">Command Center</p>
-          <div className="flex items-center gap-1.5 text-xs text-white/40">
-            <CalendarClock className="h-3 w-3" />
-            {new Date().toLocaleDateString("en-CA", { month: "long", day: "numeric", year: "numeric" })}
+          <div className="flex items-center gap-2">
+            <AskAI path="/overview" />
+            <div className="flex items-center gap-1.5 text-xs text-white/40">
+              <CalendarClock className="h-3 w-3" />
+              {new Date().toLocaleDateString("en-CA", { month: "long", day: "numeric", year: "numeric" })}
+            </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
           <div>
             <p className="text-xs text-white/50 mb-1">Net Liquidity</p>
             <p className={`text-3xl sm:text-4xl font-semibold tracking-tight font-mono tabular-nums ${netLiquidity >= 0 ? "text-emerald-300" : "text-red-400"}`}>
               {formatCurrency(netLiquidity)}
             </p>
+          </div>
+          {/* Spendable Today */}
+          <div className="border-l border-white/10 pl-4 sm:pl-6">
+            <p className="text-xs text-white/50 mb-1">Spendable Today</p>
+            <p className={`text-2xl sm:text-3xl font-semibold tracking-tight font-mono tabular-nums ${spendableToday >= 0 ? "text-blue-300" : "text-amber-400"}`}>
+              {formatCurrency(spendableToday)}
+            </p>
+            <p className="text-[10px] text-white/40 mt-0.5">After upcoming bills</p>
           </div>
           <div className="border-l border-white/10 pl-4 sm:pl-6">
             <p className="text-xs text-white/50 mb-1">Monthly Cash Flow</p>
@@ -95,6 +135,25 @@ export default function FinancialDashboard() {
               </div>
             </button>
           </div>
+        </div>
+
+        {/* Daily burn + next bill row */}
+        <div className="flex flex-wrap items-center gap-4 mt-4 pt-4 border-t border-white/5">
+          <div className="flex items-center gap-2 text-xs">
+            <span className="text-white/40">Daily burn:</span>
+            <span className="font-mono text-white/70">{formatCurrency(dailyBurn)}</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs">
+            <span className="text-white/40">Projected month-end:</span>
+            <span className={`font-mono ${projectedMonthEnd <= Math.abs(expenseTotal) * 1.1 ? "text-emerald-300" : "text-amber-300"}`}>{formatCurrency(projectedMonthEnd)}</span>
+          </div>
+          {nextBill && (
+            <div className="flex items-center gap-2 text-xs">
+              <span className="text-white/40">Next bill:</span>
+              <span className="font-mono text-white/70">{formatCurrency(Math.abs(nextBill.amount))}</span>
+              <span className="text-white/40">{relativeDate(nextBill.date)}</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -135,7 +194,7 @@ export default function FinancialDashboard() {
         <CashFlowAnalytics transactions={transactions} />
       </div>
 
-            {/* Quick Action Buttons */}
+      {/* Quick Action Buttons */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           { label: "Allocation", icon: PieChart, to: "/allocation", color: "emerald" },
@@ -143,6 +202,7 @@ export default function FinancialDashboard() {
           { label: "Credit Health", icon: Gauge, to: "/credit-utilization", color: "purple" },
           { label: "Quick Add", icon: Plus, onClick: () => setQuickAddOpen(true), color: "amber" },
           { label: "Focus", icon: Timer, onClick: () => setPomodoroOpen(true), color: "indigo" },
+          { label: "Ask AI", icon: Sparkles, to: "/assistant?prompt=What%27s%20my%20financial%20health%20summary%20this%20month%3F", color: "emerald" },
         ].map((b) => {
           const colorMap = { emerald: "border-emerald-400/30 text-emerald-300 hover:bg-emerald-500/10", blue: "border-blue-400/30 text-blue-300 hover:bg-blue-500/10", purple: "border-purple-400/30 text-purple-300 hover:bg-purple-500/10", amber: "border-amber-400/30 text-amber-300 hover:bg-amber-500/10", indigo: "border-indigo-400/30 text-indigo-300 hover:bg-indigo-500/10" };
           const Icon = b.icon;
@@ -155,7 +215,7 @@ export default function FinancialDashboard() {
         })}
       </div>
 
-            {/* Forecast Modal */}
+      {/* Forecast Modal */}
       <Dialog open={showForecast} onOpenChange={setShowForecast}>
         <DialogContent className="bg-zinc-950 border-white/10 text-zinc-100 max-w-lg">
           <DialogHeader>
@@ -167,6 +227,8 @@ export default function FinancialDashboard() {
 
       <QuickAddModal open={quickAddOpen} onOpenChange={setQuickAddOpen} onAdded={refresh} />
       <PomodoroTimer open={pomodoroOpen} onOpenChange={setPomodoroOpen} />
+
+      {ShortcutsHelp}
     </div>
   );
 }

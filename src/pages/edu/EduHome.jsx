@@ -1,38 +1,33 @@
 import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Clock, Timer, Target, TrendingUp, BookOpen, CalendarDays, Play, Brain, BarChart3 } from "lucide-react";
+import { Clock, Timer, Target, TrendingUp, BookOpen, CalendarDays, Play, Brain, BarChart3, Flame, GraduationCap } from "lucide-react";
 import { useEduSync } from "@/lib/eduSyncContext";
 import EduAssistant from "@/components/edu/EduAssistant";
 import WorkStudyBalance from "@/components/edu/WorkStudyBalance";
 import { Button } from "@/components/ui/button";
 
 export default function EduHome() {
-  const { activeSemester, courses, tasks, entries } = useEduSync();
+  const { activeSemester, courses, deliverables, studySessions, streak, weeklyMinutes, cumulativeGpa } = useEduSync();
   const navigate = useNavigate();
   const [showAssistant, setShowAssistant] = useState(false);
   const [showBalance, setShowBalance] = useState(false);
 
   const nextDeadline = useMemo(() => {
     const now = new Date();
-    const upcoming = (tasks || [])
+    const upcoming = (deliverables || [])
       .filter((t) => t.due_date && new Date(t.due_date) > now)
       .sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
     return upcoming[0] || null;
-  }, [tasks]);
+  }, [deliverables]);
 
   const totalCourses = courses?.length || 0;
-  const totalTasks = tasks?.length || 0;
-  const completedTasks = tasks?.filter((t) => t.completed)?.length || 0;
+  const totalTasks = deliverables?.length || 0;
+  const completedTasks = deliverables?.filter((t) => t.completed)?.length || 0;
   const tasksPct = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
-  const weekCheckins = useMemo(() => {
-    const now = new Date();
-    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    return (entries || []).filter((e) => {
-      const d = new Date(e.date + "T00:00:00");
-      return d >= weekAgo && d <= now;
-    }).length;
-  }, [entries]);
+  const studyHours = weeklyMinutes > 0 ? (weeklyMinutes / 60).toFixed(1) : "0";
+
+  const exams = useMemo(() => (deliverables || []).filter((d) => d.is_exam && !d.completed), [deliverables]);
 
   return (
     <div className="dd-page-enter space-y-6">
@@ -79,12 +74,21 @@ export default function EduHome() {
           </div>
           <div className="space-y-4">
             <div>
-              <div className="flex justify-between text-xs mb-1"><span className="text-white/50">Tasks</span><span className="text-white font-mono">{tasksPct}%</span></div>
+              <div className="flex justify-between text-xs mb-1"><span className="text-white/50">Deliverables</span><span className="text-white font-mono">{tasksPct}%</span></div>
               <div className="h-1.5 rounded-full bg-white/5 overflow-hidden"><div className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-purple-400" style={{ width: `${tasksPct}%` }} /></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><p className="text-lg font-semibold text-white font-mono">{weekCheckins}</p><p className="text-[10px] text-white/40">7-day check-ins</p></div>
-              <div><p className="text-lg font-semibold text-white font-mono">{totalCourses}</p><p className="text-[10px] text-white/40">Courses</p></div>
+              <div className="flex items-center gap-2">
+                <Flame className="h-4 w-4 text-amber-400" />
+                <div>
+                  <p className="text-lg font-semibold text-white font-mono">{streak?.current || 0}<span className="text-sm text-white/40">d</span></p>
+                  <p className="text-[10px] text-white/40">Study streak</p>
+                </div>
+              </div>
+              <div>
+                <p className="text-lg font-semibold text-white font-mono">{totalCourses}</p>
+                <p className="text-[10px] text-white/40">Courses</p>
+              </div>
             </div>
           </div>
         </div>
@@ -97,10 +101,10 @@ export default function EduHome() {
           </div>
           <div className="grid grid-cols-2 gap-2">
             {[
-              { label: "Assignments", value: String(tasks?.filter((t) => t.type === "assignment")?.length || 0) },
-              { label: "Study Hours", value: String(Math.round(weekCheckins * 0.5)) },
+              { label: "Study (7d)", value: `${studyHours}h` },
+              { label: "Exams left", value: String(exams.length) },
               { label: "Courses", value: String(totalCourses) },
-              { label: "Completion", value: `${tasksPct}%` },
+              { label: "GPA", value: cumulativeGpa != null ? cumulativeGpa.toFixed(2) : "—" },
             ].map((s) => (
               <div key={s.label}><p className="text-lg font-semibold text-white font-mono">{s.value}</p><p className="text-[10px] text-white/40">{s.label}</p></div>
             ))}

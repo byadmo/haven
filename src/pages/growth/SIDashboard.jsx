@@ -1,14 +1,20 @@
-import React from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { Target, Flame, BookOpen, TrendingUp, ArrowRight } from "lucide-react";
+import { Target, Flame, BookOpen, TrendingUp, ArrowRight, Sparkles, Brain, Trophy } from "lucide-react";
 import { useSI } from "@/lib/SIContext";
 import { SI_PAGES } from "@/lib/SILayout";
 import { StatGridSkeleton } from "@/components/ui/skeleton-presets";
 import { useGrowth } from "@/lib/GrowthContext";
+import { Button } from "@/components/ui/button";
+import PomodoroTimer from "@/components/growth/PomodoroTimer";
 
 export default function SIDashboard() {
-  const { habits, entries, reflections, getStreak, getTodayStatus, loaded } = useSI();
-  const { totalXp, level, xpInLevel, xpForNext } = useGrowth();
+  const { habits, entries, reflections, focusSessions, getStreak, getTodayStatus, getWeeklyStats, loaded } = useSI();
+  const { totalXp, level, xpInLevel, xpForNext, unlockedThemes } = useGrowth();
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [xpFlash, setXpFlash] = useState(0);
+  const [prevLevel, setPrevLevel] = useState(level);
+  const [showPomodoro, setShowPomodoro] = useState(false);
 
   const todayDone = habits.filter(h => getTodayStatus(h.id)).length;
   const totalHabits = habits.length;
@@ -16,6 +22,32 @@ export default function SIDashboard() {
   const bestStreak = habits.reduce((max, h) => Math.max(max, getStreak(h.id)), 0);
   const totalCheckins = entries.length;
   const totalReflections = reflections.length;
+
+  // XP animation on level up
+  useEffect(() => {
+    if (level > prevLevel) {
+      setShowConfetti(true);
+      setXpFlash(50);
+      setTimeout(() => { setShowConfetti(false); setXpFlash(0); }, 2000);
+    }
+    setPrevLevel(level);
+  }, [level]);
+
+  // Today's focus time
+  const todayFocus = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    return focusSessions
+      .filter(s => (s.created_date || "").slice(0, 10) === today)
+      .reduce((sum, s) => sum + (s.duration_minutes || 0), 0);
+  }, [focusSessions]);
+
+  const weeklyStats = useMemo(() => getWeeklyStats(), [getWeeklyStats]);
+
+  // Find next unlock level
+  const nextUnlock = useMemo(() => {
+    const milestones = [2, 3, 5, 7, 10];
+    return milestones.find(m => m > level) || null;
+  }, [level]);
 
   const stats = [
     { label: "Today's Progress", value: `${todayDone}/${totalHabits}`, sub: `${todayPct}% complete`, icon: Target, color: "amber" },
@@ -33,30 +65,70 @@ export default function SIDashboard() {
 
   return (
     <div className="dd-page-enter space-y-6">
-      <div>
-              <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-white">Growth Dashboard</h1>
-              <p className="text-sm text-white/50 mt-1">Your habits, streaks, and reflections at a glance.</p>
-            </div>
+      {/* Confetti overlay */}
+      {showConfetti && (
+        <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
+          {Array.from({ length: 40 }).map((_, i) => (
+            <div
+              key={i}
+              className="absolute animate-float-up"
+              style={{
+                left: `${Math.random() * 100}%`,
+                bottom: 0,
+                width: 8,
+                height: 8,
+                borderRadius: Math.random() > 0.5 ? "50%" : 0,
+                background: ["#F59E0B", "#00E5A0", "#3B82F6", "#A78BFA", "#FF4D4D"][Math.floor(Math.random() * 5)],
+                animation: `float-up ${1.5 + Math.random() * 1.5}s ease-out forwards`,
+                animationDelay: `${Math.random() * 0.5}s`,
+                opacity: 0.8,
+              }}
+            />
+          ))}
+        </div>
+      )}
 
-            {/* XP / Level bar */}
-            <div className="rounded-2xl border border-white/10 bg-gradient-to-r from-amber-500/5 to-teal-500/5 p-4">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <Target className="h-4 w-4 text-amber-400" />
-                  <span className="text-sm font-semibold text-white">Level {level}</span>
-                </div>
-                <span className="text-xs text-white/50">{totalXp} total XP</span>
-              </div>
-              <div className="h-2 rounded-full bg-white/5 overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-amber-500 to-teal-400 transition-all"
-                  style={{ width: `${(xpInLevel / Math.max(xpForNext, 1)) * 100}%` }}
-                />
-              </div>
-              <p className="text-[10px] text-white/30 mt-1">{xpInLevel} / {xpForNext} XP to next level</p>
-            </div>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-white">Growth Dashboard</h1>
+          <p className="text-sm text-white/50 mt-1">Your habits, streaks, and reflections at a glance.</p>
+        </div>
+        <Button
+          onClick={() => setShowPomodoro(true)}
+          className="bg-amber-500/10 border border-amber-400/30 text-amber-300 hover:bg-amber-500/20"
+          variant="outline"
+        >
+          <Brain className="h-4 w-4 mr-1.5" /> Focus
+        </Button>
+      </div>
 
-            {/* Stats grid — skeleton while loading */}
+      {/* XP / Level bar */}
+      <div className="rounded-2xl border border-white/10 bg-gradient-to-r from-amber-500/5 to-teal-500/5 p-4">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <Target className="h-4 w-4 text-amber-400" />
+            <span className="text-sm font-semibold text-white">Level {level}</span>
+            {xpFlash > 0 && <Sparkles className="h-4 w-4 text-amber-300 animate-pulse" />}
+          </div>
+          <span className="text-xs text-white/50">{totalXp} total XP</span>
+        </div>
+        <div className="h-2 rounded-full bg-white/5 overflow-hidden">
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-amber-500 to-teal-400 transition-all duration-700"
+            style={{ width: `${(xpInLevel / Math.max(xpForNext, 1)) * 100}%` }}
+          />
+        </div>
+        <div className="flex items-center justify-between mt-1">
+          <p className="text-[10px] text-white/30">{xpInLevel} / {xpForNext} XP to next level</p>
+          {nextUnlock && (
+            <p className="text-[10px] text-amber-400/60 flex items-center gap-1">
+              <Trophy className="h-3 w-3" /> Unlock at Level {nextUnlock}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Stats grid — skeleton while loading */}
       {!loaded ? (
         <StatGridSkeleton count={4} />
       ) : (
@@ -76,6 +148,47 @@ export default function SIDashboard() {
           })}
         </div>
       )}
+
+      {/* Weekly Summary */}
+      <div className="rounded-2xl border border-white/10 bg-black p-5 sm:p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-sm font-semibold text-white flex items-center gap-1.5">
+            <TrendingUp className="h-4 w-4 text-amber-400" /> Weekly Summary
+          </h2>
+          <span className="text-[10px] text-white/30">This week</span>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div>
+            <p className="text-2xl font-semibold text-white">{weeklyStats.thisWeekPct}%</p>
+            <p className="text-[10px] text-white/40">Completion rate</p>
+            <div className="flex items-center gap-1 mt-0.5">
+              <span className={`text-[10px] ${weeklyStats.change >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                {weeklyStats.change >= 0 ? "+" : ""}{weeklyStats.change}%
+              </span>
+              <span className="text-[10px] text-white/20">vs last week</span>
+            </div>
+          </div>
+          <div>
+            <p className="text-2xl font-semibold text-white">{weeklyStats.thisWeekDone}</p>
+            <p className="text-[10px] text-white/40">Check-ins</p>
+          </div>
+          <div>
+            <p className="text-2xl font-semibold text-white">{weeklyStats.thisWeekReflections}</p>
+            <p className="text-[10px] text-white/40">Journal entries</p>
+          </div>
+          <div>
+            <p className="text-2xl font-semibold text-white">{todayFocus > 0 ? `${todayFocus}m` : "0m"}</p>
+            <p className="text-[10px] text-white/40">Focus today</p>
+          </div>
+        </div>
+        {/* Mini progress bar */}
+        <div className="h-1.5 rounded-full bg-white/5 overflow-hidden mt-3">
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-amber-500 to-teal-400 transition-all"
+            style={{ width: `${weeklyStats.thisWeekPct}%` }}
+          />
+        </div>
+      </div>
 
       {/* Today's habits quick view */}
       <div className="rounded-2xl border border-white/10 bg-black p-5 sm:p-6">
@@ -98,10 +211,13 @@ export default function SIDashboard() {
             {habits.slice(0, 5).map(h => {
               const done = getTodayStatus(h.id);
               const streak = getStreak(h.id);
+              const habitColor = h.color || "amber";
               return (
                 <div key={h.id} className="flex items-center justify-between rounded-lg border border-white/5 bg-white/5 px-3 py-2.5">
                   <div className="flex items-center gap-2.5">
-                    <div className={`h-2 w-2 rounded-full ${done ? "bg-amber-400" : "bg-white/20"}`} />
+                    <div className={`h-2.5 w-2.5 rounded-full shrink-0 ${
+                      { amber: "bg-amber-400", emerald: "bg-emerald-400", blue: "bg-blue-400", purple: "bg-purple-400", rose: "bg-rose-400", cyan: "bg-cyan-400" }[habitColor] || "bg-amber-400"
+                    }`} />
                     <span className={`text-sm ${done ? "text-white" : "text-white/60"}`}>{h.name}</span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -120,8 +236,8 @@ export default function SIDashboard() {
       </div>
 
       {/* Quick links */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        {SI_PAGES.slice(1).map(p => {
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+        {SI_PAGES.slice(1).filter(p => p.id !== "settings").map(p => {
           const Icon = p.icon;
           return (
             <Link
@@ -141,6 +257,9 @@ export default function SIDashboard() {
           );
         })}
       </div>
+
+      {/* Pomodoro */}
+      <PomodoroTimer open={showPomodoro} onOpenChange={setShowPomodoro} />
     </div>
   );
 }
