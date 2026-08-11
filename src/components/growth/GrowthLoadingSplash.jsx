@@ -1,6 +1,7 @@
 import React from "react";
 import { Flame } from "lucide-react";
 import HavenLoadingSplash from "@/components/shared/HavenLoadingSplash";
+import { THEMES } from "@/lib/themes";
 
 // Loading splash for Haven Growth, shown while the Growth module's data loads.
 // Delegates to the shared HavenLoadingSplash so it shares the exact style and
@@ -12,7 +13,6 @@ export default function GrowthLoadingSplash() {
     const stored = localStorage.getItem("haven:theme:growth");
     if (stored) themeKey = stored;
   } catch {}
-  const { THEMES } = require("@/lib/themes");
   return (
     <HavenLoadingSplash
       icon={Flame}
