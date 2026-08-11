@@ -44,11 +44,13 @@ export default function IdentitySetupFlow({ onComplete }) {
     setSaving(true);
     try {
       // Save settings with identity goal
+      const identityPhrase = blueprint?.identityPhrase || "the best version of myself";
       await updateSettings({
         has_completed_splash: true,
         has_completed_setup: true,
         display_name: intakeData?.identityText?.split(" ").slice(0, 3).join(" ") || "",
-        primary_focus_goal: `Become ${blueprint?.identityPhrase || "the best version of myself"}`,
+        identity_goal: intakeData?.identityText || identityPhrase,
+        primary_focus_goal: `Become ${identityPhrase}`,
         daily_reminder_time: "09:00",
         week_starts_on: "monday",
       });
