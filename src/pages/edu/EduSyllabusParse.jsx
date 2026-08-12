@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from "react";
-import { Upload, CheckCircle2, AlertTriangle, X, ChevronDown, ChevronRight, Loader2, Trash2, Plus, AlertCircle } from "lucide-react";
+import { Upload, CheckCircle2, AlertTriangle, X, ChevronDown, ChevronRight, Loader2, Trash2, Plus, AlertCircle, FileText } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useEduSync } from "@/lib/eduSyncContext";
 import { useToast } from "@/components/ui/use-toast";
@@ -104,6 +104,7 @@ export default function EduSyllabusParse() {
   const [parsedData, setParsedData] = useState([]); // normalized courses array
   const [error, setError] = useState("");
   const [expanded, setExpanded] = useState(new Set());
+  const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState({ current: 0, total: 0 });
 
   // ── Existing course codes for duplicate detection ──

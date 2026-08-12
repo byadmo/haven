@@ -88,7 +88,7 @@ export default function EduHome() {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="rounded-2xl border border-white/10 bg-black p-5 sm:p-6 flex items-center gap-4">
           <div className="relative h-16 w-16 shrink-0">
-            <svg width="64" height="64" className="-rotate-90">
+            <svg width="64" height="64" viewBox="0 0 64 64" className="block h-full w-full -rotate-90">
               <circle cx="32" cy="32" r="26" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="5" />
               <circle
                 cx="32" cy="32" r="26" fill="none" stroke="#34d399" strokeWidth="5" strokeLinecap="round"
@@ -97,7 +97,9 @@ export default function EduHome() {
                 style={{ transition: "stroke-dashoffset 0.5s ease" }}
               />
             </svg>
-            <span className="absolute inset-0 grid place-items-center text-xs font-bold text-white font-mono">{dailyProgress}%</span>
+            <div className="absolute inset-0 grid place-items-center">
+              <span className="text-xs font-bold text-white font-mono tabular-nums leading-none">{dailyProgress}%</span>
+            </div>
           </div>
           <div>
             <p className="text-sm font-semibold text-white">Daily Goal</p>

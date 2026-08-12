@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { Moon, BookOpen, GraduationCap, AlertTriangle } from "lucide-react";
+import { Moon, BookOpen, GraduationCap, AlertTriangle, Brain } from "lucide-react";
 import { useEduSync } from "@/lib/eduSyncContext";
 
 // Parse weekly class hours from course schedule

@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import {
   Layers, Plus, ArrowLeft, RotateCcw, Lightbulb,
   CheckCircle2, XCircle, ChevronRight, BookOpen,
@@ -91,6 +91,9 @@ export default function EduFlashcards() {
   const [showHint, setShowHint] = useState(false);
   const [reviewComplete, setReviewComplete] = useState(false);
 
+  // Loading state
+  const [loading, setLoading] = useState(true);
+
   // Delete confirmation
   const [deleteDeckConfirm, setDeleteDeckConfirm] = useState(null);
 
@@ -106,7 +109,11 @@ export default function EduFlashcards() {
       const d = await base44.entities.FlashcardDeck.list("-created_date", 200);
       setDecks(d || []);
     } catch { setDecks([]); }
+    finally { setLoading(false); }
   }, []);
+
+  // Load decks on mount
+  useEffect(() => { loadDecks(); }, [loadDecks]);
 
   const loadCards = useCallback(async (deckId) => {
     if (!deckId) { setCards([]); return; }
