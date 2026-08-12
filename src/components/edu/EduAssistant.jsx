@@ -1,9 +1,34 @@
 import React, { useState, useRef } from "react";
+import ReactMarkdown from "react-markdown";
+import { motion } from "framer-motion";
 import { Sparkles, Send, Loader2, Trash2, ChevronDown, ChevronUp, GraduationCap, Clock, Target, BookOpen, AlertTriangle, CalendarDays, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { base44 } from "@/api/base44Client";
 import { useEduSync } from "@/lib/eduSyncContext";
+
+// Bullet renderer — turns markdown links (e.g. "per [Label](https://...)")
+// the LLM emits at the end of each bullet into real clickable anchors so the
+// user can jump to the source without copy-pasting the URL.
+function BulletText({ text }) {
+  return (
+    <ReactMarkdown
+      components={{
+        a: ({ node, ...props }) => (
+          <a
+            {...props}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-emerald-300 underline decoration-emerald-400/40 underline-offset-2 hover:text-emerald-200 break-words"
+          />
+        ),
+        p: ({ node, ...props }) => <span {...props} />,
+      }}
+    >
+      {text}
+    </ReactMarkdown>
+  );
+}
 
 const ICONS = {
   graduation: GraduationCap, clock: Clock, target: Target, book: BookOpen,
@@ -28,6 +53,58 @@ const SCHEMA = {
   },
   required: ["sections"],
 };
+
+const PER_COURSE_SCHEMA = {
+  type: "object",
+  properties: {
+    sections: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          title: { type: "string" },
+          icon: { type: "string" },
+          bullets: { type: "array", items: { type: "string" }, maxItems: 4 },
+        },
+        required: ["title", "bullets"],
+      },
+      maxItems: 1,
+    },
+  },
+  required: ["sections"],
+};
+
+// Build a focused prompt for ONE course inside a multi-course research sweep.
+// Each course is researched independently so its result can stream back as
+// soon as it lands — the user sees sections appear one at a time instead of
+// freezing the whole panel waiting for one giant block of text.
+function perCourseResearchPrompt(course, allScope, question, priorQA, courseCtx, uniName, hasOutline) {
+  const total = allScope.length;
+  return `You are EduSync AI doing focused research for ONE course inside a multi-course question for a university student at ${uniName}.
+
+The user's full question was: "${question}"
+This call focuses ONLY on the course "${course.code} — ${course.title}" (1 of ${total} courses being researched in parallel).
+
+Use live web access to search Google, Reddit (university and course-specific subreddits/threads, e.g. r/${uniName.replace(/\s+/g, "")}), RateMyProfessors, and ${uniName} forums/blogs for what real students say about THIS specific class. When the question involves professors/instructors: NAME the actual professors who teach THIS course at ${uniName}, cite their RateMyProfessors ratings and explicit praise/warnings, and recommend a preferred instructor when the data is available. NEVER reply with generic advice like "check RateMyProfessors" or "ask upper-year students" — that is a non-answer. If you cannot find a specific professor's name, say so plainly and give the next-best concrete detail you did find.
+
+Be specific, concrete, and cite real findings. Always format bullets into clean point form with helpful emojis (e.g. 🎓 💻 📐 ⚙️ 💡 🎯). Keep it tight — 2-4 short single-sentence bullets, no walls of text. CITE EVERY CLAIM as a markdown link inline at the end of the bullet, e.g. \`per [Reddit thread](https://...)\`. Do not invent quotes or fabricate URLs.
+
+COURSE CONTEXT (JSON):
+${JSON.stringify(courseCtx, null, 2)}
+${priorQA ? `\nPREVIOUS CONVERSATION (the user may be following up — answer in the SAME topic):\n${priorQA}\n` : ""}
+${hasOutline ? "\nThe user attached this course's official outline — read it and use it for grading weights, key dates, and policies.\n" : ""}
+QUESTION: ${question}
+
+Return JSON: {
+  "sections": [
+    {
+      "title": "${course.code} — ${course.title}",
+      "icon": "one of graduation|clock|target|book|alert|calendar|chart",
+      "bullets": ["short single-sentence strings, each ending in a markdown source link"]
+    }
+  ]
+}`;
+}
 
 function buildContext(ctx) {
   const { activeSemester, courses, deliverables, focuses, weeklyMinutes, streak, cumulativeGpa, settings } = ctx;
@@ -131,25 +208,43 @@ function AssistantCard({ msg }) {
       </div>
     );
   }
+  // Each section fades + rises in via framer-motion so newly-streamed
+  // sections feel like the AI "wrote them out" rather than dropped at once.
   if (msg.sections && msg.sections.length) {
     return (
       <div className="space-y-2">
         {msg.sections.map((s, i) => {
           const Icon = ICONS[s.icon] || GraduationCap;
           return (
-            <div key={i} className="rounded-lg border border-white/10 bg-white/[0.02] p-2.5">
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className="rounded-lg border border-white/10 bg-white/[0.02] p-2.5"
+            >
               <div className="flex items-center gap-1.5 mb-1">
                 <Icon className="h-3.5 w-3.5 text-emerald-300 shrink-0" />
                 <p className="text-[11px] font-semibold text-zinc-50">{s.title}</p>
               </div>
               <ul className="space-y-0.5 pl-5">
                 {(s.bullets || []).map((b, j) => (
-                  <li key={j} className="text-[11px] text-white/70 leading-snug list-disc">{b}</li>
+                  <li key={j} className="text-[11px] text-white/70 leading-snug list-disc break-words">
+                    <BulletText text={b} />
+                  </li>
                 ))}
               </ul>
-            </div>
+            </motion.div>
           );
         })}
+        {/* While the assistant is still streaming more sections, show a tiny
+            "writing more…" tail so the user knows more is coming, not done. */}
+        {msg.streaming && (
+          <div className="flex items-center gap-1.5 text-[10px] text-emerald-300/60 pl-1">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            <span>Writing more…</span>
+          </div>
+        )}
       </div>
     );
   }
@@ -241,6 +336,51 @@ export default function EduAssistant({ scope }) {
       const scope = researchScope(q);
       setLoadTarget(scope && scope.length ? { code: scope[0].code, title: scope[0].title, multi: scope.length > 1, courseCount: scope.length } : null);
       const fullCtx = buildContext(ctx);
+      const uniName = ctx.settings?.university_name || "the student's university";
+      const mentionedOutlines = (scope || [])
+        .filter((c) => c.outline_file_url)
+        .map((c) => ({ url: c.outline_file_url, code: c.code, title: c.title }));
+
+      // ── Multi-course research: stream per-course results so each section
+      // appears as its own web research completes — the user isn't frozen
+      // waiting for one giant block. Each course's InvokeLLM call resolves
+      // independently and we append its section the instant it lands. ──
+      if (scope && scope.length >= 2) {
+        setMessages([...history, { role: "assistant", sections: [], streaming: true }]);
+        const accumulator = [];
+        await Promise.all(scope.map(async (course) => {
+          const courseCtx = {
+            ...fullCtx,
+            courses: (fullCtx.courses || []).filter((c) => c.code === course.code),
+          };
+          const courseOutline = mentionedOutlines.find((m) => m.code === course.code);
+          const file_urls = courseOutline ? [courseOutline.url] : [];
+          try {
+            const r = await base44.integrations.Core.InvokeLLM({
+              prompt: perCourseResearchPrompt(course, scope, q, null, courseCtx, uniName, !!courseOutline),
+              response_json_schema: PER_COURSE_SCHEMA,
+              model: "gemini_3_flash",
+              add_context_from_internet: true,
+              file_urls,
+            });
+            const d = r?.data ?? r;
+            const secs = (d?.sections || []).map((s) => ({ ...s }));
+            accumulator.push(...secs);
+            setMessages([...history, { role: "assistant", sections: [...accumulator], streaming: true }]);
+          } catch (err) {
+            accumulator.push({
+              title: `${course.code} — ${course.title}`,
+              icon: "alert",
+              bullets: [`Couldn't complete web research for ${course.code}. Try asking again to retry this course.`],
+            });
+            setMessages([...history, { role: "assistant", sections: [...accumulator], streaming: true }]);
+          }
+        }));
+        setMessages([...history, { role: "assistant", sections: [...accumulator], streaming: false }]);
+        return;
+      }
+
+      // ── Single-call path: single-course research or data-only questions. ──
       // For online research we only need the in-scope course records — shipping
       // every course + materials list bloats the prompt for no research value
       // and slows the model down.
@@ -253,7 +393,6 @@ export default function EduAssistant({ scope }) {
           ? `Q: ${m.text}`
           : `A: ${(m.sections || []).map((s) => `${s.title}: ${(s.bullets || []).join("; ")}`).join(" | ")}`
       ).join("\n");
-      const uniName = ctx.settings?.university_name || "the student's university";
 
       const webBlock = scope
         ? `\nONLINE RESEARCH (you have live web access — use it): The student attends ${uniName} and is asking about these ACTIVE courses: ${scope.map((c) => `${c.code} — ${c.title}`).join("; ")}. For EACH of these courses, search Google, Reddit (university and course-specific subreddits/threads), RateMyProfessors, and university forums/blogs for what real students say about THIS specific class. When the question is about professors/instructors: NAME the actual professors who teach each course at ${uniName}, cite student ratings and explicit praise/warnings per professor (e.g. "Prof X — high cumulative rating on RateMyProfessors, praised for clear lectures"), and recommend a preferred instructor per course when the data is available. NEVER reply with generic advice like "check RateMyProfessors" or "ask upper-year students" — that is a non-answer. If you genuinely cannot find a specific professor's name for a course, say so explicitly for THAT course and give the next-best concrete detail you did find. Attribute community sentiment by flavour ("per RateMyProfessors", "per Reddit r/...", "common forum advice"). Do not invent quotes or fabricate URLs. Always answer directly for THE SPECIFIC question asked — never pivot to a semester overview or generic study plan.`
@@ -267,18 +406,11 @@ ${priorQA ? `\nPREVIOUS CONVERSATION (the user may be following up — answer in
 ${webBlock}
 QUESTION: ${q}
 
+CITE EVERY CLAIM with a real source as a markdown link inline, e.g. \`per [Reddit thread](https://...)\`. Do not invent quotes or fabricate URLs. Answer directly for THE SPECIFIC question asked.
 Return JSON: { "sections": [ { "title": string, "icon": one of graduation|clock|target|book|alert|calendar|chart, "bullets": [short single-sentence strings] } ] }`;
-      // Give the AI read access to any course outlines the user attached for
-      // courses mentioned in the question — so it can answer from the outline
-      // (grading weights, key dates, policies, what to study).
-      const qLower = q.toLowerCase();
-      const mentionedOutlines = (scope || [])
-        .filter((c) => c.outline_file_url)
-        .map((c) => ({ url: c.outline_file_url, code: c.code, title: c.title }));
       const outlineHint = mentionedOutlines.length
         ? `\n\nThe user attached the official course outline for ${mentionedOutlines.map((m) => `${m.code} ${m.title}`).join(", ")}. Read those files and use them — grading breakdown, key dates, policies, and what the student needs to study.`
         : "";
-
       // When the question references active courses OR a cross-course research
       // topic, run a web-search model so the AI pulls real Reddit/forum/Google
       // sentiment about those specific classes (not generic advice).
