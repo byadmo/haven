@@ -27,16 +27,21 @@ const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const STEP_ICONS = [Mail, Building2, Calendar, Target, Clock, Briefcase, ListChecks];
 
 // When the AI parses a schedule image it often returns the same course code
-// once per section (e.g. "PCS 224" LEC + TUT + LAB as separate rows). Merge
-// those into a single course: union the days, join the distinct times and
-// locations so one course carries all its weekly meeting slots.
+// once per section (e.g. "PCS 224" LEC + TUT + LAB, or MTH 425 - 012 and
+// MTH 425 - 035). Merge those into a single course under the base code:
+// union the days, join the distinct times and locations so one course
+// carries all its weekly meeting slots across sections.
 function mergeDuplicateCourses(items) {
   const groups = new Map();
   let anon = 0;
+  const baseCodeOf = (v) => {
+    const m = String(v || "").toUpperCase().match(/^\s*([A-Z]+)\s*(\d+[A-Z]*)/);
+    return m ? `${m[1]} ${m[2]}`.trim() : (v || "").toUpperCase().replace(/\s+/g, " ").trim();
+  };
   for (const c of items) {
-    const key = (c.code || "").toUpperCase().replace(/\s+/g, " ").trim();
+    const key = baseCodeOf(c.code);
     if (!key) { groups.set(`__anon_${anon++}`, c); continue; }
-    if (!groups.has(key)) groups.set(key, { ...c, schedule_days: [], _times: [], _locs: [] });
+    if (!groups.has(key)) groups.set(key, { ...c, code: key, schedule_days: [], _times: [], _locs: [] });
     const g = groups.get(key);
     if (!g.title && c.title) g.title = c.title;
     (c.schedule_days || []).forEach((d) => { if (!g.schedule_days.includes(d)) g.schedule_days.push(d); });

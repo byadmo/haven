@@ -77,26 +77,31 @@ export default function ScheduleUpload({ semesterId, onDone }) {
         location: (c.location || "").trim(),
         credits: 3,
       }));
-      // Group rows that share the same course code (e.g. a lecture + a lab for the
-      // same class) into one course, preserving the differing times/parts.
-      const normCode = (v) => String(v || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+      // Group rows that share the same base course code — a lecture + lab for the
+      // same class, or two sections of the same course (MTH 425 - 012 and
+      // MTH 425 - 035) — into one course, preserving each section's time+location.
+      const baseCodeOf = (v) => {
+        const m = String(v || "").toUpperCase().match(/^\s*([A-Z]+)\s*(\d+[A-Z]*)/);
+        return m ? `${m[1]} ${m[2]}`.trim() : String(v || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+      };
+      const normKey = (v) => baseCodeOf(v).replace(/\s+/g, "");
       const groups = new Map();
       for (const c of raw) {
-        const key = normCode(c.code) || normCode(c.title) || `__${groups.size}`;
-        const partStr = [c.schedule_days.join(""), c.schedule_time].filter(Boolean).join(" ");
+        const key = normKey(c.code) || normKey(c.title) || `__${groups.size}`;
         const ex = groups.get(key);
         if (!ex) {
-          groups.set(key, { ...c, _parts: partStr ? [partStr] : [] });
+          groups.set(key, { ...c, code: baseCodeOf(c.code) || c.code, _slots: [{ days: c.schedule_days, time: c.schedule_time, location: c.location }] });
         } else {
-          ex.schedule_days = Array.from(new Set([...(ex.schedule_days || []), ...(c.schedule_days || [])]));
-          if (!ex.location && c.location) ex.location = c.location;
-          if ((!ex.title || ex.title.toUpperCase().replace(/[^A-Z0-9]/g, "") === normCode(ex.code)) && c.title) ex.title = c.title;
-          if (partStr && !ex._parts.includes(partStr)) ex._parts.push(partStr);
+          ex._slots.push({ days: c.schedule_days, time: c.schedule_time, location: c.location });
+          if ((!ex.title || normKey(ex.title) === normKey(ex.code)) && c.title) ex.title = c.title;
         }
       }
       const list = Array.from(groups.values()).map((c) => {
-        const { _parts, ...rest } = c;
-        return { ...rest, schedule_time: _parts.length ? _parts.join(" · ") : rest.schedule_time };
+        const { _slots, ...rest } = c;
+        const days = Array.from(new Set(_slots.flatMap((s) => s.days || [])));
+        const times = _slots.map((s) => s.time).filter(Boolean);
+        const locs = _slots.map((s) => s.location).filter(Boolean);
+        return { ...rest, schedule_days: days, schedule_time: times.join(" · ") || rest.schedule_time, location: locs.join(" · ") || rest.location };
       });
       setCourses(list);
       if (list.length) {
