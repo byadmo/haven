@@ -172,6 +172,19 @@ export default function EduAssistant({ scope }) {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages, loading]);
 
+  // Match the user's question to one of their active classes (by code or title)
+  // so the AI can do online research scoped to that specific course.
+  function detectTargetCourse(q) {
+    const ql = (q || "").toLowerCase();
+    return (ctx.courses || []).find((c) => {
+      const code = (c.code || "").toLowerCase();
+      const codeNoSpace = code.replace(/\s+/g, "");
+      const title = (c.title || "").toLowerCase();
+      return (code && (ql.includes(code) || ql.includes(codeNoSpace))) ||
+             (title && title.length > 4 && ql.includes(title));
+    });
+  }
+
   async function send(text) {
     const q = (text || "").trim();
     if (!q || loading) return;
@@ -182,16 +195,24 @@ export default function EduAssistant({ scope }) {
     setLoading(true);
     try {
       const ctxData = buildContext(ctx);
+      const target = detectTargetCourse(q);
       const priorQA = history.slice(0, -1).map((m) =>
         m.role === "user"
           ? `Q: ${m.text}`
           : `A: ${(m.sections || []).map((s) => `${s.title}: ${(s.bullets || []).join("; ")}`).join(" | ")}`
       ).join("\n");
+      const uniName = ctx.settings?.university_name || "the student's university";
+
+      const webBlock = target
+        ? `\nONLINE RESEARCH (use the live web access below):\nThis question is about the user's active course "${target.code} — ${target.title}" at ${uniName}. Search Google, Reddit (e.g. r/${uniName.replace(/\s+/g,'')}, course-specific threads), RateMyProfessors, and university forums/blogs for what real students say about THIS specific class — common pain points, exam format, what students wish they'd known, study strategies that actually work, and any reputation the course has. Fold what you find into your answer alongside the student's own data; when citing community sentiment, attribute the flavour (e.g. "per Reddit threads on ${target.code}", "common forum advice"). Do not invent quotes or fabricate URLs.`
+        : `\nTailor your answer to THIS student's active classes and semester data above — reference their actual course codes, due dates, and progress rather than giving generic advice.`;
+
       const prompt = `You are EduSync AI, an academic assistant for a university student. Analyze the student's current semester data and answer their question. Be specific, actionable, and concise. Always format bullets into clean point form with helpful emojis (e.g. 🎓, 📚, ⏱️, 🎯, 💡, 📅). Avoid long walls of text. Return 1-4 sections as JSON.
 
 CURRENT SEMESTER DATA (JSON):
 ${JSON.stringify(ctxData, null, 2)}
 ${priorQA ? `\nPREVIOUS CONVERSATION:\n${priorQA}\n` : ""}
+${webBlock}
 QUESTION: ${q}
 
 Return JSON: { "sections": [ { "title": string, "icon": one of graduation|clock|target|book|alert|calendar|chart, "bullets": [short single-sentence strings] } ] }`;
@@ -205,7 +226,20 @@ Return JSON: { "sections": [ { "title": string, "icon": one of graduation|clock|
       const outlineHint = mentionedOutlines.length
         ? `\n\nThe user attached the official course outline for ${mentionedOutlines.map((m) => `${m.code} ${m.title}`).join(", ")}. Read those files and use them — grading breakdown, key dates, policies, and what the student needs to study.`
         : "";
-      const res = await base44.integrations.Core.InvokeLLM({ prompt: prompt + outlineHint, response_json_schema: SCHEMA, file_urls: mentionedOutlines.map((m) => m.url) });
+
+      // When the question references a specific active course, run a web-search
+      // model so the AI pulls real Reddit/forum/Google sentiment about that class.
+      const invokeArgs = {
+        prompt: prompt + outlineHint,
+        response_json_schema: SCHEMA,
+        file_urls: mentionedOutlines.map((m) => m.url),
+      };
+      if (target) {
+        invokeArgs.model = "gemini_3_flash";
+        invokeArgs.add_context_from_internet = true;
+      }
+
+      const res = await base44.integrations.Core.InvokeLLM(invokeArgs);
       const data = res?.data ?? res;
       const sections = data?.sections || [];
       setMessages([...history, { role: "assistant", sections }]);

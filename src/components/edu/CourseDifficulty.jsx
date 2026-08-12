@@ -21,7 +21,9 @@ const RANK = {
 export default function CourseDifficulty({ course }) {
   const { updateCourse, settings } = useEduSync();
   const { toast } = useToast();
-  const [open, setOpen] = React.useState(false);
+  // Briefing already persisted on the course entity (difficulty_details), so
+  // it stays expanded on revisit / new session — "hard-coded" into the course.
+  const [open, setOpen] = React.useState(!!cached);
   const [loading, setLoading] = React.useState(false);
 
   const rank = course.difficulty_ranking || "Moderate";
