@@ -1,17 +1,22 @@
 import React, { useState } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
-import { ArrowLeft, Ellipsis, GraduationCap } from "lucide-react";
+import { ArrowLeft, Ellipsis, GraduationCap, Plus } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useEduSync } from "@/lib/eduSyncContext";
+import { nextSemesterAfter } from "@/components/edu/SemesterDetectModal";
+import { useToast } from "@/components/ui/use-toast";
 import { resolveNav, EDU_PAGES, EDU_DEFAULT_NAV, EDU_LOCKED } from "@/lib/navConfig";
 
 const MAX_ICONS = 4;
+const ADD_SEMESTER = "__add_semester__";
 
 const isItemActive = (to, end, pathname) =>
   end ? pathname === to : pathname === to || pathname.startsWith(to + "/");
 
 export default function EduHeader() {
-  const { navItems } = useEduSync();
+  const { navItems, activeSemester, semesters, setActiveSemester, createSemester } = useEduSync();
+  const { toast } = useToast();
   const location = useLocation();
   const navigate = useNavigate();
   const [moreOpen, setMoreOpen] = useState(false);
@@ -20,6 +25,22 @@ export default function EduHeader() {
   const icons = primary.slice(0, MAX_ICONS);
   const drawerItems = [...primary.slice(MAX_ICONS), ...more];
   const moreActive = drawerItems.some(s => isItemActive(s.to, s.end, location.pathname));
+
+  async function addNextSemester() {
+    if (!semesters.length) return;
+    const sorted = [...semesters].sort((a, b) => (b.start_date || "").localeCompare(a.start_date || ""));
+    const latest = sorted[0];
+    if (!latest?.term_type) return;
+    const next = nextSemesterAfter(latest.term_type, latest.year || new Date(latest.start_date).getFullYear());
+    if (semesters.some((s) => s.term_label === next.term_label)) {
+      const existing = semesters.find((s) => s.term_label === next.term_label);
+      toast({ title: "This semester already exists" });
+      if (existing) setActiveSemester(existing.id);
+      return;
+    }
+    await createSemester({ ...next, is_active: true });
+    toast({ title: `Added ${next.term_label}` });
+  }
 
   return (
     <header
@@ -55,6 +76,24 @@ export default function EduHeader() {
             </NavLink>
           ))}
         </nav>
+
+        {/* Semester selector (desktop) */}
+        {semesters.length > 0 && (
+          <Select value={activeSemester?.id || ""} onValueChange={(v) => { if (v === ADD_SEMESTER) { addNextSemester(); return; } setActiveSemester(v); }}>
+            <SelectTrigger className="hidden sm:flex h-8 w-[160px] bg-black border-white/10 text-xs">
+              <SelectValue placeholder="Term" />
+            </SelectTrigger>
+            <SelectContent className="bg-black border-white/10">
+              {semesters.map((s) => (
+                <SelectItem key={s.id} value={s.id}>{s.term_label}</SelectItem>
+              ))}
+              <div className="my-1 h-px bg-white/10" />
+              <SelectItem value={ADD_SEMESTER} className="text-emerald-300">
+                <span className="flex items-center gap-1.5"><Plus className="h-3 w-3" /> Add next semester</span>
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        )}
       </div>
     </header>
   );
