@@ -80,7 +80,7 @@ export default function EduHeader() {
         {/* Semester selector (desktop) */}
         {semesters.length > 0 && (
           <Select value={activeSemester?.id || ""} onValueChange={(v) => { if (v === ADD_SEMESTER) { addNextSemester(); return; } setActiveSemester(v); }}>
-            <SelectTrigger className="hidden sm:flex h-8 w-[160px] bg-black border-white/10 text-xs">
+            <SelectTrigger className="flex h-8 w-[140px] sm:w-[160px] bg-black border-white/10 text-xs ml-auto">
               <SelectValue placeholder="Term" />
             </SelectTrigger>
             <SelectContent className="bg-black border-white/10">
