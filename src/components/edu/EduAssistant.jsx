@@ -197,17 +197,36 @@ export default function EduAssistant({ scope }) {
     return () => clearInterval(t);
   }, [loading]);
 
-  // Match the user's question to one of their active classes (by code or title)
-  // so the AI can do online research scoped to that specific course.
-  function detectTargetCourse(q) {
-    const ql = (q || "").toLowerCase();
-    return (ctx.courses || []).find((c) => {
+  // Decide which of the student's active classes the AI should research online.
+  // Returns an array of courses to query — explicitly mentioned courses take
+  // priority; otherwise a cross-course keyword ("prof", "best", "tips", "review"…)
+  // triggers research across ALL active courses. The most recent prior user
+  // message is folded in so follow-ups like "tell me specifically" still route
+  // to research mode instead of falling back to the generic data path.
+  function researchScope(q) {
+    const lastUser = [...messages].reverse().find((m) => m.role === "user");
+    const recent = `${(lastUser?.text || "")} ${q}`.toLowerCase();
+    const courses = ctx.courses || [];
+    const mentioned = courses.filter((c) => {
       const code = (c.code || "").toLowerCase();
       const codeNoSpace = code.replace(/\s+/g, "");
       const title = (c.title || "").toLowerCase();
-      return (code && (ql.includes(code) || ql.includes(codeNoSpace))) ||
-             (title && title.length > 4 && ql.includes(title));
+      return (code && (recent.includes(code) || recent.includes(codeNoSpace))) ||
+             (title && title.length > 4 && recent.includes(title));
     });
+    if (mentioned.length) return mentioned;
+    const crossKeywords = [
+      "prof", "rate my prof", "ratemyprofessor", "instructor", "lecturer",
+      "best for", "recommended", "hardest", "easiest", "tips", "advice",
+      "what students say", "experience", "experiences", "review", "reviews",
+      "opinion", "opinions", "exam", "exams", "hard", "difficult", "easy",
+      "pass", "fail", "grade", "grading", "study tips", "specifically", "tell me",
+      "reddit", "forum", "forums",
+    ];
+    if (crossKeywords.some((k) => recent.includes(k))) {
+      return courses.slice(0, 8);
+    }
+    return null;
   }
 
   async function send(text) {
@@ -219,14 +238,15 @@ export default function EduAssistant({ scope }) {
     setInput("");
     setLoading(true);
     try {
-      const target = detectTargetCourse(q);
-      setLoadTarget(target ? { code: target.code, title: target.title } : null);
+      const scope = researchScope(q);
+      setLoadTarget(scope && scope.length ? { code: scope[0].code, title: scope[0].title, multi: scope.length > 1, courseCount: scope.length } : null);
       const fullCtx = buildContext(ctx);
-      // For online research we only need the TARGET course's record — shipping
+      // For online research we only need the in-scope course records — shipping
       // every course + materials list bloats the prompt for no research value
       // and slows the model down.
-      const ctxData = target
-        ? { ...fullCtx, courses: (fullCtx.courses || []).filter((c) => c.code === target.code) }
+      const scopedCodes = new Set((scope || []).map((c) => c.code));
+      const ctxData = scope
+        ? { ...fullCtx, courses: (fullCtx.courses || []).filter((c) => scopedCodes.has(c.code)) }
         : fullCtx;
       const priorQA = history.slice(0, -1).map((m) =>
         m.role === "user"
@@ -235,15 +255,15 @@ export default function EduAssistant({ scope }) {
       ).join("\n");
       const uniName = ctx.settings?.university_name || "the student's university";
 
-      const webBlock = target
-        ? `\nONLINE RESEARCH (use the live web access below):\nThis question is about the user's active course "${target.code} — ${target.title}" at ${uniName}. Search Google, Reddit (e.g. r/${uniName.replace(/\s+/g,'')}, course-specific threads), RateMyProfessors, and university forums/blogs for what real students say about THIS specific class — common pain points, exam format, what students wish they'd known, study strategies that actually work, and any reputation the course has. Fold what you find into your answer alongside the student's own data; when citing community sentiment, attribute the flavour (e.g. "per Reddit threads on ${target.code}", "common forum advice"). Do not invent quotes or fabricate URLs.`
-        : `\nTailor your answer to THIS student's active classes and semester data above — reference their actual course codes, due dates, and progress rather than giving generic advice.`;
+      const webBlock = scope
+        ? `\nONLINE RESEARCH (you have live web access — use it): The student attends ${uniName} and is asking about these ACTIVE courses: ${scope.map((c) => `${c.code} — ${c.title}`).join("; ")}. For EACH of these courses, search Google, Reddit (university and course-specific subreddits/threads), RateMyProfessors, and university forums/blogs for what real students say about THIS specific class. When the question is about professors/instructors: NAME the actual professors who teach each course at ${uniName}, cite student ratings and explicit praise/warnings per professor (e.g. "Prof X — high cumulative rating on RateMyProfessors, praised for clear lectures"), and recommend a preferred instructor per course when the data is available. NEVER reply with generic advice like "check RateMyProfessors" or "ask upper-year students" — that is a non-answer. If you genuinely cannot find a specific professor's name for a course, say so explicitly for THAT course and give the next-best concrete detail you did find. Attribute community sentiment by flavour ("per RateMyProfessors", "per Reddit r/...", "common forum advice"). Do not invent quotes or fabricate URLs. Always answer directly for THE SPECIFIC question asked — never pivot to a semester overview or generic study plan.`
+        : `\nTailor your answer to THIS student's active classes and semester data above — reference their actual course codes, due dates, and progress rather than giving generic advice. Answer THE SPECIFIC question asked; do not pivot to a semester overview.`;
 
-      const prompt = `You are EduSync AI, an academic assistant for a university student. Analyze the student's current semester data and answer their question. Be specific, actionable, and concise. Always format bullets into clean point form with helpful emojis (e.g. 🎓, 📚, ⏱️, 🎯, 💡, 📅). Avoid long walls of text. Return 1-4 sections as JSON.
+      const prompt = `You are EduSync AI, an academic assistant for a university student. Analyze the student's current semester data AND live web research to directly answer the question asked. Be specific, concrete, and cite real findings — never substitute generic platitudes. Always format bullets into clean point form with helpful emojis (e.g. 🎓, 📚, ⏱️, 🎯, 💡, 📅). Avoid long walls of text. Return 1-4 sections as JSON.
 
 CURRENT SEMESTER DATA (JSON):
 ${JSON.stringify(ctxData, null, 2)}
-${priorQA ? `\nPREVIOUS CONVERSATION:\n${priorQA}\n` : ""}
+${priorQA ? `\nPREVIOUS CONVERSATION (the user may be following up — answer in the SAME topic, do not change the subject):\n${priorQA}\n` : ""}
 ${webBlock}
 QUESTION: ${q}
 
@@ -252,21 +272,22 @@ Return JSON: { "sections": [ { "title": string, "icon": one of graduation|clock|
       // courses mentioned in the question — so it can answer from the outline
       // (grading weights, key dates, policies, what to study).
       const qLower = q.toLowerCase();
-      const mentionedOutlines = (ctx.courses || [])
-        .filter((c) => c.outline_file_url && (c.code || "").toLowerCase() && qLower.includes((c.code || "").toLowerCase()))
+      const mentionedOutlines = (scope || [])
+        .filter((c) => c.outline_file_url)
         .map((c) => ({ url: c.outline_file_url, code: c.code, title: c.title }));
       const outlineHint = mentionedOutlines.length
         ? `\n\nThe user attached the official course outline for ${mentionedOutlines.map((m) => `${m.code} ${m.title}`).join(", ")}. Read those files and use them — grading breakdown, key dates, policies, and what the student needs to study.`
         : "";
 
-      // When the question references a specific active course, run a web-search
-      // model so the AI pulls real Reddit/forum/Google sentiment about that class.
+      // When the question references active courses OR a cross-course research
+      // topic, run a web-search model so the AI pulls real Reddit/forum/Google
+      // sentiment about those specific classes (not generic advice).
       const invokeArgs = {
         prompt: prompt + outlineHint,
         response_json_schema: SCHEMA,
         file_urls: mentionedOutlines.map((m) => m.url),
       };
-      if (target) {
+      if (scope) {
         invokeArgs.model = "gemini_3_flash";
         invokeArgs.add_context_from_internet = true;
       }
