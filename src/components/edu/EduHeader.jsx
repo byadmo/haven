@@ -4,7 +4,7 @@ import { ArrowLeft, Ellipsis, GraduationCap, Plus } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useEduSync } from "@/lib/eduSyncContext";
-import { nextSemesterAfter } from "@/components/edu/SemesterDetectModal";
+import { nextSemesterAfter, upcomingTerms } from "@/components/edu/SemesterDetectModal";
 import { useToast } from "@/components/ui/use-toast";
 import { resolveNav, EDU_PAGES, EDU_DEFAULT_NAV, EDU_LOCKED } from "@/lib/navConfig";
 
@@ -25,6 +25,13 @@ export default function EduHeader() {
   const icons = primary.slice(0, MAX_ICONS);
   const drawerItems = [...primary.slice(MAX_ICONS), ...more];
   const moreActive = drawerItems.some(s => isItemActive(s.to, s.end, location.pathname));
+
+  async function createFirstSemester() {
+    const [upcoming] = upcomingTerms();
+    if (!upcoming) return;
+    await createSemester({ ...upcoming, is_active: true });
+    toast({ title: `Created ${upcoming.term_label}` });
+  }
 
   async function addNextSemester() {
     if (!semesters.length) return;
@@ -77,8 +84,16 @@ export default function EduHeader() {
           ))}
         </nav>
 
-        {/* Semester selector (desktop) */}
-        {semesters.length > 0 && (
+        {/* Semester selector */}
+        {semesters.length === 0 ? (
+          <button
+            type="button"
+            onClick={createFirstSemester}
+            className="flex h-8 items-center gap-1.5 rounded-md border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 text-xs px-3 ml-auto hover:bg-emerald-500/20 transition"
+          >
+            <Plus className="h-3.5 w-3.5" /> Create semester
+          </button>
+        ) : (
           <Select value={activeSemester?.id || ""} onValueChange={(v) => { if (v === ADD_SEMESTER) { addNextSemester(); return; } setActiveSemester(v); }}>
             <SelectTrigger className="flex h-8 w-[140px] sm:w-[160px] bg-black border-white/10 text-xs ml-auto">
               <SelectValue placeholder="Term" />
