@@ -23,7 +23,7 @@ export default function CourseDifficulty({ course }) {
   const { toast } = useToast();
   // Briefing already persisted on the course entity (difficulty_details), so
   // it stays expanded on revisit / new session — "hard-coded" into the course.
-  const [open, setOpen] = React.useState(!!cached);
+  const [open, setOpen] = React.useState(!!course.difficulty_details);
   const [loading, setLoading] = React.useState(false);
 
   const rank = course.difficulty_ranking || "Moderate";
