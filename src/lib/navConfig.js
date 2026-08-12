@@ -18,7 +18,7 @@ export const FINANCE_PAGES = [
 ];
 
 export const FINANCE_DEFAULT_NAV = [
-  "overview", "accounts", "transactions", "allocation", "bills", "debts", "goals", "credit-health",
+  "overview", "accounts", "transactions", "allocation", "bills", "debts", "goals", "credit-health", "settings",
 ];
 export const FINANCE_LOCKED = ["overview"];
 
@@ -33,7 +33,7 @@ export const EDU_PAGES = [
   { id: "settings", to: "/education/settings", label: "Settings", icon: SettingsIcon },
 ];
 
-export const EDU_DEFAULT_NAV = ["home", "vault", "analytics", "flashcards", "focus", "timer"];
+export const EDU_DEFAULT_NAV = ["home", "vault", "analytics", "flashcards", "focus", "timer", "settings"];
 export const EDU_LOCKED = ["home"];
 
 // Turn a stored config array + a page catalog into { primary, more } nav lists.
