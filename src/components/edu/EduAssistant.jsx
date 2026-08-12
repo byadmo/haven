@@ -158,12 +158,29 @@ function AssistantCard({ msg }) {
   );
 }
 
+const RESEARCH_STEPS = [
+  "Matching your question to your active courses…",
+  "Searching the web for student experiences…",
+  "Scouring Reddit & course forums…",
+  "Cross-referencing RateMyProfessors reviews…",
+  "Cross-referencing your upcoming deadlines…",
+  "Synthesizing tailored advice…",
+];
+const DATA_STEPS = [
+  "Analyzing your semester data…",
+  "Cross-referencing deadlines & grades…",
+  "Synthesizing tailored advice…",
+];
+
 export default function EduAssistant({ scope }) {
   const ctx = useEduSync();
   const [collapsed, setCollapsed] = useState(false);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadStep, setLoadStep] = useState(0);
+  // Track which course (if any) we're researching online so the loader reflects it.
+  const [loadTarget, setLoadTarget] = useState(null);
   const scrollRef = useRef(null);
 
   const suggestions = React.useMemo(() => suggestFor(messages, ctx, scope), [messages, ctx.courses, ctx.focuses, ctx.deliverables, ctx.weeklyMinutes, ctx.streak, ctx.cumulativeGpa, scope]);
@@ -171,6 +188,14 @@ export default function EduAssistant({ scope }) {
   React.useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages, loading]);
+
+  // Rotate the status label ~every 1.3s while loading so it never feels stuck.
+  React.useEffect(() => {
+    setLoadStep(0);
+    if (!loading) return;
+    const t = setInterval(() => setLoadStep((i) => i + 1), 1300);
+    return () => clearInterval(t);
+  }, [loading]);
 
   // Match the user's question to one of their active classes (by code or title)
   // so the AI can do online research scoped to that specific course.
@@ -194,8 +219,15 @@ export default function EduAssistant({ scope }) {
     setInput("");
     setLoading(true);
     try {
-      const ctxData = buildContext(ctx);
       const target = detectTargetCourse(q);
+      setLoadTarget(target ? { code: target.code, title: target.title } : null);
+      const fullCtx = buildContext(ctx);
+      // For online research we only need the TARGET course's record — shipping
+      // every course + materials list bloats the prompt for no research value
+      // and slows the model down.
+      const ctxData = target
+        ? { ...fullCtx, courses: (fullCtx.courses || []).filter((c) => c.code === target.code) }
+        : fullCtx;
       const priorQA = history.slice(0, -1).map((m) =>
         m.role === "user"
           ? `Q: ${m.text}`
@@ -247,6 +279,7 @@ Return JSON: { "sections": [ { "title": string, "icon": one of graduation|clock|
       setMessages([...history, { role: "assistant", text: `Sorry, I couldn't generate a response right now. (${e.message || "error"})` }]);
     } finally {
       setLoading(false);
+      setLoadTarget(null);
     }
   }
 
@@ -285,7 +318,10 @@ Return JSON: { "sections": [ { "title": string, "icon": one of graduation|clock|
         {messages.map((m, i) => <AssistantCard key={i} msg={m} />)}
         {loading && (
           <div className="flex items-center gap-2 text-white/50 text-[11px]">
-            <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-300" /> Analyzing your semester data…
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-300 shrink-0" />
+            <span key={loadStep} className="animate-enter-fade">
+              {(loadTarget ? RESEARCH_STEPS : DATA_STEPS)[Math.min(loadStep, (loadTarget ? RESEARCH_STEPS : DATA_STEPS).length - 1)]}
+            </span>
           </div>
         )}
       </div>
