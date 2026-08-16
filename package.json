@@ -17,7 +17,7 @@
     "test:ui": "vitest --ui"
   },
   "dependencies": {
-    "@base44/sdk": "^0.8.41",
+    "@base44/sdk": "^0.8.42",
     "@base44/vite-plugin": "^1.0.30",
     "@google/genai": "^1.52.0",
     "@hello-pangea/dnd": "^17.0.0",
