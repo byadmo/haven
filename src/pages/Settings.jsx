@@ -20,6 +20,27 @@ import { useAuth } from "@/lib/AuthContext";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import { useFinanceData } from "@/lib/FinanceDataContext";
+import { wipeAllRecords, wipeAllEntities } from "@/lib/wipeEntity";
+
+// Every backend entity belonging to this user's Haven Finance data. Used by
+// the "Delete Account" flow so the whole Finance Haven is genuinely erased
+// from the backend — not just the four entities the old deleteMany({}) calls
+// happened to mention.
+const FINANCE_ENTITIES = [
+  "Transaction",
+  "RecurringBill",
+  "Debt",
+  "DebtPayment",
+  "Account",
+  "AccountAlert",
+  "Stock",
+  "ContributionRoom",
+  "NetWorthSnapshot",
+  "ActiveGoal",
+  "AllocationVault",
+  "Category",
+  "UserFinancialProfile",
+];
 
 export default function Settings() {
   const { categories, loading, add, remove, restoreDefaults } = useCategories();
@@ -40,18 +61,14 @@ export default function Settings() {
   async function handleDeleteAccount() {
     setDeleting(true);
     try {
-      await Promise.all([
-        base44.entities.Transaction.deleteMany({}).catch(() => {}),
-        base44.entities.Debt.deleteMany({}).catch(() => {}),
-        base44.entities.Account.deleteMany({}).catch(() => {}),
-        base44.entities.Stock.deleteMany({}).catch(() => {}),
-        base44.entities.Category.deleteMany({}).catch(() => {}),
-        base44.entities.DebtPayment.deleteMany({}).catch(() => {}),
-      ]);
+      // Wipe the entire Finance Haven — every entity above — from the backend.
+      // list+loop-delete guarantees a true delete even though the SDK's
+      // deleteMany guards against loose/empty filters.
+      await wipeAllEntities(FINANCE_ENTITIES);
       try {
         await base44.entities.User.delete(user.id);
-      } catch (e) {
-        // Platform may block self-deletion; data is cleaned regardless
+      } catch {
+        // Platform may block self-deletion; Finance data is already gone.
       }
     } finally {
       setDeleting(false);
@@ -62,11 +79,14 @@ export default function Settings() {
   async function handleResetData() {
     setResetting(true);
     try {
-      await base44.entities.Transaction.deleteMany({});
-      await base44.entities.DebtPayment.deleteMany({});
-      await base44.entities.Account.updateMany({}, { $set: { balance: 0 } });
-      await base44.entities.Debt.updateMany({}, { $set: { current_balance: 0 } });
-      toast({ title: "Data reset", description: "All transactions deleted and account/debt balances set to $0." });
+      await wipeAllRecords("Transaction");
+      await wipeAllRecords("DebtPayment");
+      // Zero balances in place via list+update so the field maps to $0 even
+      // when the SDK's bulk updateMany({}) wouldn't reliably hit loose/empty
+      // filters.
+      await zeroBalances("Account", "balance");
+      await zeroBalances("Debt", "current_balance");
+      toast({ title: "Data reset", description: "All transactions and payments deleted, and account & debt balances set to $0." });
       setShowReset(false);
       setResetText("");
       // Re-sync the single source of truth so every page reflects the reset.
@@ -75,6 +95,21 @@ export default function Settings() {
       toast({ title: "Reset failed", description: "Something went wrong — please try again." });
     } finally {
       setResetting(false);
+    }
+  }
+
+  // Set a balance-style field to 0 on every record the current user owns for
+  // one entity. List (RLS-scoped) then update each id — same robust pattern as
+  // wipeAllRecords but for an in-place zero rather than a delete.
+  async function zeroBalances(entityName, field) {
+    const entity = base44.entities[entityName];
+    if (!entity) return;
+    for (let i = 0; i < 50; i++) {
+      const records = await entity.list("-created_date", 1000);
+      if (!records?.length) break;
+      const toZero = records.filter((r) => r[field] !== 0);
+      if (!toZero.length) break;
+      await Promise.all(toZero.map((r) => entity.update(r.id, { [field]: 0 }).catch(() => {})));
     }
   }
 

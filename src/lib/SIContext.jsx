@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useCallback, useEffect } fr
 import { base44 } from "@/api/base44Client";
 import { applyTheme, DEFAULT_THEME, setStoredTheme, getStoredTheme } from "@/lib/themes";
 import { getUiScale, setUiScale } from "@/lib/uiScale";
+import { wipeAllRecords } from "@/lib/wipeEntity";
 
 const SIContext = createContext(null);
 
@@ -185,19 +186,16 @@ export function SIProvider({ children }) {
   }, [settings]);
 
   const resetGrowthData = useCallback(async () => {
-    // Delete all habits, entries, reflections
+    // Delete all habits, entries, reflections from the backend using the
+    // shared list+loop-delete helper (deleteMany({}) is guarded as a no-op by
+    // the SDK, so we list the user's rows and delete by id until empty).
     try {
       await Promise.all([
-        base44.entities.Focus.deleteMany({}).catch(() => {}),
-        base44.entities.StudySession.deleteMany({}).catch(() => {}),
+        wipeAllRecords("Focus").catch(() => {}),
+        wipeAllRecords("StudySession").catch(() => {}),
+        // Reflections are stored as NetWorthSnapshot rows tagged type=reflection.
+        wipeAllRecords("NetWorthSnapshot", { match: (s) => s.type === "reflection" }).catch(() => {}),
       ]);
-      // Delete reflections (stored as NetWorthSnapshot with type=reflection)
-      const allSnaps = await base44.entities.NetWorthSnapshot.list("-created_date", 500).catch(() => []);
-      await Promise.all(
-        allSnaps
-          .filter(s => s.type === "reflection")
-          .map(s => base44.entities.NetWorthSnapshot.delete(s.id).catch(() => {}))
-      );
     } catch {}
 
     // Reset local state
